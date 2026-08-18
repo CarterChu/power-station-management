@@ -1,0 +1,773 @@
+<template>
+  <AnfeConfigProvider user-type="Anneng">
+    <div class="app-layout">
+
+      <!-- ── 顶部导航栏（1:1 参考） ── -->
+      <header class="app-topbar">
+        <div class="topbar-brand">
+          <img class="brand-logo" src="/icons/app-icon.png" alt="正泰安能" />
+          <span class="brand-name">正泰安能数字能源云平台</span>
+        </div>
+        <div class="topbar-tools">
+          <button class="tool-btn">
+            <img src="/icons/icon1.png" class="tool-icon-img" alt="" />
+            电站搜索
+          </button>
+          <button class="tool-btn">
+            <img src="/icons/icon2.png" class="tool-icon-img" alt="" />
+            客服
+          </button>
+          <button class="tool-btn">
+            <img src="/icons/icon3.png" class="tool-icon-img" alt="" />
+            帮助文档
+          </button>
+          <div class="tool-icons-group">
+            <button class="tool-icon-btn" title="消息">
+              <img src="/icons/icon4.png" class="tool-icon-img" alt="" />
+            </button>
+            <button class="tool-icon-btn" title="视图">
+              <img src="/icons/icon5.png" class="tool-icon-img" alt="" />
+            </button>
+            <button class="tool-icon-btn" title="通知">
+              <img src="/icons/icon6.png" class="tool-icon-img" alt="" />
+            </button>
+          </div>
+          <div class="user-info">
+            <img class="user-avatar" src="/icons/avatar.png" alt="用户头像" />
+            <span>章志民</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- ── 主体：侧边栏 + 内容区（1:1 参考） ── -->
+      <div class="app-body">
+
+        <!-- 左侧两级导航菜单 -->
+        <div class="sidebar-wrap" :class="{ collapsed: sidebarCollapsed }">
+          <aside class="app-sidebar">
+            <div class="sidebar-nav-area">
+              <!-- 搜索框 -->
+              <div v-show="!sidebarCollapsed" class="sidebar-search-wrap">
+                <div class="sidebar-search-box">
+                  <SearchOutlined class="sidebar-search-icon" />
+                  <input
+                    v-model="sidebarSearch"
+                    class="sidebar-search-input"
+                    placeholder=""
+                  />
+                  <span
+                    v-show="sidebarSearch"
+                    class="sidebar-search-clear"
+                    @click="sidebarSearch = ''"
+                  >×</span>
+                </div>
+              </div>
+
+              <!-- 搜索结果 -->
+              <div v-show="!sidebarCollapsed && sidebarSearch" class="sidebar-search-results">
+                <div v-if="searchResults.length === 0" class="sidebar-search-empty">无匹配结果</div>
+                <div
+                  v-for="item in searchResults"
+                  :key="item.key"
+                  class="sidebar-search-item"
+                  :class="{ active: activeMenuKey === item.key }"
+                  @click="handleMenuClick({ key: item.key }); sidebarSearch = ''"
+                >
+                  <span class="sidebar-search-item-label">{{ item.label }}</span>
+                  <span class="sidebar-search-item-domain">{{ item.domain }}</span>
+                </div>
+              </div>
+
+              <a-menu
+                v-show="!sidebarCollapsed && !sidebarSearch"
+                mode="inline"
+                :selected-keys="[activeMenuKey]"
+                v-model:open-keys="menuOpenKeys"
+                style="border-inline-end: none"
+                @click="handleMenuClick"
+              >
+                <a-sub-menu v-for="group in menuGroups" :key="group.domain" :title="group.domain">
+                  <template #icon><component :is="group.icon" /></template>
+                  <a-menu-item v-for="item in group.items" :key="item.key">
+                    {{ item.label }}
+                  </a-menu-item>
+                </a-sub-menu>
+              </a-menu>
+
+              <div v-show="sidebarCollapsed" class="sidebar-icon-list">
+                <a-tooltip
+                  v-for="group in menuGroups"
+                  :key="group.domain"
+                  :title="group.domain"
+                  placement="right"
+                >
+                  <div
+                    class="sidebar-icon-item"
+                    :class="{ active: activeMenuGroupDomain === group.domain }"
+                    @click="sidebarCollapsed = false; menuOpenKeys = [group.domain]"
+                  >
+                    <component :is="group.icon" />
+                  </div>
+                </a-tooltip>
+              </div>
+            </div>
+
+            <button class="sidebar-collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+              <component :is="sidebarCollapsed ? MenuUnfoldOutlined : MenuFoldOutlined" />
+            </button>
+          </aside>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="app-main">
+          <!-- Chrome 风格标签栏 -->
+          <div class="app-tabbar">
+            <div class="tabbar-inner">
+              <button
+                v-for="tab in tabs"
+                :key="tab.key"
+                class="chrome-tab"
+                :class="{ active: activeTabKey === tab.key }"
+                @click="switchTab(tab.key)"
+              >
+                <span class="tab-label">{{ tab.label }}</span>
+                <span v-if="tab.closable" class="tab-close" @click.stop="closeTab(tab.key)">×</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 页面内容 -->
+          <div class="app-content">
+            <LncProjectList v-if="activeTabKey === 'list'" @navigate="handleNavigate" />
+            <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
+            <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
+            <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </AnfeConfigProvider>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { AnfeConfigProvider } from '@anfe/vue-pro-components'
+import {
+  AppstoreOutlined, SoundOutlined, HomeOutlined, ToolOutlined,
+  ApartmentOutlined, ClusterOutlined, AccountBookOutlined, EllipsisOutlined,
+  MenuFoldOutlined, MenuUnfoldOutlined, SearchOutlined,
+} from '@ant-design/icons-vue'
+import LncProjectList from './pages/工商业项目管理列表页.vue'
+import FilingStandard from './pages/建档申请页-标准政策.vue'
+import FilingNonStandard from './pages/建档申请页-非标政策.vue'
+import FilingDetail from './pages/建档详情页.vue'
+
+// ── Tab 路由状态 ──
+interface Tab { key: string; label: string; closable?: boolean }
+
+const tabs = ref<Tab[]>([
+  { key: 'list', label: '电站列表', closable: false },
+])
+const activeTabKey = ref('list')
+const editingId       = ref<string | null>(null)
+const detailStatus    = ref<string>('filing')
+const detailPolicyType = ref<string>('standard')
+const detailRow = ref<Record<string, any>>({})
+const filingInitData  = ref<any>(null)
+const filingInitStatus = ref<string | null>(null)
+
+// page 别名，供兼容
+const page = computed(() => activeTabKey.value)
+
+function switchTab(key: string) {
+  activeTabKey.value = key
+}
+
+function openTab(key: string, label: string, closable = true) {
+  if (!tabs.value.some(t => t.key === key)) {
+    tabs.value.push({ key, label, closable })
+  }
+  activeTabKey.value = key
+}
+
+function closeTab(key: string) {
+  const idx = tabs.value.findIndex(t => t.key === key)
+  if (idx === -1) return
+  tabs.value.splice(idx, 1)
+  if (activeTabKey.value === key) {
+    const fallback = tabs.value[idx] ?? tabs.value[idx - 1]
+    activeTabKey.value = fallback?.key ?? 'list'
+  }
+}
+
+// ── 菜单数据（1:1 参考） ──
+const menuGroups = [
+  {
+    domain: '基础',
+    icon: AppstoreOutlined,
+    items: [
+      { key: 'nav-公告通知', label: '公告通知' },
+      { key: 'nav-我的工作台', label: '我的工作台' },
+      { key: 'nav-系统管理', label: '系统管理' },
+      { key: 'nav-数据权限管理', label: '数据权限管理' },
+      { key: 'nav-数据分析中心', label: '数据分析中心' },
+      { key: 'nav-工具模块', label: '工具模块' },
+    ],
+  },
+  {
+    domain: '营销',
+    icon: SoundOutlined,
+    items: [
+      { key: 'nav-品牌营销', label: '品牌营销' },
+      { key: 'nav-客户中心', label: '客户中心' },
+    ],
+  },
+  {
+    domain: '电站管理',
+    icon: HomeOutlined,
+    items: [
+      { key: 'nav-电站工作台', label: '电站工作台' },
+      { key: 'nav-电站列表', label: '电站列表' },
+      { key: 'nav-电站详情', label: '电站详情' },
+    ],
+  },
+  {
+    domain: '工商业电站管理',
+    icon: HomeOutlined,
+    items: [
+      { key: 'biz-dashboard', label: '电站工作台' },
+      { key: 'biz-list',      label: '电站列表' },
+    ],
+  },
+  {
+    domain: '运营管理',
+    icon: ToolOutlined,
+    items: [
+      { key: 'nav-运维工单', label: '运维工单' },
+      { key: 'nav-电站监控', label: '电站监控' },
+    ],
+  },
+  {
+    domain: '运营',
+    icon: ApartmentOutlined,
+    items: [
+      { key: 'nav-电站建档', label: '电站建档' },
+      { key: 'nav-完工登记序列号', label: '完工登记（序列号录入）' },
+      { key: 'nav-完工登记工程资料', label: '完工登记（工程资料）' },
+      { key: 'nav-电站交付', label: '电站交付' },
+      { key: 'nav-变更并网前', label: '电站变更(并网前)' },
+      { key: 'nav-变更并网后', label: '电站变更(并网后)' },
+      { key: 'nav-工程资料配置', label: '工程资料配置' },
+      { key: 'nav-财务管理', label: '财务管理' },
+      { key: 'nav-整改中心', label: '整改中心' },
+      { key: 'nav-审核中心', label: '审核中心' },
+      { key: 'nav-电站项目管理', label: '电站项目管理' },
+      { key: 'nav-施工安全管理', label: '施工安全管理' },
+      { key: 'nav-施工资源管理', label: '施工资源管理' },
+      { key: 'nav-电站项目管控', label: '电站项目管控' },
+      { key: 'nav-电站项目管理设置', label: '电站项目管理设置' },
+      { key: 'nav-电站收益与EPC价格', label: '电站收益与EPC价格' },
+    ],
+  },
+  {
+    domain: '供应链',
+    icon: ClusterOutlined,
+    items: [
+      { key: 'nav-齐套管理', label: '齐套管理' },
+      { key: 'nav-备货管理', label: '备货管理' },
+      { key: 'nav-计划管理', label: '计划管理' },
+      { key: 'nav-安能物料采购管理', label: '安能物料采购管理' },
+      { key: 'nav-供应商结算', label: '供应商结算' },
+      { key: 'nav-运维返修管理', label: '运维返修管理' },
+      { key: 'nav-供应商仓库管理', label: '供应商仓库管理' },
+      { key: 'nav-采购数据分析中心', label: '采购数据分析中心' },
+      { key: 'nav-调度管理', label: '调度管理' },
+      { key: 'nav-安能仓库管理', label: '安能仓库管理' },
+      { key: 'nav-代理商仓库管理', label: '代理商仓库管理' },
+      { key: 'nav-价格管理', label: '价格管理' },
+      { key: 'nav-物料管理', label: '物料管理' },
+    ],
+  },
+  {
+    domain: '金融财务',
+    icon: AccountBookOutlined,
+    items: [
+      { key: 'nav-电站销售回款', label: '电站销售回款' },
+      { key: 'nav-供应链金融管理', label: '供应链金融管理' },
+      { key: 'nav-综合服务办理', label: '综合服务办理' },
+    ],
+  },
+  {
+    domain: '其他',
+    icon: EllipsisOutlined,
+    items: [
+      { key: 'nav-智慧运维商城', label: '智慧运维商城' },
+    ],
+  },
+]
+
+function getMenuGroupDomain(key: string): string {
+  return menuGroups.find((g) => g.items.some((i) => i.key === key))?.domain ?? ''
+}
+
+const activeMenuKey = computed(() =>
+  ['list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value) ? 'biz-list' : ''
+)
+
+const activeMenuGroupDomain = computed(() =>
+  menuGroups.find(g => g.items.some(i => i.key === activeMenuKey.value))?.domain ?? null
+)
+
+const menuOpenKeys = ref<string[]>(['工商业电站管理'])
+const sidebarCollapsed = ref(false)
+const sidebarSearch = ref('')
+
+const searchResults = computed(() => {
+  const q = sidebarSearch.value.trim().toLowerCase()
+  if (!q) return []
+  const results: Array<{ key: string; label: string; domain: string }> = []
+  for (const group of menuGroups) {
+    for (const item of group.items) {
+      if (item.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
+        results.push({ key: item.key, label: item.label, domain: group.domain })
+      }
+    }
+  }
+  return results
+})
+
+function handleMenuClick({ key }: { key: string }) {
+  if (key === 'biz-list') openTab('list', '电站列表', false)
+  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
+  const domain = getMenuGroupDomain(key)
+  if (domain && !menuOpenKeys.value.includes(domain)) {
+    menuOpenKeys.value = [domain]
+  }
+}
+
+// ── 导航 ──
+const handleNavigate = (target: string, payload?: any) => {
+  editingId.value = payload?.editId ?? null
+  if (target === 'detail') {
+    if (payload?.filingStatus) detailStatus.value = payload.filingStatus
+    if (payload?.policyType) detailPolicyType.value = payload.policyType
+    detailRow.value = payload ?? {}
+    openTab('detail', '建档详情')
+  } else if (target === 'filing-standard') {
+    if (payload?.editId) {
+      filingInitData.value = null
+      filingInitStatus.value = payload?.initStatus ?? null
+      openTab('filing-standard', '编辑建档')
+    } else {
+      filingInitData.value = payload ?? null
+      filingInitStatus.value = null
+      openTab('filing-standard', payload?.tabLabel ?? '新增建档')
+    }
+  } else if (target === 'filing-non-standard') {
+    if (payload?.editId) {
+      filingInitData.value = null
+      filingInitStatus.value = payload?.initStatus ?? null
+      openTab('filing-non-standard', '编辑建档')
+    } else {
+      filingInitData.value = payload ?? null
+      filingInitStatus.value = null
+      openTab('filing-non-standard', payload?.tabLabel ?? '非标政策建档')
+    }
+  }
+}
+
+const handleEditFromDetail = (id: string) => {
+  editingId.value = id
+  const tab = detailPolicyType.value === 'nonstandard' ? 'filing-non-standard' : 'filing-standard'
+  openTab(tab, '编辑建档')
+}
+
+const handleBackFromFiling = () => {
+  editingId.value = null
+  closeTab('filing-standard')
+}
+
+const handleBackFromNonStandardFiling = () => {
+  editingId.value = null
+  closeTab('filing-non-standard')
+}
+
+const handleBackFromDetail = () => {
+  closeTab('detail')
+}
+</script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── 顶栏 ── */
+.app-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 20px;
+  background: #1677ff;
+  user-select: none;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.tool-btn:hover { background: rgba(255,255,255,0.15); }
+
+.tool-icon-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.tool-icons-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 6px;
+}
+
+.tool-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.9);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.tool-icon-btn:hover { background: rgba(255,255,255,0.15); }
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.user-info:hover { background: rgba(255,255,255,0.15); }
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* ── 主体 ── */
+.app-body {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 52px;
+}
+
+.sidebar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 220px;
+  transition: width 0.2s ease;
+}
+
+.sidebar-wrap.collapsed {
+  width: 44px;
+}
+
+.app-sidebar {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-nav-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-search-wrap {
+  padding: 10px 10px 6px;
+}
+.sidebar-search-box {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 0 8px;
+  gap: 6px;
+  transition: background 0.15s;
+}
+.sidebar-search-box:focus-within {
+  background: #ebebeb;
+}
+.sidebar-search-icon {
+  font-size: 13px;
+  color: #bfbfbf;
+  flex-shrink: 0;
+}
+.sidebar-search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #262626;
+}
+.sidebar-search-input::placeholder {
+  color: #bfbfbf;
+}
+.sidebar-search-clear {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #bfbfbf;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 50%;
+  position: relative;
+  top: -1px;
+}
+.sidebar-search-clear:hover {
+  background: rgba(0,0,0,0.08);
+  color: #8c8c8c;
+}
+.sidebar-search-results {
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+  padding: 4px 0;
+}
+.sidebar-search-empty {
+  padding: 20px 16px;
+  font-size: 13px;
+  color: #bfbfbf;
+  text-align: center;
+}
+.sidebar-search-item {
+  display: flex;
+  flex-direction: column;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sidebar-search-item:hover { background: #f5f5f5; }
+.sidebar-search-item.active { background: #e6f4ff; }
+.sidebar-search-item-label { font-size: 13px; color: #262626; line-height: 1.4; }
+.sidebar-search-item-domain { font-size: 11px; color: #8c8c8c; margin-top: 1px; }
+
+.sidebar-icon-list {
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-icon-item {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: rgba(0,0,0,0.55);
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-icon-item:hover {
+  background: rgba(0,0,0,0.04);
+  color: #1677ff;
+}
+.sidebar-icon-item.active {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.sidebar-collapse-btn {
+  flex-shrink: 0;
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #f0f0f0;
+  color: rgba(0,0,0,0.35);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-collapse-btn:hover {
+  background: rgba(0,0,0,0.03);
+  color: rgba(0,0,0,0.65);
+}
+
+/* ── 内容区 ── */
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-tabbar {
+  height: 30px;
+  flex-shrink: 0;
+  background: #fff;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.tabbar-inner {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.chrome-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  color: rgba(0,0,0,0.65);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  min-width: 80px;
+  max-width: 220px;
+}
+.chrome-tab:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: #e0e0e0;
+}
+.chrome-tab:hover {
+  background: #e6e6e6;
+  color: rgba(0,0,0,0.85);
+}
+.chrome-tab.active {
+  background: transparent;
+  color: #1677ff;
+  font-weight: 500;
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  position: relative;
+  top: -2px;
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.6;
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chrome-tab:hover .tab-close,
+.chrome-tab.active .tab-close {
+  opacity: 0.8;
+}
+.tab-close:hover {
+  background: rgba(0,0,0,0.1);
+  opacity: 1 !important;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #f5f5f5;
+}
+</style>
