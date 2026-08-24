@@ -37,7 +37,7 @@
       </a-space>
     </div>
 
-    <div class="detail-body">
+    <div class="detail-body" ref="detailBodyRef">
       <!-- 左侧：只读 TAB 内容 -->
       <div class="detail-main">
 
@@ -146,10 +146,12 @@
 
 
         <a-card class="detail-card" :body-style="{ padding: 0 }">
+          <div ref="tabsWrapperRef" :class="{ 'tabs-stuck': tabsStuck }">
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
             :tab-bar-style="{ padding: '8px 24px 0', marginBottom: 0 }"
+            @tab-click="scrollToTabNav"
           >
             <!-- ──────── 勘察 TAB ──────── -->
             <a-tab-pane key="survey" tab="勘察">
@@ -614,6 +616,7 @@
             </a-tab-pane>
 
           </a-tabs>
+          </div>
         </a-card>
       </div>
 
@@ -748,7 +751,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, nextTick } from 'vue'
+import { ref, computed, watch, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import {
@@ -1018,6 +1021,39 @@ const canVoid = computed(() =>
 
 const activeTab = ref('survey')
 
+const detailBodyRef = ref<HTMLElement | null>(null)
+const tabsWrapperRef = ref<HTMLElement | null>(null)
+const tabsStuck = ref(false)
+
+async function scrollToTabNav() {
+  await nextTick()
+  const wrapper = tabsWrapperRef.value
+  if (!wrapper) return
+  const container = detailBodyRef.value
+  if (!container) return
+  const top = wrapper.offsetTop
+  container.scrollTo({ top, behavior: 'smooth' })
+}
+
+let _scrollHandler: (() => void) | null = null
+
+onMounted(() => {
+  const container = detailBodyRef.value
+  if (!container) return
+  _scrollHandler = () => {
+    const wrapper = tabsWrapperRef.value
+    if (!wrapper) return
+    tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top + 1
+  }
+  container.addEventListener('scroll', _scrollHandler, { passive: true })
+})
+
+onUnmounted(() => {
+  if (_scrollHandler && detailBodyRef.value) {
+    detailBodyRef.value.removeEventListener('scroll', _scrollHandler)
+  }
+})
+
 // ── 合同付款比例（非标详情只读展示）──────────────────────────
 const DETAIL_PAYMENT_NODES = ['开工', '并网', '竣工验收', '质保金']
 const detailPaymentContracts = computed(() => {
@@ -1261,6 +1297,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 /* ── 主内容卡片 ── */
 .detail-card { border-radius: 8px; }
 .detail-card--plain { background: #fff; padding: 20px; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 0; }
 .detail-tabs :deep(.ant-tabs-content-holder) { padding: 0; }
 .tab-body { padding: 20px; }
 

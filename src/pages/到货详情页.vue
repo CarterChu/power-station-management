@@ -33,7 +33,7 @@
       </a-space>
     </div>
 
-    <div class="detail-body">
+    <div class="detail-body" ref="detailBodyRef">
       <div class="detail-main">
 
 
@@ -125,11 +125,12 @@
         </div>
 
         <!-- ── Tabs ── -->
-        <div class="tabs-wrapper">
+        <div class="tabs-wrapper" ref="tabsWrapperRef" :class="{ 'tabs-stuck': tabsStuck }">
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
             :tab-bar-style="{ padding: '8px 24px 0', marginBottom: 0 }"
+            @tab-click="scrollToTabNav"
           >
 
             <!-- ──────── 勘察 TAB ──────── -->
@@ -726,7 +727,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
@@ -745,6 +746,22 @@ const emit = defineEmits<{ back: []; edit: [id: string] }>()
 
 const projectInfoOpen = ref(false)
 const activeTab       = ref('stock')
+
+const detailBodyRef = ref<HTMLElement | null>(null)
+const tabsWrapperRef = ref<HTMLElement | null>(null)
+const tabsStuck = ref(false)
+
+async function scrollToTabNav() {
+  await nextTick()
+  const wrapper = tabsWrapperRef.value
+  if (!wrapper) return
+  const container = detailBodyRef.value
+  if (!container) return
+  const top = wrapper.offsetTop
+  container.scrollTo({ top, behavior: 'smooth' })
+}
+
+let _scrollHandler: (() => void) | null = null
 
 const collapsedStockCards = reactive(new Set<string>())
 function toggleStockCard(id: string) {
@@ -976,6 +993,22 @@ onMounted(() => {
     hasUserSubmittedRecords.value = false
   } else {
     initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+  }
+
+  const container = detailBodyRef.value
+  if (container) {
+    _scrollHandler = () => {
+      const wrapper = tabsWrapperRef.value
+      if (!wrapper) return
+      tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top + 1
+    }
+    container.addEventListener('scroll', _scrollHandler, { passive: true })
+  }
+})
+
+onUnmounted(() => {
+  if (_scrollHandler && detailBodyRef.value) {
+    detailBodyRef.value.removeEventListener('scroll', _scrollHandler)
   }
 })
 
@@ -1310,7 +1343,8 @@ function nowTimeStr(): string {
 .detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .detail-sidebar { width: 300px; flex-shrink: 0; position: sticky; top: 0; height: calc(100vh - 170px); }
 .tabs-wrapper { background: #fff; border-radius: 8px; }
-.detail-tabs :deep(.ant-tabs-nav) { background: #fff; border-radius: 8px 8px 0 0; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 0; }
 
 .reject-card {
   border: 1px solid rgba(220,38,38,.25);
