@@ -6,8 +6,11 @@
         <a-button type="text" class="back-btn" @click="handleBack">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <span class="filing-title">{{ isEdit ? '编辑建档' : props.initData?.policyMatched === false ? '非标准政策建档' : '标准政策建档' }}</span>
-        <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]" style="margin-left:10px">
+        <a-tooltip :title="isEdit ? `修改建档-${projectInfo.projectName}` : props.initData?.policyMatched === false ? '非标准政策建档' : '标准政策建档'">
+          <span class="filing-title">{{ isEdit ? `修改建档-${projectInfo.projectName}` : props.initData?.policyMatched === false ? '非标准政策建档' : '标准政策建档' }}</span>
+        </a-tooltip>
+        <a-tag color="green">建档</a-tag>
+        <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]">
           {{ STATUS_LABEL[filingStatus] }}
         </a-tag>
       </div>
@@ -22,17 +25,33 @@
         </a-popconfirm>
         <a-button @click="handleBack">取消</a-button>
         <a-button :loading="saving" @click="handleSave">保存</a-button>
-        <a-button type="primary" :loading="submitting" @click="handleSubmit">提交建档</a-button>
+        <a-button type="primary" :loading="submitting" @click="handleSubmit">提交建档申请</a-button>
       </a-space>
     </div>
 
+    <!-- 退回原因卡片（仅审核不通过时展示） -->
+    <div v-if="filingStatus === 'rejected'" class="reject-card">
+      <div class="reject-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>审核不通过</span>
+      </div>
+      <div class="reject-card-body">
+        <div class="reject-meta">
+          <span class="reject-meta-item">退回环节 <strong>{{ rejectInfo.stage }}</strong></span>
+          <span class="reject-meta-item">审核人 <strong>{{ rejectInfo.reviewer }}</strong></span>
+          <span class="reject-meta-item">时间 {{ rejectInfo.time }}</span>
+        </div>
+        <div class="reject-reason">{{ rejectInfo.reason }}</div>
+      </div>
+    </div>
+
     <!-- 主体 -->
-    <a-card :bordered="false" class="main-card" :body-style="{ padding: '20px' }">
+    <a-card :bordered="false" class="main-card" :style="filingStatus === 'rejected' ? { marginTop: '12px' } : {}" :body-style="{ padding: '20px' }">
 
       <!-- 建档信息摘要 -->
       <div v-if="props.initData" class="filing-summary">
         <span class="filing-summary-item">
-          项目类型：<strong>{{ props.initData.projectType === 'public_emc' ? '公建 EMC' : '常规 EMC' }}</strong>
+          项目类型：<strong>{{ '公建 EMC' }}</strong>
         </span>
         <span class="filing-summary-divider" />
         <span class="filing-summary-item">
@@ -51,7 +70,8 @@
       </div>
 
       <!-- ── 项目信息 ────────────────────────────────────────── -->
-      <div class="section-title">项目信息</div>
+      <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: !projectInfoOpen }" /></div>
+      <div v-show="projectInfoOpen">
       <a-form ref="projectInfoRef" :colon="false" :model="projectInfo" layout="vertical">
 
         <!-- 系统信息 -->
@@ -71,7 +91,7 @@
           </a-col>
           <a-col :span="6">
             <a-form-item label="项目类型">
-              <a-input :value="projectInfo.projectType === 'public_emc' ? '公建 EMC' : '常规 EMC'" disabled />
+              <a-input :value="'公建 EMC'" disabled />
             </a-form-item>
           </a-col>
           <a-col :span="6">
@@ -288,6 +308,7 @@
           </a-col>
         </a-row>
       </a-form>
+      </div>
 
     </a-card>
 
@@ -613,9 +634,9 @@
               </template>
             </a-table>
 
-            <!-- 乙供中/低压 BOM -->
+            <!-- 乙供中高/低压 BOM -->
             <div class="section-header" style="margin:32px 0 12px">
-              <span class="section-sub-title" style="margin:0">乙供中/低压 BOM</span>
+              <span class="section-sub-title" style="margin:0">乙供中高/低压 BOM</span>
               <a-space size="small">
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
@@ -1067,7 +1088,7 @@
               <template v-if="!record.filingCert">
                 <div class="filing-cert-empty">
                   <a-empty description="暂未关联备案证">
-                    <a-button type="primary" @click="openFilingCertModal">关联备案证</a-button>
+                    <a-button type="primary" @click="openFilingCertModal">关联</a-button>
                   </a-empty>
                 </div>
               </template>
@@ -1147,7 +1168,7 @@
         size="small" row-key="certNo" :scroll="{ x: 860 }" style="margin-top:12px">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="selectCert(record)">选择</a-button>
+            <a-button type="link" size="small" @click="selectCert(record)">关联</a-button>
           </template>
         </template>
       </a-table>
@@ -1193,7 +1214,7 @@ const emit = defineEmits<{ back: [] }>()
 
 const isEdit = computed(() => !!props.editId)
 import {
-  LeftOutlined, PlusOutlined, MinusCircleOutlined, UploadOutlined, QuestionCircleOutlined,
+  LeftOutlined, PlusOutlined, MinusCircleOutlined, UploadOutlined, QuestionCircleOutlined, DownOutlined,
 } from '@ant-design/icons-vue'
 
 const REGION_OPTIONS = [
@@ -1237,7 +1258,7 @@ const STATUS_COLOR: Record<string, string> = {
   filing: 'processing', pending_review: 'processing', rejected: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档待审核', rejected: '建档审核不通过',
+  filing: '建档中', pending_review: '建档审核中', rejected: '建档审核不通过',
 }
 const SURVEY_PHOTO_CATS = [
   { key: 'aerialPhotos',        label: '航拍图' },
@@ -1294,6 +1315,11 @@ const STANDARD_PAYMENT_NODES = [
 
 const filingStatus = ref<string | null>(props.initStatus ?? null)
 watch(() => props.initStatus, (val) => { if (val != null) filingStatus.value = val })
+const rejectInfo = reactive({
+  stage: '建档审核', reviewer: '李四（审核员）',
+  time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+})
+const projectInfoOpen = ref(true)
 const saving       = ref(false)
 const submitting   = ref(false)
 const canVoid = computed(() =>
@@ -1647,6 +1673,9 @@ onMounted(async () => {
   commercial.emcContract = data.emcContract
   record.filingCert = data.filingCert
   filingStatus.value = data.filingStatus
+  if (data.filingStatus === 'rejected' && data.rejectInfo) {
+    Object.assign(rejectInfo, data.rejectInfo)
+  }
 })
 
 async function saveFilingDraft(_payload: any): Promise<void> {}
@@ -1671,6 +1700,10 @@ async function fetchFilingDetail(_id: string) {
       { code: 'TJ0080', name: '台架变',           type: '低压',   unit: '台',  quantity: 1 },
     ],
     emcContract: 'EMC-2026-0001', emcPrice: 0.6500,
+    rejectInfo: {
+      stage: '建档审核', reviewer: '李四（审核员）',
+      time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+    },
     filingCert: {
       fileName: '杭州滨江综合体光伏备案证',
       projectCode: 'PJ-2026-0001', projectName: '杭州市滨江区某商业综合体光伏项目',
@@ -1700,16 +1733,17 @@ async function fetchFilingDetail(_id: string) {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 160px;
   padding: 0 24px;
   height: 56px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
-.filing-header-left { display: flex; align-items: center; gap: 4px; }
-.back-btn { color: #595959; }
-.filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; }
+.filing-header-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+.filing-header-left :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; }
+.back-btn { color: #595959; flex-shrink: 0; }
+.filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 
 /* ── 摘要条 ── */
 .filing-summary {
@@ -1729,10 +1763,33 @@ async function fetchFilingDetail(_id: string) {
 .filing-summary-item strong { color: #1a1a1a; margin-left: 2px; }
 .filing-summary-divider { width: 1px; height: 14px; background: #d9d9d9; margin: 0 14px; }
 
+/* ── 退回原因卡片 ── */
+.reject-card {
+  border: 1px solid rgba(220,38,38,.25);
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  margin: 16px 16px 0;
+}
+.reject-card-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px 0;
+  font-size: 15px; font-weight: 600; color: #dc2626;
+}
+.reject-card-body { padding: 8px 16px 12px; }
+.reject-meta { display: flex; gap: 20px; font-size: 12px; color: #595959; margin-bottom: 8px; }
+.reject-meta-item strong { color: #1a1a1a; }
+.reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
+
 /* ── 主卡片 ── */
 .main-card { margin: 16px; border-radius: 8px; }
 
 /* ── 一级 Section 标题（对应回购页 section-title） ── */
+.section-title--toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+.section-title--collapsed { margin-bottom: 0 !important; }
+.section-toggle-icon { font-size: 12px; color: #8c8c8c; background: #f0f0f0; padding: 7px 6px 5px; border-radius: 4px; display: inline-flex; align-items: center; transition: transform 0.2s; }
+.section-toggle-icon.rotated { transform: rotate(-90deg); }
 .section-title {
   font-size: 16px;
   font-weight: 500;

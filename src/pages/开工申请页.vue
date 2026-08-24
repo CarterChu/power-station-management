@@ -6,10 +6,10 @@
         <a-button type="text" class="back-btn" @click="emit('back')">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="detail.projectName">
-          <span class="detail-title">{{ detail.projectName }}</span>
+        <a-tooltip :title="props.editId ? `修改开工申请-${detail.projectName}` : `开工申请-${detail.projectName}`">
+          <span class="detail-title">{{ props.editId ? `修改开工申请-${detail.projectName}` : `开工申请-${detail.projectName}` }}</span>
         </a-tooltip>
-        <a-tag color="blue">建档</a-tag>
+        <a-tag color="green">开工</a-tag>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
@@ -18,31 +18,31 @@
           <span class="detail-header-meta-divider" />
           <span class="detail-header-meta-item">{{ props.policyType === 'nonstandard' ? PROJECT_TYPE_LABEL[detail.projectType] : '公建 EMC' }}</span>
           <span class="detail-header-meta-divider" />
-          <span class="detail-header-meta-item">{{ props.policyType === 'nonstandard' ? '非标政策' : '标准政策' }}</span>
+          <span class="detail-header-meta-item">{{ props.initData?.policyType === 'nonstandard' ? '非标政策' : '标准政策' }}</span>
           <span class="detail-header-meta-divider" />
           <span class="detail-header-meta-item">{{ detail.stationNo }}<CopyOutlined class="copy-icon" @click="copyStationNo(detail.stationNo)" /></span>
         </span>
       </div>
       <a-space>
         <a-popconfirm
-          v-if="canVoid"
-          title="确认作废该建档？"
-          description="作废后电站编号与 OA 单号的关联将解除，且不可恢复。"
+          title="确认作废该开工申请？"
           ok-text="确认作废" ok-type="danger" cancel-text="取消"
           @confirm="handleVoid"
         >
-          <a-button danger>作废</a-button>
+          <a-button v-if="canVoid" danger>作废</a-button>
         </a-popconfirm>
-        <a-button v-if="canEdit" type="primary" @click="handleEdit">修改</a-button>
+        <a-button @click="emit('back')">取消</a-button>
+        <a-button :loading="saving" @click="handleSave">保存</a-button>
+        <a-button type="primary" :loading="submitting" @click="handleSubmit">提交开工申请</a-button>
       </a-space>
     </div>
 
-    <div class="detail-body">
+    <div ref="detailBodyRef" class="detail-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
       <!-- 左侧：只读 TAB 内容 -->
       <div class="detail-main">
 
-        <!-- 退回原因卡片（仅审核不通过时展示） -->
-        <div v-if="detail.filingStatus === 'rejected'" class="reject-card">
+        <!-- 退回原因卡片（仅开工审核不通过时展示） -->
+        <div v-if="detail.filingStatus === 'start_rejected'" class="reject-card">
           <div class="reject-card-header">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
             <span>审核不通过</span>
@@ -145,11 +145,12 @@
         </div>
 
 
-        <a-card class="detail-card" :body-style="{ padding: 0 }">
+        <div ref="tabsWrapperRef" class="tabs-wrapper" :class="{ 'tabs-stuck': tabsStuck }">
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
-            :tab-bar-style="{ padding: '8px 24px 0', marginBottom: 0 }"
+            :tab-bar-style="{ padding: tabsStuck ? '0 24px' : '8px 24px 0', marginBottom: 0 }"
+            @tab-click="scrollToTabNav"
           >
             <!-- ──────── 勘察 TAB ──────── -->
             <a-tab-pane key="survey" tab="勘察">
@@ -572,206 +573,334 @@
               </div>
             </a-tab-pane>
 
-            <!-- ──────── 合同付款比例 TAB（非标专属）──────── -->
-            <a-tab-pane v-if="props.policyType === 'nonstandard'" key="payment" tab="合同付款比例">
-              <div class="tab-body">
-                <div v-for="(contract, idx) in detailPaymentContracts" :key="idx" class="payment-contract-card">
-                  <div class="payment-contract-header">
-                    <div class="payment-contract-type">{{ contract.type }}</div>
-                    <div class="payment-contract-meta-row">
-                      <span class="payment-meta-item"><span class="payment-meta-label">合同编号</span><span class="payment-meta-value">{{ contract.contractNo || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">合同签订金额</span><span class="payment-meta-value">{{ contract.amount != null ? `¥${Number(contract.amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">甲方</span><span class="payment-meta-value">{{ contract.partyA || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">乙方</span><span class="payment-meta-value">{{ contract.partyB || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">结算对象类型</span><span class="payment-meta-value">{{ contract.settlementType || '—' }}</span></span>
-                    </div>
-                  </div>
-                  <table class="payment-ratio-table">
-                    <thead>
-                      <tr>
-                        <th style="width:80px"></th>
-                        <th v-for="row in contract.nodes" :key="row.node">{{ row.node }}</th>
-                        <th style="width:100px">合计</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td class="payment-row-label">付款比例</td>
-                        <td v-for="row in contract.nodes" :key="row.node">{{ row.ratio != null ? row.ratio + '%' : '—' }}</td>
-                        <td class="payment-total-cell">{{ contract.nodes.reduce((s, n) => s + (n.ratio ?? 0), 0) }}%</td>
-                      </tr>
-                      <tr>
-                        <td class="payment-row-label">付款金额</td>
-                        <td v-for="row in contract.nodes" :key="row.node" class="payment-amount-cell">
-                          {{ contract.amount != null && row.ratio != null ? `¥${(contract.amount * row.ratio / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '—' }}
-                        </td>
-                        <td class="payment-amount-cell">—</td>
-                      </tr>
-                    </tbody>
-                  </table>
+            <a-tab-pane key="start" tab="开工" force-render>
+              <a-form ref="startRef" :colon="false" :model="startForm" layout="vertical" style="padding: 40px 20px 40px">
+
+                <!-- 开工信息 -->
+                <div class="section-sub-title" style="margin-top:0">开工信息</div>
+                <a-row :gutter="[24, 0]">
+                  <a-col :span="8">
+                    <a-form-item label="现场负责人" name="siteManager"
+                      :rules="[{ required: true, message: '请输入现场负责人' }]">
+                      <a-input v-model:value="startForm.siteManager" placeholder="请输入" :maxlength="30" />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="8">
+                    <a-form-item label="负责人电话" name="siteManagerPhone"
+                      :rules="[
+                        { required: true, message: '请输入手机号' },
+                        { pattern: /^1\d{10}$/, message: '请输入正确的手机号' }
+                      ]">
+                      <a-input v-model:value="startForm.siteManagerPhone" placeholder="请输入" :maxlength="11" />
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="8">
+                    <a-form-item label="开工日期" name="startDate"
+                      :rules="[{ required: true, message: '请选择开工日期' }]">
+                      <a-date-picker v-model:value="startForm.startDate" style="width:100%" format="YYYY-MM-DD" placeholder="请选择" />
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+
+                <a-divider style="margin-top: 0" />
+
+                <!-- 工程资料 -->
+                <div class="section-sub-title" style="margin-top:0">工程资料</div>
+                <a-row :gutter="[24, 0]">
+                  <a-col :span="12">
+                    <a-form-item name="insuranceFiles"
+                      :rules="[{ required: true, validator: (_: any, v: any[]) => v?.length ? Promise.resolve() : Promise.reject('请上传中高压施工单位保险') }]">
+                      <template #label>中高压施工单位保险<a-tooltip title="支持 PDF / JPG / PNG，单文件 ≤ 200M"><QuestionCircleOutlined class="upload-hint-icon" /></a-tooltip></template>
+                      <FileUploadField v-model:file-list="startForm.insuranceFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item name="safetyDisclosureFiles"
+                      :rules="[{ required: true, validator: (_: any, v: any[]) => v?.length ? Promise.resolve() : Promise.reject('请上传质量安全技术交底') }]">
+                      <template #label>质量安全技术交底<a-tooltip title="支持 PDF / JPG / PNG，单文件 ≤ 200M"><QuestionCircleOutlined class="upload-hint-icon" /></a-tooltip></template>
+                      <FileUploadField v-model:file-list="startForm.safetyDisclosureFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <a-row :gutter="[24, 0]">
+                  <a-col :span="12">
+                    <a-form-item label="其他">
+                      <FileUploadField v-model:file-list="startForm.engineeringOtherFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+
+                <a-divider style="margin-top: 0" />
+
+                <!-- 技术资料 -->
+                <div class="section-sub-title" style="margin-top:0">技术资料</div>
+                <a-row :gutter="[24, 0]">
+                  <a-col :span="12">
+                    <a-form-item name="techDisclosureFiles"
+                      :rules="[{ required: true, validator: (_: any, v: any[]) => v?.length ? Promise.resolve() : Promise.reject('请上传技术交底') }]">
+                      <template #label>技术交底<a-tooltip title="支持 PDF / JPG / PNG，最多5个，单文件 ≤ 200M"><QuestionCircleOutlined class="upload-hint-icon" /></a-tooltip></template>
+                      <FileUploadField v-model:file-list="startForm.techDisclosureFiles" :max-count="5" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item label="设备技术协议">
+                      <FileUploadField v-model:file-list="startForm.equipmentAgreementFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+                <a-row :gutter="[24, 0]">
+                  <a-col :span="12">
+                    <a-form-item label="其他">
+                      <FileUploadField v-model:file-list="startForm.techOtherFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+                        <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
+                      </FileUploadField>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+
+                <a-divider style="margin-top: 0" />
+
+                <!-- 施工人员 -->
+                <div class="section-header" style="margin-bottom: 12px">
+                  <span class="section-sub-title" style="margin:0">施工人员</span>
+                  <a-button size="small" @click="personnelModalOpen = true">
+                    <template #icon><PlusOutlined /></template>添加人员
+                  </a-button>
                 </div>
-              </div>
+                <a-table
+                  :data-source="startForm.personnel"
+                  :columns="personnelColumns"
+                  :pagination="false"
+                  size="small"
+                  row-key="id"
+                  :locale="{ emptyText: '暂无施工人员，点击「添加人员」选择' }"
+                >
+                  <template #bodyCell="{ column, record }">
+                    <template v-if="column.key === 'action'">
+                      <a-button type="link" size="small" @click="message.info('跳转到人才详情页')">详情</a-button>
+                      <a-button type="text" size="small" danger @click="removePersonnel(record.id)">删除</a-button>
+                    </template>
+                  </template>
+                </a-table>
+
+              </a-form>
             </a-tab-pane>
 
           </a-tabs>
-        </a-card>
-      </div>
-
-      <!-- 右侧：流转日志 -->
-      <div class="detail-sidebar">
-        <div class="log-card">
-          <div class="log-card-header">
-            <div class="section-title">流转日志</div>
-          </div>
-          <div class="log-card-body">
-          <div class="approval-list">
-            <div v-for="group in groupedLogs" :key="group.date" class="approval-date-group">
-              <div class="approval-date-header">
-                <CalendarOutlined class="approval-date-icon" />
-                <span class="approval-date-text">{{ group.date }}</span>
-              </div>
-              <div class="approval-items">
-                <div v-for="(log, idx) in group.logs" :key="log.id" class="approval-item">
-                  <div class="approval-connector">
-                    <div class="connector-line connector-line--top" />
-                    <component :is="LOG_ICON[log.type]" class="connector-icon" :class="`connector-icon--${log.type}`" />
-                    <div v-if="!(group === groupedLogs[groupedLogs.length-1] && idx === group.logs.length-1)" class="connector-line connector-line--bottom" />
-                  </div>
-                  <div class="approval-card-wrap">
-                    <div class="approval-card">
-                      <div class="approval-card-header">
-                        <span class="approval-card-title">{{ log.event }}</span>
-                        <span :class="['approval-tag', `approval-tag--${log.type}`]">
-                          {{ LOG_TAG_LABEL[log.type] }}
-                        </span>
-                      </div>
-                      <div class="approval-card-body">
-                        <div class="approval-field">
-                          <span class="field-label">操作人</span>
-                          <span class="field-value">{{ log.operator }}</span>
-                        </div>
-                        <div v-if="log.note" class="approval-field">
-                          <span class="field-label">备注</span>
-                          <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']">{{ log.note }}</span>
-                        </div>
-                        <div class="approval-field">
-                          
-                          <span class="field-value field-value--muted">{{ log.time }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 审核 FAB -->
-    <div v-if="showReviewFab" class="review-fab" @click="reviewCollapsed = false">
-      <AuditOutlined style="font-size:16px;position:relative;top:-1px" />
-      <span style="font-size:13px">建档商务审核</span>
-    </div>
-
-    <!-- 可拖拽审核面板 -->
-    <div
-      v-if="showReviewPanel"
-      ref="reviewPanelEl"
-      class="review-panel"
-      :style="{ left: reviewPos.x + 'px', top: reviewPos.y + 'px', width: reviewSize.w + 'px', ...(reviewSize.h > 0 && { height: reviewSize.h + 'px' }) }"
-      @mousedown="(e: MouseEvent) => { const t = e.target as HTMLElement; if (!t.closest('textarea,input,button,a,[role=button],.review-textarea-resize-handle,.review-drop-hint,.review-image-item,.review-corner-handle')) onReviewDragStart(e) }"
-    >
-      <!-- 四角缩放把手 -->
-      <div class="review-corner-handle review-corner-handle--nw" @mousedown.stop="onCornerResizeStart($event, 'nw')" />
-      <div class="review-corner-handle review-corner-handle--ne" @mousedown.stop="onCornerResizeStart($event, 'ne')" />
-      <div class="review-corner-handle review-corner-handle--sw" @mousedown.stop="onCornerResizeStart($event, 'sw')" />
-      <div class="review-corner-handle review-corner-handle--se" @mousedown.stop="onCornerResizeStart($event, 'se')" />
-
-      <div class="review-panel-header" @mousedown.prevent="onReviewDragStart">
-        <span class="review-panel-title">建档商务审核</span>
-        <div style="display:flex;align-items:center;gap:16px">
-          <HolderOutlined class="review-panel-drag-icon" />
-          <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
-        </div>
-      </div>
-      <div class="review-reject-reasons">
-        <div class="review-reject-label">不通过原因</div>
-        <a-select
-          v-model:value="reviewRejectReasons"
-          mode="multiple"
-          :options="REJECT_REASONS.map(r => ({ label: r, value: r }))"
-          placeholder="请选择不通过原因（可多选）"
-          style="width:100%"
-          :max-tag-count="2"
-        />
-      </div>
-      <div
-        class="review-textarea-wrap"
-        :class="{ 'drag-over': reviewDragOver }"
-        :style="reviewSize.h > 0 ? { flex: '1', minHeight: '0', overflow: 'hidden' } : {}"
-      >
-        <a-textarea
-          v-model:value="reviewComment"
-          placeholder="请输入审核意见..."
-          :auto-size="false"
-          :bordered="false"
-          :style="{ flex: reviewSize.h > 0 ? '1' : 'none', resize: 'none', padding: '8px 12px', fontSize: '14px', height: reviewSize.h > 0 ? '100%' : '120px' }"
-        />
-      </div>
-      <div
-        class="review-drop-zone"
-        :class="{ 'drag-over': reviewDragOver }"
-        @dragover.prevent="reviewDragOver = true"
-        @dragleave="reviewDragOver = false"
-        @drop="onReviewDropZoneDrop"
-      >
-        <div v-if="reviewImageList.length === 0" class="review-drop-hint" @click="onReviewClickUpload">
-          点击此处粘贴或拖拽图片上传
-        </div>
-        <div v-else class="review-image-list">
-          <div v-for="img in reviewImageList" :key="img.uid" class="review-image-item">
-            <img :src="img.url" :alt="img.name" />
-            <span class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
-          </div>
-        </div>
-      </div>
-      <div class="review-panel-footer">
-        <a-button style="height:32px" @click="submitReview('skip')">暂不审核</a-button>
-        <a-button style="height:32px" danger type="primary" @click="submitReview('reject')">审核不通过</a-button>
-        <a-button style="height:32px" type="primary" @click="submitReview('pass')">审核通过</a-button>
-      </div>
     </div>
   </div>
+
+  <!-- 添加施工人员弹窗 -->
+  <a-modal
+    v-model:open="personnelModalOpen"
+    title="添加施工人员"
+    :width="600"
+    ok-text="确认选择"
+    cancel-text="取消"
+    destroy-on-close
+    @ok="confirmPersonnel"
+    @cancel="resetPersonnelModal"
+  >
+    <a-input-search
+      v-model:value="personnelSearch"
+      placeholder="按姓名搜索"
+      style="width:100%;margin-bottom:12px"
+    />
+    <a-table
+      :columns="candidateColumns"
+      :data-source="filteredCandidates"
+      :row-selection="{
+        selectedRowKeys: selectedPersonnelKeys,
+        onChange: onPersonnelSelect,
+        getCheckboxProps: (record: any) => ({ disabled: startForm.personnel.some(p => p.id === record.id) }),
+      }"
+      :pagination="{ pageSize: 8 }"
+      size="small"
+      row-key="id"
+    />
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, nextTick } from 'vue'
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
+import FileUploadField from '../components/FileUploadField.vue'
 import {
   LeftOutlined, CalendarOutlined, CopyOutlined,
   CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
   AuditOutlined, HolderOutlined, DownOutlined,
+  UploadOutlined, QuestionCircleOutlined, PlusOutlined,
 } from '@ant-design/icons-vue'
 
-const props = defineProps<{ initStatus?: string; policyType?: string; initRow?: Record<string, any> }>()
-const emit = defineEmits<{ back: []; edit: [id: string] }>()
-const projectInfoOpen = ref(true)
+const props = defineProps<{ editId?: string | null; initStatus?: string | null; initData?: Record<string, any> | null }>()
+const emit = defineEmits<{ back: [] }>()
+
+const projectInfoOpen = ref(false)
 
 function copyStationNo(no: string) {
   navigator.clipboard.writeText(no).then(() => message.success('已复制'))
 }
 
+// ── 开工 tab 表单 ──
+const startRef  = ref()
+const startForm = reactive({
+  siteManager:            '',
+  siteManagerPhone:       '',
+  startDate:              null as any,
+  insuranceFiles:         [] as any[],
+  safetyDisclosureFiles:  [] as any[],
+  engineeringOtherFiles:  [] as any[],
+  techDisclosureFiles:    [] as any[],
+  equipmentAgreementFiles:[] as any[],
+  techOtherFiles:         [] as any[],
+  personnel:              [] as Array<{ id: string; name: string; position: string; phone: string }>,
+})
+const personnelColumns = [
+  { title: '序号',   key: 'index',      width: 60,  customRender: ({ index }: any) => index + 1 },
+  { title: '姓名',   dataIndex: 'name',     key: 'name' },
+  { title: '岗位',   dataIndex: 'position', key: 'position' },
+  { title: '手机号', dataIndex: 'phone',    key: 'phone' },
+  { title: '操作',   key: 'action',         width: 120 },
+]
+const candidateColumns = [
+  { title: '姓名', dataIndex: 'name',     key: 'name' },
+  { title: '岗位', dataIndex: 'position', key: 'position' },
+  { title: '手机', dataIndex: 'phone',    key: 'phone' },
+]
+
+const mockCandidates = [
+  { id: 'p1', name: '张建国', position: '施工队长',   phone: '13812340001' },
+  { id: 'p2', name: '李明',   position: '电工',       phone: '13812340002' },
+  { id: 'p3', name: '王强',   position: '焊工',       phone: '13812340003' },
+  { id: 'p4', name: '赵磊',   position: '安装工',     phone: '13812340004' },
+  { id: 'p5', name: '陈伟',   position: '监理工程师', phone: '13812340005' },
+  { id: 'p6', name: '孙浩',   position: '施工员',     phone: '13812340006' },
+]
+
+const personnelModalOpen    = ref(false)
+const personnelSearch       = ref('')
+const selectedPersonnelKeys = ref<string[]>([])
+const selectedPersonnelRows = ref<typeof mockCandidates>([])
+
+const filteredCandidates = computed(() =>
+  personnelSearch.value.trim()
+    ? mockCandidates.filter(c => c.name.includes(personnelSearch.value.trim()))
+    : mockCandidates
+)
+
+function onPersonnelSelect(keys: any[]) {
+  selectedPersonnelKeys.value = keys
+}
+
+function confirmPersonnel() {
+  selectedPersonnelKeys.value.forEach(key => {
+    const record = mockCandidates.find(c => c.id === key)
+    if (record && !startForm.personnel.some(p => p.id === record.id)) {
+      startForm.personnel.push(record)
+    }
+  })
+  resetPersonnelModal()
+}
+
+function resetPersonnelModal() {
+  personnelModalOpen.value    = false
+  personnelSearch.value       = ''
+  selectedPersonnelKeys.value = []
+  selectedPersonnelRows.value = []
+}
+
+function removePersonnel(id: string) {
+  startForm.personnel = startForm.personnel.filter(p => p.id !== id)
+}
+
+const detailBodyRef   = ref<HTMLElement | null>(null)
+const tabsWrapperRef  = ref<HTMLElement | null>(null)
+const tabsStuck       = ref(false)
+const scrollPad       = ref(0)
+
+async function scrollToTabNav() {
+  // ① 等新 tab 内容渲染完，再量尺寸
+  await nextTick()
+
+  const body    = detailBodyRef.value
+  const wrapper = tabsWrapperRef.value
+  if (!body || !wrapper) return
+
+  // ② 提前锁定 stuck 状态，等 tab-bar 高度稳定后再量 target
+  tabsStuck.value = true
+  await nextTick()
+
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+
+  // ③ 用"去掉当前 scrollPad 的真实内容高"算需要多少 pad
+  //    原公式 depth = scrollHeight - clientHeight 当内容比 viewport 矮时是负数，算出的 pad 不够
+  //    正确：需要 scrollHeight + neededPad - clientHeight >= target
+  //         → neededPad >= target - naturalScrollHeight + clientHeight
+  const naturalScrollHeight = body.scrollHeight - scrollPad.value
+  const neededPad = Math.max(0, target - naturalScrollHeight + body.clientHeight + 20)
+
+  if (neededPad !== scrollPad.value) {
+    scrollPad.value = neededPad
+    await nextTick()
+  }
+
+  body.scrollTop = target
+}
+
+let _scrollHandler: (() => void) | null = null
+onMounted(() => {
+  _scrollHandler = () => {
+    const body    = detailBodyRef.value
+    const wrapper = tabsWrapperRef.value
+    if (!body || !wrapper) return
+    tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
+    if (!tabsStuck.value && body.scrollTop <= 1) scrollPad.value = 0
+  }
+  detailBodyRef.value?.addEventListener('scroll', _scrollHandler, { passive: true })
+})
+onBeforeUnmount(() => {
+  if (_scrollHandler) detailBodyRef.value?.removeEventListener('scroll', _scrollHandler)
+})
+
+const saving = ref(false)
+const submitting = ref(false)
+async function handleSave() {
+  saving.value = true
+  await new Promise(r => setTimeout(r, 600))
+  saving.value = false
+  message.success('保存成功')
+}
+async function handleSubmit() {
+  submitting.value = true
+  await new Promise(r => setTimeout(r, 600))
+  submitting.value = false
+  message.success('开工申请已提交')
+  emit('back')
+}
+
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'processing', rejected: 'error', approved: 'success',
+  waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档审核中', rejected: '建档商务审核不通过', approved: '审核通过',
+  waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -839,13 +968,13 @@ const STANDARD_PAYMENT_NODES = [
 
 const detail = ref({
   id: 'LNC-2026-0001',
-  filingStatus: (props.initStatus ?? 'filing') as string,
+  filingStatus: (props.initData?.filingStatus ?? props.initStatus ?? 'waiting_start') as string,
   // 系统信息
   stationType: '工商业',
-  stationNo:   props.initRow?.stationNo ?? 'LNC-2026-0001',
+  stationNo:   props.initData?.stationNo ?? 'LNC-2026-0001',
   // 基本信息
   oaNo: 'A304202607100012',
-  projectName: props.initRow?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
+  projectName: props.initData?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
   projectType: 'emc',
   policyMatched: true,
   division: '安能智电事业部',
@@ -855,7 +984,7 @@ const detail = ref({
   capacity: 320,
   gridVoltage: 'low',
   // 代理商信息
-  agentName: props.initRow?.agentName ?? '浙江绿能科技有限公司',
+  agentName: props.initData?.agentName ?? '浙江绿能科技有限公司',
   // 用电企业信息
   userEntName:    '杭州某商业综合体管理有限公司',
   propertyProof:  ['产权证明.pdf'],
@@ -954,7 +1083,7 @@ const detail = ref({
     attachmentName: '杭州滨江综合体光伏备案批复文件.pdf',
   },
   rejectInfo: {
-    stage: '商务审核',
+    stage: '开工审核',
     reviewer: '李四（安能审核员）',
     time: '2026-08-11 15:30',
     reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
@@ -979,10 +1108,17 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建建档',  operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
   ],
   rejected: [
-    { id: 4, type: 'reject', event: '审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 4, type: 'reject', event: '审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: '商务信息有误，请修改后重新提交' },
     { id: 3, type: 'submit', event: '提交建档',   operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
     { id: 2, type: 'create', event: '保存草稿',   operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
     { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  ],
+  start_rejected: [
+    { id: 5, type: 'reject', event: '开工审核不通过', operator: '李四（安能审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
+    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
+    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
+    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
   ],
   approved: [
     { id: 4, type: 'approve', event: '审核通过', operator: '李四（审核员）', time: '2026-08-11 10:00', note: null },
@@ -1016,7 +1152,7 @@ const canVoid = computed(() =>
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
-const activeTab = ref('survey')
+const activeTab = ref('start')
 
 // ── 合同付款比例（非标详情只读展示）──────────────────────────
 const DETAIL_PAYMENT_NODES = ['开工', '并网', '竣工验收', '质保金']
@@ -1043,20 +1179,20 @@ const sceneColumns = [
   { title: '特殊方案',   dataIndex: 'specialPlan', key: 'specialPlan', width: 160, customRender: ({ text }: { text: string | null }) => text || '—' },
 ]
 const jiagongReadonlyColumns = [
-  { title: '序号',     key: 'index',    width: 52,  customRender: ({ index }: { index: number }) => index + 1 },
-  { title: '物料编码', dataIndex: 'code',     key: 'code',  width: 120 },
-  { title: '物料名称', dataIndex: 'name',     key: 'name',  width: 220, ellipsis: true },
-  { title: '物料组',   dataIndex: 'group',    key: 'group', width: 90 },
-  { title: '单位',     dataIndex: 'unit',     key: 'unit',  width: 64 },
-  { title: 'BOM类型',  key: 'bomType', width: 90, customRender: () => '电器BOM' },
+  { title: '序号',     key: 'index',    width: 50, customRender: ({ index }: { index: number }) => index + 1 },
+  { title: '物料编码', dataIndex: 'code',     key: 'code',  width: 110 },
+  { title: '物料名称', dataIndex: 'name',     key: 'name',  ellipsis: true },
+  { title: '物料组',   dataIndex: 'group',    key: 'group', width: 80 },
+  { title: '单位',     dataIndex: 'unit',     key: 'unit',  width: 56 },
+  { title: 'BOM类型',  key: 'bomType', width: 80, customRender: () => '电器BOM' },
   { title: '确认数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
 ]
 const yigongReadonlyColumns = [
-  { title: '序号',     key: 'index',    width: 52,  customRender: ({ index }: { index: number }) => index + 1 },
-  { title: '类型',     dataIndex: 'type',  key: 'type',  width: 80 },
-  { title: '物料编号', dataIndex: 'code',  key: 'code',  width: 120 },
-  { title: '物料描述', dataIndex: 'name',  key: 'name',  width: 220, ellipsis: true },
-  { title: '单位',     dataIndex: 'unit',  key: 'unit',  width: 64 },
+  { title: '序号',     key: 'index',    width: 50, customRender: ({ index }: { index: number }) => index + 1 },
+  { title: '类型',     dataIndex: 'type',  key: 'type',  width: 72 },
+  { title: '物料编号', dataIndex: 'code',  key: 'code',  width: 110 },
+  { title: '物料描述', dataIndex: 'name',  key: 'name',  ellipsis: true },
+  { title: '单位',     dataIndex: 'unit',  key: 'unit',  width: 56 },
   { title: '确认数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
 ]
 
@@ -1192,7 +1328,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 <style scoped>
 /* ── 整体布局 ── */
 .detail-page {
-  min-height: 100vh;
+  height: calc(100vh - 81px); /* 减去 App 固定顶栏高度，detail-body.clientHeight 才与可见区一致 */
+  overflow: hidden;
   background: #f5f5f5;
   display: flex;
   flex-direction: column;
@@ -1200,9 +1337,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 
 /* ── 固定顶栏 ── */
 .detail-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 160px;
@@ -1223,11 +1358,17 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 /* ── 内容区 ── */
 .detail-body {
   flex: 1;
+  overflow-y: auto;
   display: flex;
-  gap: 16px;
-  padding: 16px 16px 16px;
+  flex-direction: column;
+  padding: 0 16px 16px;
+  overscroll-behavior: contain;
 }
-.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.tabs-wrapper { background: #fff; border-radius: 8px; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+/* 吸顶时 nav 撑满全宽（抵消 detail-body 两侧各 16px padding），卡片本体不变 */
+.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { margin-left: -16px; margin-right: -16px; border-radius: 0; }
 .detail-sidebar { width: 300px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 72px; height: calc(100vh - 170px); }
 
 /* ── 退回原因卡片 ── */
@@ -1262,7 +1403,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .detail-card { border-radius: 8px; }
 .detail-card--plain { background: #fff; padding: 20px; }
 .detail-tabs :deep(.ant-tabs-content-holder) { padding: 0; }
-.tab-body { padding: 20px; }
+.tab-body { padding: 20px; background: #fff; border-radius: 0 0 8px 8px; }
 
 /* ── 信息分区 ── */
 .info-section {
@@ -1316,6 +1457,11 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
   min-width: 0;
 }
 .info-item--span2 { grid-column: span 2; }
+.info-item--span3 { grid-column: span 3; }
+.section-sub-title { font-size: 16px; font-weight: 500; color: rgba(0,0,0,0.88); margin: 20px 0; display: flex; align-items: center; gap: 8px; }
+.section-sub-title::before { content: ''; width: 3px; height: 16px; background: #1677ff; border-radius: 2px; flex-shrink: 0; }
+.upload-hint-icon { font-size: 13px; color: #8c8c8c; cursor: pointer; flex-shrink: 0; margin-left: 4px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; }
 .info-item--span4 { grid-column: span 4; }
 .info-label {
   font-size: 14px;
@@ -1430,7 +1576,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .field-label        { color: #8c8c8c; flex-shrink: 0; }
 .field-value        { color: #1f1f1f; }
 .field-value--muted { color: rgba(0,0,0,.45); }
-.field-value--red   { color: #1a1a1a; }
+.field-value--red   { color: #f5222d; }
 
 /* ── 审核面板 ── */
 .review-fab {

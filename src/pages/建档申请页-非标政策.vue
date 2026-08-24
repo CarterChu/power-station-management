@@ -6,8 +6,11 @@
         <a-button type="text" class="back-btn" @click="handleBack">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <span class="filing-title">{{ isEdit ? '编辑建档' : '非标准政策建档' }}</span>
-        <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]" style="margin-left:10px">
+        <a-tooltip :title="isEdit ? `修改建档-${oaData.projectName}` : '非标准政策建档'">
+          <span class="filing-title">{{ isEdit ? `修改建档-${oaData.projectName}` : '非标准政策建档' }}</span>
+        </a-tooltip>
+        <a-tag color="green">建档</a-tag>
+        <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]">
           {{ STATUS_LABEL[filingStatus] }}
         </a-tag>
       </div>
@@ -26,8 +29,24 @@
       </a-space>
     </div>
 
+    <!-- 退回原因卡片（仅审核不通过时展示） -->
+    <div v-if="filingStatus === 'rejected'" class="reject-card">
+      <div class="reject-card-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>审核不通过</span>
+      </div>
+      <div class="reject-card-body">
+        <div class="reject-meta">
+          <span class="reject-meta-item">退回环节 <strong>{{ rejectInfo.stage }}</strong></span>
+          <span class="reject-meta-item">审核人 <strong>{{ rejectInfo.reviewer }}</strong></span>
+          <span class="reject-meta-item">时间 {{ rejectInfo.time }}</span>
+        </div>
+        <div class="reject-reason">{{ rejectInfo.reason }}</div>
+      </div>
+    </div>
+
     <!-- 主体 -->
-    <a-card :bordered="false" class="main-card" :body-style="{ padding: '20px' }">
+    <a-card :bordered="false" class="main-card" :style="filingStatus === 'rejected' ? { marginTop: '12px' } : {}" :body-style="{ padding: '20px' }">
 
       <!-- 摘要行 -->
       <div class="filing-summary">
@@ -39,7 +58,8 @@
       </div>
 
       <!-- ── 项目信息 ── -->
-      <div class="section-title">项目信息</div>
+      <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: !projectInfoOpen }" /></div>
+      <div v-show="projectInfoOpen">
       <a-form ref="formRef" :colon="false" :model="form" layout="vertical">
 
         <!-- Row 1: OA编号 / 项目名称 / 项目类型 / 是否政策匹配 -->
@@ -174,6 +194,7 @@
         </a-row>
 
       </a-form>
+      </div>
     </a-card>
 
     <!-- 建档信息卡片 -->
@@ -498,9 +519,9 @@
               </template>
             </a-table>
 
-            <!-- 乙供中/低压 BOM -->
+            <!-- 乙供中高/低压 BOM -->
             <div class="section-header" style="margin:32px 0 12px">
-              <span class="section-sub-title" style="margin:0">乙供中/低压 BOM</span>
+              <span class="section-sub-title" style="margin:0">乙供中高/低压 BOM</span>
               <a-space size="small">
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
@@ -952,7 +973,7 @@
               <template v-if="!record.filingCert">
                 <div class="filing-cert-empty">
                   <a-empty description="暂未关联备案证">
-                    <a-button type="primary" @click="openFilingCertModal">关联备案证</a-button>
+                    <a-button type="primary" @click="openFilingCertModal">关联</a-button>
                   </a-empty>
                 </div>
               </template>
@@ -1114,7 +1135,7 @@
         size="small" row-key="certNo" :scroll="{ x: 860 }" style="margin-top:12px">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="selectCert(record)">选择</a-button>
+            <a-button type="link" size="small" @click="selectCert(record)">关联</a-button>
           </template>
         </template>
       </a-table>
@@ -1142,7 +1163,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { LeftOutlined, PlusOutlined, UploadOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { LeftOutlined, PlusOutlined, UploadOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons-vue'
 import FileUploadField from '../components/FileUploadField.vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 
@@ -1163,12 +1184,17 @@ const STATUS_COLOR: Record<string, string> = {
   approved: 'success', voided: 'default',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档待审核', rejected: '建档审核不通过',
+  filing: '建档中', pending_review: '建档审核中', rejected: '建档审核不通过',
   approved: '建档已通过', voided: '已作废',
 }
 
 const isEdit     = computed(() => !!props.editId)
 const filingStatus = ref<string | null>(props.initStatus ?? null)
+const rejectInfo = reactive({
+  stage: '建档审核', reviewer: '李四（审核员）',
+  time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+})
+const projectInfoOpen = ref(true)
 const saving     = ref(false)
 const submitting = ref(false)
 const formRef    = ref()
@@ -1621,6 +1647,12 @@ onMounted(async () => {
   })
   Object.assign(oaData, OA_DATA_MAP['A304202607100012'] ?? {})
   filingStatus.value = props.initStatus ?? 'filing'
+  if (filingStatus.value === 'rejected') {
+    Object.assign(rejectInfo, {
+      stage: '建档审核', reviewer: '李四（审核员）',
+      time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+    })
+  }
 })
 </script>
 
@@ -1638,15 +1670,16 @@ onMounted(async () => {
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 160px;
   padding: 0 24px;
   height: 56px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
 }
-.filing-header-left { display: flex; align-items: center; gap: 4px; }
-.back-btn { color: #595959; }
-.filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; }
+.filing-header-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+.filing-header-left :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; }
+.back-btn { color: #595959; flex-shrink: 0; }
+.filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 
 .main-card { margin: 16px; border-radius: 8px; }
 
@@ -1667,7 +1700,30 @@ onMounted(async () => {
 .filing-summary-item strong { color: #1a1a1a; margin-left: 2px; }
 .filing-summary-divider { width: 1px; height: 14px; background: #d9d9d9; margin: 0 14px; }
 
+/* ── 退回原因卡片 ── */
+.reject-card {
+  border: 1px solid rgba(220,38,38,.25);
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+  margin: 16px 16px 0;
+}
+.reject-card-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px 0;
+  font-size: 15px; font-weight: 600; color: #dc2626;
+}
+.reject-card-body { padding: 8px 16px 12px; }
+.reject-meta { display: flex; gap: 20px; font-size: 12px; color: #595959; margin-bottom: 8px; }
+.reject-meta-item strong { color: #1a1a1a; }
+.reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
+
 /* ── Section 标题 ── */
+.section-title--toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+.section-title--collapsed { margin-bottom: 0 !important; }
+.section-toggle-icon { font-size: 12px; color: #8c8c8c; background: #f0f0f0; padding: 7px 6px 5px; border-radius: 4px; display: inline-flex; align-items: center; transition: transform 0.2s; }
+.section-toggle-icon.rotated { transform: rotate(-90deg); }
 .section-title {
   font-size: 16px;
   font-weight: 500;

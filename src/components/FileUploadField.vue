@@ -107,7 +107,7 @@ function removeFile(file: UploadFile) {
 }
 
 .fuf__name {
-  font-size: 12px;
+  font-size: 14px;
   color: #1f1f1f;
   font-family: 'PingFang SC', -apple-system, sans-serif;
   overflow: hidden;

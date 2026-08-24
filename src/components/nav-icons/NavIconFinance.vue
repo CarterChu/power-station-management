@@ -1,0 +1,5 @@
+<template>
+  <svg width="1em" height="1em" viewBox="0 0 14.3333 14.3333" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7.16667 11.1667V7.16667M7.16667 7.16667L9.83333 3.83333M7.16667 7.16667L4.5 3.83333M9.83333 7.16667H4.5M9.5 9.16667H4.83333M13.8333 7.16667C13.8333 10.8486 10.8486 13.8333 7.16667 13.8333C3.48477 13.8333 0.5 10.8486 0.5 7.16667C0.5 3.48477 3.48477 0.5 7.16667 0.5C10.8486 0.5 13.8333 3.48477 13.8333 7.16667Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</template>

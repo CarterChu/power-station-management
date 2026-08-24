@@ -142,6 +142,10 @@
             <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
             <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
             <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
+            <StartApply v-else-if="activeTabKey === 'start-apply'" :edit-id="editingId" :init-status="startApplyInitStatus" :init-data="startApplyInitData" @back="handleBackFromStartApply" />
+            <StartDetail v-else-if="activeTabKey === 'start-detail'" :init-row="startDetailRow" @back="handleBackFromStartDetail" @edit="handleEditFromStartDetail" />
+            <StockApply v-else-if="activeTabKey === 'stock-apply'" :edit-id="editingId" :init-status="stockApplyInitStatus" :init-data="stockApplyInitData" @back="handleBackFromStockApply" />
+            <StockDetail v-else-if="activeTabKey === 'stock-detail'" :init-row="stockDetailRow" @back="handleBackFromStockDetail" @edit="handleEditFromStockDetail" />
           </div>
         </div>
 
@@ -151,17 +155,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { AnfeConfigProvider } from '@anfe/vue-pro-components'
 import {
-  AppstoreOutlined, SoundOutlined, HomeOutlined, ToolOutlined,
-  ApartmentOutlined, ClusterOutlined, AccountBookOutlined, EllipsisOutlined,
   MenuFoldOutlined, MenuUnfoldOutlined, SearchOutlined,
 } from '@ant-design/icons-vue'
+import NavIconBasic from './components/nav-icons/NavIconBasic.vue'
+import NavIconMarketing from './components/nav-icons/NavIconMarketing.vue'
+import NavIconStation from './components/nav-icons/NavIconStation.vue'
+import NavIconOperation from './components/nav-icons/NavIconOperation.vue'
+import NavIconSupply from './components/nav-icons/NavIconSupply.vue'
+import NavIconFinance from './components/nav-icons/NavIconFinance.vue'
+import NavIconOther from './components/nav-icons/NavIconOther.vue'
 import LncProjectList from './pages/工商业项目管理列表页.vue'
 import FilingStandard from './pages/建档申请页-标准政策.vue'
 import FilingNonStandard from './pages/建档申请页-非标政策.vue'
 import FilingDetail from './pages/建档详情页.vue'
+import StartApply from './pages/开工申请页.vue'
+import StartDetail from './pages/开工详情页.vue'
+import StockApply from './pages/到货申请页.vue'
+import StockDetail from './pages/到货详情页.vue'
 
 // ── Tab 路由状态 ──
 interface Tab { key: string; label: string; closable?: boolean }
@@ -170,15 +183,71 @@ const tabs = ref<Tab[]>([
   { key: 'list', label: '电站列表', closable: false },
 ])
 const activeTabKey = ref('list')
-const editingId       = ref<string | null>(null)
-const detailStatus    = ref<string>('filing')
+const editingId        = ref<string | null>(null)
+const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
-const detailRow = ref<Record<string, any>>({})
-const filingInitData  = ref<any>(null)
+const detailRow        = ref<Record<string, any>>({})
+const filingInitData   = ref<any>(null)
 const filingInitStatus = ref<string | null>(null)
+const startApplyInitData   = ref<any>(null)
+const startApplyInitStatus = ref<string | null>(null)
+const startDetailRow   = ref<Record<string, any>>({})
+const stockApplyInitData   = ref<any>(null)
+const stockApplyInitStatus = ref<string | null>(null)
+const stockDetailRow   = ref<Record<string, any>>({})
 
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
+
+// ── sessionStorage 状态持久化（刷新保留当前页） ──
+const _SS_KEY = 'lnc-app-state'
+function _saveState() {
+  try {
+    sessionStorage.setItem(_SS_KEY, JSON.stringify({
+      tabs: tabs.value,
+      activeTabKey: activeTabKey.value,
+      editingId: editingId.value,
+      detailStatus: detailStatus.value,
+      detailPolicyType: detailPolicyType.value,
+      detailRow: detailRow.value,
+      filingInitData: filingInitData.value,
+      filingInitStatus: filingInitStatus.value,
+      startApplyInitData: startApplyInitData.value,
+      startApplyInitStatus: startApplyInitStatus.value,
+      startDetailRow: startDetailRow.value,
+      stockApplyInitData: stockApplyInitData.value,
+      stockApplyInitStatus: stockApplyInitStatus.value,
+      stockDetailRow: stockDetailRow.value,
+    }))
+  } catch {}
+}
+watch(
+  [tabs, activeTabKey, editingId, detailStatus, detailPolicyType, detailRow,
+   filingInitData, filingInitStatus, startApplyInitData, startApplyInitStatus,
+   startDetailRow, stockApplyInitData, stockApplyInitStatus, stockDetailRow],
+  _saveState, { deep: true }
+)
+onMounted(() => {
+  try {
+    const raw = sessionStorage.getItem(_SS_KEY)
+    if (!raw) return
+    const s = JSON.parse(raw)
+    if (s.tabs) tabs.value = s.tabs
+    if (s.activeTabKey) activeTabKey.value = s.activeTabKey
+    editingId.value = s.editingId ?? null
+    if (s.detailStatus) detailStatus.value = s.detailStatus
+    if (s.detailPolicyType) detailPolicyType.value = s.detailPolicyType
+    if (s.detailRow) detailRow.value = s.detailRow
+    filingInitData.value = s.filingInitData ?? null
+    filingInitStatus.value = s.filingInitStatus ?? null
+    startApplyInitData.value = s.startApplyInitData ?? null
+    startApplyInitStatus.value = s.startApplyInitStatus ?? null
+    if (s.startDetailRow) startDetailRow.value = s.startDetailRow
+    stockApplyInitData.value = s.stockApplyInitData ?? null
+    stockApplyInitStatus.value = s.stockApplyInitStatus ?? null
+    if (s.stockDetailRow) stockDetailRow.value = s.stockDetailRow
+  } catch {}
+})
 
 function switchTab(key: string) {
   activeTabKey.value = key
@@ -205,7 +274,7 @@ function closeTab(key: string) {
 const menuGroups = [
   {
     domain: '基础',
-    icon: AppstoreOutlined,
+    icon: NavIconBasic,
     items: [
       { key: 'nav-公告通知', label: '公告通知' },
       { key: 'nav-我的工作台', label: '我的工作台' },
@@ -217,7 +286,7 @@ const menuGroups = [
   },
   {
     domain: '营销',
-    icon: SoundOutlined,
+    icon: NavIconMarketing,
     items: [
       { key: 'nav-品牌营销', label: '品牌营销' },
       { key: 'nav-客户中心', label: '客户中心' },
@@ -225,7 +294,7 @@ const menuGroups = [
   },
   {
     domain: '电站管理',
-    icon: HomeOutlined,
+    icon: NavIconStation,
     items: [
       { key: 'nav-电站工作台', label: '电站工作台' },
       { key: 'nav-电站列表', label: '电站列表' },
@@ -234,23 +303,15 @@ const menuGroups = [
   },
   {
     domain: '工商业电站管理',
-    icon: HomeOutlined,
+    icon: NavIconStation,
     items: [
       { key: 'biz-dashboard', label: '电站工作台' },
       { key: 'biz-list',      label: '电站列表' },
     ],
   },
   {
-    domain: '运营管理',
-    icon: ToolOutlined,
-    items: [
-      { key: 'nav-运维工单', label: '运维工单' },
-      { key: 'nav-电站监控', label: '电站监控' },
-    ],
-  },
-  {
     domain: '运营',
-    icon: ApartmentOutlined,
+    icon: NavIconOperation,
     items: [
       { key: 'nav-电站建档', label: '电站建档' },
       { key: 'nav-完工登记序列号', label: '完工登记（序列号录入）' },
@@ -272,10 +333,10 @@ const menuGroups = [
   },
   {
     domain: '供应链',
-    icon: ClusterOutlined,
+    icon: NavIconSupply,
     items: [
       { key: 'nav-齐套管理', label: '齐套管理' },
-      { key: 'nav-备货管理', label: '备货管理' },
+      { key: 'nav-到货管理', label: '到货管理' },
       { key: 'nav-计划管理', label: '计划管理' },
       { key: 'nav-安能物料采购管理', label: '安能物料采购管理' },
       { key: 'nav-供应商结算', label: '供应商结算' },
@@ -291,7 +352,7 @@ const menuGroups = [
   },
   {
     domain: '金融财务',
-    icon: AccountBookOutlined,
+    icon: NavIconFinance,
     items: [
       { key: 'nav-电站销售回款', label: '电站销售回款' },
       { key: 'nav-供应链金融管理', label: '供应链金融管理' },
@@ -300,7 +361,7 @@ const menuGroups = [
   },
   {
     domain: '其他',
-    icon: EllipsisOutlined,
+    icon: NavIconOther,
     items: [
       { key: 'nav-智慧运维商城', label: '智慧运维商城' },
     ],
@@ -374,6 +435,22 @@ const handleNavigate = (target: string, payload?: any) => {
       filingInitStatus.value = null
       openTab('filing-non-standard', payload?.tabLabel ?? '非标政策建档')
     }
+  } else if (target === 'start-apply') {
+    editingId.value = payload?.editId ?? null
+    startApplyInitStatus.value = payload?.initStatus ?? null
+    startApplyInitData.value = payload ?? null
+    openTab('start-apply', payload?.editId ? '编辑开工申请' : '开工申请')
+  } else if (target === 'start-detail') {
+    startDetailRow.value = payload ?? {}
+    openTab('start-detail', '开工详情')
+  } else if (target === 'stock-apply') {
+    editingId.value = payload?.editId ?? null
+    stockApplyInitStatus.value = payload?.initStatus ?? null
+    stockApplyInitData.value = payload ?? null
+    openTab('stock-apply', payload?.editId ? '编辑到货申请' : '到货申请')
+  } else if (target === 'stock-detail') {
+    stockDetailRow.value = payload ?? {}
+    openTab('stock-detail', '到货详情')
   }
 }
 
@@ -395,6 +472,38 @@ const handleBackFromNonStandardFiling = () => {
 
 const handleBackFromDetail = () => {
   closeTab('detail')
+}
+
+const handleBackFromStartApply = () => {
+  editingId.value = null
+  closeTab('start-apply')
+}
+
+const handleBackFromStartDetail = () => {
+  closeTab('start-detail')
+}
+
+const handleEditFromStartDetail = (id: string) => {
+  editingId.value = id
+  startApplyInitStatus.value = startDetailRow.value.filingStatus ?? null
+  startApplyInitData.value = { ...startDetailRow.value }
+  openTab('start-apply', '编辑开工申请')
+}
+
+const handleBackFromStockApply = () => {
+  editingId.value = null
+  closeTab('stock-apply')
+}
+
+const handleBackFromStockDetail = () => {
+  closeTab('stock-detail')
+}
+
+const handleEditFromStockDetail = (id: string) => {
+  editingId.value = id
+  stockApplyInitStatus.value = stockDetailRow.value.filingStatus ?? null
+  stockApplyInitData.value = { ...stockDetailRow.value }
+  openTab('stock-apply', '编辑到货申请')
 }
 </script>
 
