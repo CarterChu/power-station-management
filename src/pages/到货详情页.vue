@@ -129,7 +129,7 @@
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
-            :tab-bar-style="{ padding: '8px 24px 0', marginBottom: 0 }"
+            :tab-bar-style="{ padding: tabsStuck ? '0 24px' : '8px 24px 0', marginBottom: 0 }"
             @tab-click="scrollToTabNav"
           >
 
@@ -757,7 +757,7 @@ async function scrollToTabNav() {
   if (!wrapper) return
   const container = detailBodyRef.value
   if (!container) return
-  const top = wrapper.offsetTop
+  const top = Math.round(wrapper.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop)
   container.scrollTo({ top, behavior: 'smooth' })
 }
 
@@ -1000,7 +1000,7 @@ onMounted(() => {
     _scrollHandler = () => {
       const wrapper = tabsWrapperRef.value
       if (!wrapper) return
-      tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top + 1
+      tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top - 15
     }
     container.addEventListener('scroll', _scrollHandler, { passive: true })
   }
@@ -1343,8 +1343,8 @@ function nowTimeStr(): string {
 .detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .detail-sidebar { width: 300px; flex-shrink: 0; position: sticky; top: 0; height: calc(100vh - 170px); }
 .tabs-wrapper { background: #fff; border-radius: 8px; }
-.detail-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
-.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 0; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { border-radius: 0; }
 
 .reject-card {
   border: 1px solid rgba(220,38,38,.25);

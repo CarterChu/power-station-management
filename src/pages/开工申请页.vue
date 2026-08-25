@@ -1359,8 +1359,6 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .detail-body {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
   padding: 0 16px 16px;
   overscroll-behavior: contain;
 }

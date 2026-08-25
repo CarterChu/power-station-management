@@ -6,56 +6,48 @@
         <a-button type="text" class="back-btn" @click="emit('back')">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="detail.projectName">
-          <span class="detail-title">{{ detail.projectName }}</span>
+        <a-tooltip :title="props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}`">
+          <span class="detail-title">{{ props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}` }}</span>
         </a-tooltip>
-        <a-tag color="blue">建档</a-tag>
+        <a-tag color="blue">到货</a-tag>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
+        <a-tag
+          v-if="SUB_STATUS_LABEL[detail.filingStatus]"
+          :color="SUB_STATUS_COLOR[detail.filingStatus]"
+        >{{ SUB_STATUS_LABEL[detail.filingStatus] }}</a-tag>
         <span class="detail-header-meta">
           <span class="detail-header-meta-item">{{ detail.stationType }}</span>
           <span class="detail-header-meta-divider" />
           <span class="detail-header-meta-item">{{ props.policyType === 'nonstandard' ? PROJECT_TYPE_LABEL[detail.projectType] : '公建 EMC' }}</span>
           <span class="detail-header-meta-divider" />
-          <span class="detail-header-meta-item">{{ props.policyType === 'nonstandard' ? '非标政策' : '标准政策' }}</span>
+          <span class="detail-header-meta-item">{{ props.initData?.policyType === 'nonstandard' ? '非标政策' : '标准政策' }}</span>
           <span class="detail-header-meta-divider" />
           <span class="detail-header-meta-item">{{ detail.stationNo }}<CopyOutlined class="copy-icon" @click="copyStationNo(detail.stationNo)" /></span>
         </span>
       </div>
       <a-space>
-        <a-popconfirm
-          v-if="canVoid"
-          title="确认作废该建档？"
-          description="作废后电站编号与 OA 单号的关联将解除，且不可恢复。"
-          ok-text="确认作废" ok-type="danger" cancel-text="取消"
-          @confirm="handleVoid"
-        >
-          <a-button danger>作废</a-button>
-        </a-popconfirm>
-        <a-button v-if="canEdit" type="primary" @click="handleEdit">修改</a-button>
+        <a-button @click="emit('back')">取消</a-button>
+        <a-button :loading="saving" @click="handleSave">保存</a-button>
+        <a-tooltip :title="hasSubmittedFullArrival ? '已提交全部到货申请，不可再次提交' : ''">
+          <a-popconfirm
+            title="确认提交到货申请？提交后将进入审核流程。"
+            ok-text="确认提交"
+            cancel-text="取消"
+            :disabled="hasSubmittedFullArrival"
+            @confirm="handleSubmit"
+          >
+            <a-button type="primary" :loading="submitting" :disabled="hasSubmittedFullArrival">提交到货申请</a-button>
+          </a-popconfirm>
+        </a-tooltip>
       </a-space>
     </div>
 
-    <div class="detail-body" ref="detailBodyRef">
+    <div ref="detailBodyRef" class="detail-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
       <!-- 左侧：只读 TAB 内容 -->
       <div class="detail-main">
 
-        <!-- 退回原因卡片（仅审核不通过时展示） -->
-        <div v-if="detail.filingStatus === 'rejected'" class="reject-card">
-          <div class="reject-card-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-            <span>审核不通过</span>
-          </div>
-          <div class="reject-card-body">
-            <div class="reject-meta">
-              <span class="reject-meta-item">退回环节 <strong>{{ detail.rejectInfo.stage }}</strong></span>
-              <span class="reject-meta-item">审核人 <strong>{{ detail.rejectInfo.reviewer }}</strong></span>
-              <span class="reject-meta-item">时间 {{ detail.rejectInfo.time }}</span>
-            </div>
-            <div class="reject-reason">{{ detail.rejectInfo.reason }}</div>
-          </div>
-        </div>
 
         <!-- ── 项目信息 ── -->
         <div class="detail-card detail-card--plain">
@@ -90,7 +82,7 @@
               </div>
             </div>
             <div class="info-section">
-              <div class="info-section-title">EMC信息</div>
+              <div class="info-section-title">合同信息</div>
               <div class="info-grid">
                 <div class="info-item"><span class="info-label">EMC 电价</span><span class="info-value">{{ detail.emcPrice }} 元/kWh</span></div>
                 <div class="info-item"><span class="info-label">EMC 年限</span><span class="info-value">{{ detail.emcYears }} 年</span></div>
@@ -145,8 +137,7 @@
         </div>
 
 
-        <a-card class="detail-card" :body-style="{ padding: 0 }">
-          <div ref="tabsWrapperRef" :class="{ 'tabs-stuck': tabsStuck }">
+        <div ref="tabsWrapperRef" class="tabs-wrapper" :class="{ 'tabs-stuck': tabsStuck }">
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
@@ -496,6 +487,16 @@
                   </template>
                 </div>
 
+                <div v-if="props.policyType !== 'nonstandard'" class="info-section">
+                  <div class="info-section-title">付款节点<span class="section-sub" style="margin-left:8px">标准政策自动匹配</span></div>
+                  <div class="payment-nodes">
+                    <div v-for="node in STANDARD_PAYMENT_NODES" :key="node.key" class="payment-node-row">
+                      <span class="payment-node-label">{{ node.label }}</span>
+                      <span class="payment-node-pct">{{ node.pct }}%</span>
+                      <span class="payment-node-desc">{{ node.desc }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </a-tab-pane>
 
@@ -564,223 +565,721 @@
               </div>
             </a-tab-pane>
 
-            <!-- ──────── 合同付款比例 TAB（非标专属）──────── -->
-            <a-tab-pane v-if="props.policyType === 'nonstandard'" key="payment" tab="合同付款比例">
+            <!-- 开工（只读） -->
+            <a-tab-pane key="start" tab="开工" force-render>
               <div class="tab-body">
-                <div v-for="(contract, idx) in detailPaymentContracts" :key="idx" class="payment-contract-card">
-                  <div class="payment-contract-header">
-                    <div class="payment-contract-type">{{ contract.type }}</div>
-                    <div class="payment-contract-meta-row">
-                      <span class="payment-meta-item"><span class="payment-meta-label">合同编号</span><span class="payment-meta-value">{{ contract.contractNo || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">合同签订金额</span><span class="payment-meta-value">{{ contract.amount != null ? `¥${Number(contract.amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">甲方</span><span class="payment-meta-value">{{ contract.partyA || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">乙方</span><span class="payment-meta-value">{{ contract.partyB || '—' }}</span></span>
-                      <span class="payment-meta-item"><span class="payment-meta-label">结算对象类型</span><span class="payment-meta-value">{{ contract.settlementType || '—' }}</span></span>
-                    </div>
+
+                <!-- 开工信息 -->
+                <div class="info-section" style="margin-top:0">
+                  <div class="info-section-title">开工信息</div>
+                  <div class="info-grid">
+                    <div class="info-item"><span class="info-label">现场负责人</span><span class="info-value">{{ detail.startInfo.siteManager || '—' }}</span></div>
+                    <div class="info-item"><span class="info-label">负责人电话</span><span class="info-value">{{ detail.startInfo.siteManagerPhone || '—' }}</span></div>
+                    <div class="info-item"><span class="info-label">开工日期</span><span class="info-value">{{ detail.startInfo.startDate || '—' }}</span></div>
                   </div>
-                  <table class="payment-ratio-table">
-                    <thead>
-                      <tr>
-                        <th style="width:80px"></th>
-                        <th v-for="row in contract.nodes" :key="row.node">{{ row.node }}</th>
-                        <th style="width:120px">合计</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td class="payment-row-label">付款比例</td>
-                        <td v-for="(row, nodeIdx) in contract.nodes" :key="row.node">
-                          <a-input-number
-                            v-if="paymentEditData[idx]"
-                            v-model:value="paymentEditData[idx].ratios[nodeIdx]"
-                            :min="0" :max="100" :precision="0" :controls="false"
-                            style="width:80px"
-                            addon-after="%"
-                          />
-                        </td>
-                        <td :class="['payment-total-cell', paymentEditData[idx] && paymentTotal(idx) !== 100 ? 'payment-total-cell--error' : '']">
-                          {{ paymentEditData[idx] ? paymentTotal(idx) : 0 }}%
-                          <div v-if="paymentEditData[idx] && paymentTotal(idx) !== 100" class="payment-total-hint">需等于100%</div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td class="payment-row-label">付款金额</td>
-                        <td v-for="(row, nodeIdx) in contract.nodes" :key="row.node" class="payment-amount-cell">
-                          {{ contract.amount != null && paymentEditData[idx]?.ratios[nodeIdx] != null
-                            ? `¥${(contract.amount * (paymentEditData[idx].ratios[nodeIdx] ?? 0) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
-                            : '—' }}
-                        </td>
-                        <td class="payment-amount-cell">—</td>
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
-                <div style="display:flex;justify-content:flex-end;padding-top:4px">
-                  <a-button type="primary" :loading="paymentSubmitting" @click="handlePaymentSubmit">提交付款比例</a-button>
+
+                <!-- 工程资料 -->
+                <div class="info-section">
+                  <div class="info-section-title">工程资料</div>
+                  <div class="info-grid">
+                    <div class="info-item info-item--span2"><span class="info-label">中高压施工单位保险</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.insuranceFiles?.length" :files="detail.startInfo.insuranceFiles" /><span v-else>—</span></span></div>
+                    <div class="info-item info-item--span2"><span class="info-label">质量安全技术交底</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.safetyDisclosureFiles?.length" :files="detail.startInfo.safetyDisclosureFiles" /><span v-else>—</span></span></div>
+                    <div class="info-item info-item--span2"><span class="info-label">其他</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.engineeringOtherFiles?.length" :files="detail.startInfo.engineeringOtherFiles" /><span v-else>—</span></span></div>
+                  </div>
+                </div>
+
+                <!-- 技术资料 -->
+                <div class="info-section">
+                  <div class="info-section-title">技术资料</div>
+                  <div class="info-grid">
+                    <div class="info-item info-item--span2"><span class="info-label">技术交底</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.techDisclosureFiles?.length" :files="detail.startInfo.techDisclosureFiles" /><span v-else>—</span></span></div>
+                    <div class="info-item info-item--span2"><span class="info-label">设备技术协议</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.equipmentAgreementFiles?.length" :files="detail.startInfo.equipmentAgreementFiles" /><span v-else>—</span></span></div>
+                    <div class="info-item info-item--span2"><span class="info-label">其他</span><span class="info-value"><FileAttachmentView v-if="detail.startInfo.techOtherFiles?.length" :files="detail.startInfo.techOtherFiles" /><span v-else>—</span></span></div>
+                  </div>
+                </div>
+
+                <!-- 施工人员 -->
+                <div class="info-section">
+                  <div class="info-section-title">施工人员</div>
+                  <a-table
+                    :data-source="detail.startInfo.personnel"
+                    :columns="personnelColumns"
+                    :pagination="false"
+                    size="small"
+                    row-key="id"
+                    :locale="{ emptyText: '暂无施工人员' }"
+                  >
+                    <template #bodyCell="{ column }">
+                      <template v-if="column.key === 'action'">
+                        <a-button type="link" size="small" @click="message.info('跳转到人才详情页')">详情</a-button>
+                      </template>
+                    </template>
+                  </a-table>
+                </div>
+
+              </div>
+            </a-tab-pane>
+
+            <!-- 到货 -->
+            <a-tab-pane key="stock" tab="到货">
+              <div class="tab-body">
+                <div class="info-section" style="margin-top:0">
+                  <div class="info-section-title">
+                    到货信息
+                    <span style="flex:1"></span>
+                    <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
+                    <a-tooltip v-if="canEdit" :title="!props.editId && allFullyArrived ? '已经全部到货，不可新增' : ''">
+                      <a-button type="primary" size="small" :disabled="!props.editId && allFullyArrived" @click="showStockDrawer = true">新增到货</a-button>
+                    </a-tooltip>
+                  </div>
+                  <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
+                  <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                    <div
+                      class="payment-contract-header"
+                      style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
+                      :style="collapsedStockCards.has(record.id) ? { borderBottom: 'none' } : {}"
+                      @click="toggleStockCard(record.id)"
+                    >
+                      <div>
+                        <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
+                          {{ record.orderNo }}
+                          <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
+                          <a-tag v-if="props.editId && record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
+                        </div>
+                        <div class="payment-contract-meta-row" style="margin-top:8px">
+                          <span class="payment-meta-item">
+                            <span class="payment-meta-label">物料类型</span>
+                            <span class="payment-meta-value">{{ record.materialType }}</span>
+                          </span>
+                          <span class="payment-meta-item">
+                            <span class="payment-meta-label">创建人</span>
+                            <span class="payment-meta-value">{{ record.creator }}</span>
+                          </span>
+                          <span class="payment-meta-item">
+                            <span class="payment-meta-label">创建时间</span>
+                            <span class="payment-meta-value">{{ record.createTime }}</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <span v-if="detail.filingStatus === 'waiting_stock'" @click.stop>
+                          <a-popconfirm title="确认作废该到货单？" ok-text="确认" cancel-text="取消" @confirm="sharedStockRecords.splice(sharedStockRecords.indexOf(record), 1)">
+                            <a-button type="link" size="small" danger>作废</a-button>
+                          </a-popconfirm>
+                        </span>
+                        <a-button
+                          v-if="record.status === 'rejected'"
+                          size="small"
+                          @click.stop="openEditDrawer(record)"
+                        >修改</a-button>
+                        <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
+                      </div>
+                    </div>
+                    <div
+                      v-if="props.editId && record.status === 'rejected' && (record.rejectReasons?.length || record.rejectComment)"
+                      style="padding:8px 12px;background:#fff2f0;font-size:13px;color:#cf1322"
+                    >
+                      <div v-if="record.rejectReasons?.length" style="margin-bottom:4px">
+                        <span style="font-weight:600">不通过原因：</span>{{ record.rejectReasons.join('、') }}
+                      </div>
+                      <div v-if="record.rejectComment">
+                        <span style="font-weight:600">审核意见：</span>{{ record.rejectComment }}
+                      </div>
+                    </div>
+                    <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table" style="border-top:1px solid #f0f0f0">
+                      <thead>
+                        <tr>
+                          <th style="width:48px">序号</th>
+                          <th style="width:72px">类型</th>
+                          <th style="width:90px">物料编号</th>
+                          <th style="width:160px">物料描述</th>
+                          <th style="width:48px">单位</th>
+                          <th style="width:72px">设计数量</th>
+                          <th style="width:90px">本次到货数量</th>
+                          <th style="width:100px">剩余到货数量</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(item, idx) in record.items" :key="item.code">
+                          <td>{{ idx + 1 }}</td>
+                          <td>{{ item.type }}</td>
+                          <td>{{ item.code }}</td>
+                          <td>{{ item.name }}</td>
+                          <td>{{ item.unit }}</td>
+                          <td>{{ item.designQty }}</td>
+                          <td>{{ item.arrivedQty ?? '—' }}</td>
+                          <td style="color:#ff4d4f;font-weight:500">{{ Math.max(0, item.pendingQty - (item.arrivedQty ?? 0)) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </a-tab-pane>
 
           </a-tabs>
-          </div>
-        </a-card>
-      </div>
-
-      <!-- 右侧：流转日志 -->
-      <div class="detail-sidebar">
-        <div class="log-card">
-          <div class="log-card-header">
-            <div class="section-title">流转日志</div>
-          </div>
-          <div class="log-card-body">
-          <div class="approval-list">
-            <div v-for="group in groupedLogs" :key="group.date" class="approval-date-group">
-              <div class="approval-date-header">
-                <CalendarOutlined class="approval-date-icon" />
-                <span class="approval-date-text">{{ group.date }}</span>
-              </div>
-              <div class="approval-items">
-                <div v-for="(log, idx) in group.logs" :key="log.id" class="approval-item">
-                  <div class="approval-connector">
-                    <div class="connector-line connector-line--top" />
-                    <component :is="LOG_ICON[log.type]" class="connector-icon" :class="`connector-icon--${log.type}`" />
-                    <div v-if="!(group === groupedLogs[groupedLogs.length-1] && idx === group.logs.length-1)" class="connector-line connector-line--bottom" />
-                  </div>
-                  <div class="approval-card-wrap">
-                    <div class="approval-card">
-                      <div class="approval-card-header">
-                        <span class="approval-card-title">{{ log.event }}</span>
-                        <span :class="['approval-tag', `approval-tag--${log.type}`]">
-                          {{ LOG_TAG_LABEL[log.type] }}
-                        </span>
-                      </div>
-                      <div class="approval-card-body">
-                        <div class="approval-field">
-                          <span class="field-label">操作人</span>
-                          <span class="field-value">{{ log.operator }}</span>
-                        </div>
-                        <div v-if="log.note" class="approval-field">
-                          <span class="field-label">备注</span>
-                          <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']">{{ log.note }}</span>
-                        </div>
-                        <div class="approval-field">
-                          
-                          <span class="field-value field-value--muted">{{ log.time }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 审核 FAB -->
-    <div v-if="showReviewFab" class="review-fab" @click="reviewCollapsed = false">
-      <AuditOutlined style="font-size:16px;position:relative;top:-1px" />
-      <span style="font-size:13px">建档商务审核</span>
-    </div>
-
-    <!-- 可拖拽审核面板 -->
-    <div
-      v-if="showReviewPanel"
-      ref="reviewPanelEl"
-      class="review-panel"
-      :style="{ left: reviewPos.x + 'px', top: reviewPos.y + 'px', width: reviewSize.w + 'px', ...(reviewSize.h > 0 && { height: reviewSize.h + 'px' }) }"
-      @mousedown="(e: MouseEvent) => { const t = e.target as HTMLElement; if (!t.closest('textarea,input,button,a,[role=button],.review-textarea-resize-handle,.review-drop-hint,.review-image-item,.review-corner-handle')) onReviewDragStart(e) }"
-    >
-      <!-- 四角缩放把手 -->
-      <div class="review-corner-handle review-corner-handle--nw" @mousedown.stop="onCornerResizeStart($event, 'nw')" />
-      <div class="review-corner-handle review-corner-handle--ne" @mousedown.stop="onCornerResizeStart($event, 'ne')" />
-      <div class="review-corner-handle review-corner-handle--sw" @mousedown.stop="onCornerResizeStart($event, 'sw')" />
-      <div class="review-corner-handle review-corner-handle--se" @mousedown.stop="onCornerResizeStart($event, 'se')" />
-
-      <div class="review-panel-header" @mousedown.prevent="onReviewDragStart">
-        <span class="review-panel-title">建档商务审核</span>
-        <div style="display:flex;align-items:center;gap:16px">
-          <HolderOutlined class="review-panel-drag-icon" />
-          <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
-        </div>
-      </div>
-      <div class="review-reject-reasons">
-        <div class="review-reject-label">不通过原因</div>
-        <a-select
-          v-model:value="reviewRejectReasons"
-          mode="multiple"
-          :options="REJECT_REASONS.map(r => ({ label: r, value: r }))"
-          placeholder="请选择不通过原因（可多选）"
-          style="width:100%"
-          :max-tag-count="2"
-        />
-      </div>
-      <div
-        class="review-textarea-wrap"
-        :class="{ 'drag-over': reviewDragOver }"
-        :style="reviewSize.h > 0 ? { flex: '1', minHeight: '0', overflow: 'hidden' } : {}"
-      >
-        <a-textarea
-          v-model:value="reviewComment"
-          placeholder="请输入审核意见..."
-          :auto-size="false"
-          :bordered="false"
-          :style="{ flex: reviewSize.h > 0 ? '1' : 'none', resize: 'none', padding: '8px 12px', fontSize: '14px', height: reviewSize.h > 0 ? '100%' : '120px' }"
-        />
-      </div>
-      <div
-        class="review-drop-zone"
-        :class="{ 'drag-over': reviewDragOver }"
-        @dragover.prevent="reviewDragOver = true"
-        @dragleave="reviewDragOver = false"
-        @drop="onReviewDropZoneDrop"
-      >
-        <div v-if="reviewImageList.length === 0" class="review-drop-hint" @click="onReviewClickUpload">
-          点击此处粘贴或拖拽图片上传
-        </div>
-        <div v-else class="review-image-list">
-          <div v-for="img in reviewImageList" :key="img.uid" class="review-image-item">
-            <img :src="img.url" :alt="img.name" />
-            <span class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
-          </div>
-        </div>
-      </div>
-      <div class="review-panel-footer">
-        <a-button style="height:32px" @click="submitReview('skip')">暂不审核</a-button>
-        <a-button style="height:32px" danger type="primary" @click="submitReview('reject')">审核不通过</a-button>
-        <a-button style="height:32px" type="primary" @click="submitReview('pass')">审核通过</a-button>
-      </div>
     </div>
   </div>
+
+  <!-- 到货统计 Drawer -->
+  <a-drawer v-model:open="showStockStatDrawer" title="到货统计" :width="900" :destroy-on-close="false">
+    <div class="stat-drawer-body">
+    <a-table
+      class="stat-table"
+      :data-source="stockStatRows"
+      :columns="stockStatColumns"
+      :pagination="false"
+      size="small"
+      row-key="code"
+      :scroll="{ y: 'calc(100vh - 120px)' }"
+      :locale="{ emptyText: '暂无到货数据' }"
+      :row-class-name="(record: any) => record.arrivedQty >= record.designQty ? 'stat-row-done' : ''"
+    />
+    </div>
+  </a-drawer>
+
+  <!-- 新增到货 Drawer -->
+  <a-drawer
+    v-model:open="showStockDrawer"
+    :width="860"
+    :destroy-on-close="true"
+    @close="handleCloseStockDrawer"
+  >
+    <template #title>
+      <span style="display:flex;align-items:center;gap:8px">
+        {{ editingStockRecord ? '修改到货' : '新增到货' }}
+        <span v-if="editingStockRecord" style="font-size:13px;color:#8c8c8c">{{ editingStockRecord.orderNo }}</span>
+        <a-tag v-if="computedArrivalType === '全部到货'" color="success" style="margin:0">全部到货</a-tag>
+        <a-tag v-else-if="computedArrivalType === '部分到货'" color="processing" style="margin:0">部分到货</a-tag>
+      </span>
+    </template>
+    <a-form ref="stockNewFormRef" :model="stockNewForm" :colon="false" layout="vertical">
+
+      <div class="info-section-title" style="margin-top:0">基本信息</div>
+      <a-row :gutter="[24, 0]">
+        <a-col :span="8">
+          <a-form-item label="物料类型" name="materialType"
+            :rules="[{ required: true, type: 'array', min: 1, message: '请选择物料类型' }]">
+            <a-select
+              v-model:value="stockNewForm.materialType"
+              mode="multiple"
+              placeholder="请选择"
+            >
+              <a-select-option value="中高压">中高压</a-select-option>
+              <a-select-option value="低压">低压</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="签收人" name="receiver"
+            :rules="[{ required: true, message: '请输入签收人' }]">
+            <a-input v-model:value="stockNewForm.receiver" placeholder="请输入" :maxlength="30" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="签收人电话" name="receiverPhone"
+            :rules="[
+              { required: true, message: '请输入签收人电话' },
+              { pattern: /^1\d{10}$/, message: '请输入正确的手机号' }
+            ]">
+            <a-input v-model:value="stockNewForm.receiverPhone" placeholder="请输入" :maxlength="11" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="签收状态" name="signStatus">
+            <a-select v-model:value="stockNewForm.signStatus" placeholder="请选择">
+              <a-select-option value="signed">已签收</a-select-option>
+              <a-select-option value="unsigned">未签收</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="签收时间" name="signTime">
+            <a-date-picker v-model:value="stockNewForm.signTime" style="width:100%" format="YYYY-MM-DD" placeholder="请选择" />
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="stockNewForm.remark" placeholder="200字符以内" :maxlength="200" :rows="2" :show-count="true" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <div class="info-section-title">选择到货</div>
+      <a-table
+        :data-source="stockNewItems"
+        :columns="stockNewColumns"
+        :pagination="false"
+        size="small"
+        row-key="id"
+        :locale="{ emptyText: stockNewForm.materialType.length ? '该类型暂无 BOM 物料' : '请先选择物料类型' }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'arrivedQty'">
+            <a-input-number
+              v-model:value="record.arrivedQty"
+              :min="0"
+              :precision="0"
+              size="small"
+              style="width:90px"
+            />
+          </template>
+          <template v-if="column.key === 'attachment'">
+            <a-button
+              type="link"
+              size="small"
+              @click="openAttachModal(record)"
+            >
+              附件{{ attachTotalCount(record) > 0 ? `(${attachTotalCount(record)})` : '' }}
+            </a-button>
+          </template>
+        </template>
+      </a-table>
+
+    </a-form>
+
+    <template #footer>
+      <a-space>
+        <a-button @click="handleCloseStockDrawer">取消</a-button>
+        <a-button type="primary" @click="handleSubmitStock">{{ editingStockRecord ? '重新提交' : '确认新增' }}</a-button>
+      </a-space>
+    </template>
+  </a-drawer>
+
+  <!-- 附件上传 Modal -->
+  <a-modal
+    v-model:open="attachModalVisible"
+    :title="`上传附件 — ${attachModalRow?.name ?? ''}`"
+    :width="520"
+    ok-text="确定"
+    cancel-text="取消"
+    :destroy-on-close="false"
+    @ok="attachModalVisible = false"
+    @cancel="attachModalVisible = false"
+  >
+    <div v-if="attachModalRow" class="attach-modal-body">
+      <div v-for="cat in ATTACH_CATEGORIES" :key="cat.key" class="attach-group">
+        <div class="attach-group-label">
+          <span v-if="cat.required" class="attach-req">*</span>{{ cat.label }}
+          <a-tooltip title="支持图片、PDF，最多 5 个"><QuestionCircleOutlined class="upload-hint-icon" /></a-tooltip>
+        </div>
+        <a-upload
+          v-model:file-list="attachModalRow.attach[cat.key]"
+          :before-upload="() => false"
+          accept=".jpg,.jpeg,.png,.pdf"
+          :max-count="5"
+          multiple
+          list-type="text"
+        >
+          <a-button
+            size="small"
+            :disabled="attachModalRow.attach[cat.key].length >= 5"
+          >
+            上传文件
+          </a-button>
+        </a-upload>
+      </div>
+    </div>
+  </a-modal>
+
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount, h } from 'vue'
 import { message } from 'ant-design-vue'
+import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
+import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import {
   LeftOutlined, CalendarOutlined, CopyOutlined,
   CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
-  AuditOutlined, HolderOutlined, DownOutlined,
+  AuditOutlined, HolderOutlined, DownOutlined, QuestionCircleOutlined,
 } from '@ant-design/icons-vue'
 
-const props = defineProps<{ initStatus?: string; policyType?: string; initRow?: Record<string, any> }>()
-const emit = defineEmits<{ back: []; edit: [id: string] }>()
-const projectInfoOpen = ref(true)
+const props = defineProps<{ editId?: string | null; initStatus?: string | null; initData?: Record<string, any> | null }>()
+const emit = defineEmits<{ back: [] }>()
+
+const projectInfoOpen = ref(false)
+
+const collapsedStockCards = reactive(new Set<string>())
+function toggleStockCard(id: string) {
+  if (collapsedStockCards.has(id)) collapsedStockCards.delete(id)
+  else collapsedStockCards.add(id)
+}
+
 
 function copyStationNo(no: string) {
   navigator.clipboard.writeText(no).then(() => message.success('已复制'))
 }
 
+// ── 到货统计 Drawer ──
+const showStockStatDrawer = ref(false)
+
+const stockStatRows = computed(() => {
+  return detail.value.yigongBom.map(b => {
+    const arrived = sharedStockRecords.reduce((sum, rec) => {
+      const matched = rec.items.find(i => i.code === b.code)
+      return sum + (matched?.arrivedQty ?? 0)
+    }, 0)
+    return {
+      code:       b.code,
+      name:       b.name,
+      type:       b.type,
+      unit:       b.unit,
+      designQty:  b.quantity,
+      arrivedQty: arrived,
+      pendingQty: Math.max(0, b.quantity - arrived),
+    }
+  })
+})
+
+const stockStatColumns = [
+  { title: '序号',       key: 'index',      width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '到货类型',   dataIndex: 'type', key: 'type',       width: 90  },
+  { title: '物料编号',   dataIndex: 'code', key: 'code',       width: 110 },
+  { title: '物料描述',   dataIndex: 'name', key: 'name' },
+  { title: '单位',       dataIndex: 'unit', key: 'unit',       width: 56  },
+  { title: '设计数量',   dataIndex: 'designQty',  key: 'designQty',  width: 90 },
+  {
+    title: '未到货数量', dataIndex: 'pendingQty', key: 'pendingQty', width: 100,
+    customRender: ({ record }: any) => {
+      const v = record.pendingQty
+      return h('span', { style: 'color:#ff4d4f;font-weight:500' }, v)
+    },
+  },
+  {
+    title: '到货数量', dataIndex: 'arrivedQty', key: 'arrivedQty', width: 90,
+    customRender: ({ record }: any) => {
+      const v = record.arrivedQty
+      const done = v >= record.designQty
+      return h('span', { style: done ? 'color:#52c41a;font-weight:500' : '' }, v)
+    },
+  },
+]
+
+// ── 新增/修改到货 Drawer ──
+const showStockDrawer     = ref(false)
+const editingStockRecord  = ref<StockRecord | null>(null)
+const stockNewFormRef     = ref()
+
+const stockNewForm = reactive({
+  materialType:  [] as string[],
+  receiver:      '',
+  receiverPhone: '',
+  signTime:      null as any,
+  signStatus:    null as string | null,
+  remark:        '',
+})
+
+type AttachKey = 'daohuo' | 'chuchang' | 'qianshou' | 'other'
+const ATTACH_CATEGORIES: { key: AttachKey; label: string; required: boolean }[] = [
+  { key: 'daohuo',   label: '到货照片', required: false },
+  { key: 'chuchang', label: '出厂资料', required: false },
+  { key: 'qianshou', label: '签收单',   required: false },
+  { key: 'other',    label: '其他',     required: false },
+]
+
+function makeAttach() {
+  return { daohuo: [] as any[], chuchang: [] as any[], qianshou: [] as any[], other: [] as any[] }
+}
+
+const stockNewItems = reactive<{
+  id: string; code: string; name: string; type: string; unit: string
+  designQty: number; pendingQty: number; arrivedQty: number | null
+  attach: Record<AttachKey, any[]>
+}[]>([])
+
+const computedArrivalType = ref('')
+
+function recalcArrivalType() {
+  if (stockNewItems.length === 0) { computedArrivalType.value = ''; return }
+  // 历史到货 + 本次填写，是否覆盖整个 BOM 的设计数量
+  const fullyDone = detail.value.yigongBom.every(b => {
+    const historyArrived = sharedStockRecords
+      .filter(rec => rec.id !== editingStockRecord.value?.id)
+      .reduce((sum, rec) => {
+        const matched = rec.items.find(i => i.code === b.code)
+        return sum + (matched?.arrivedQty ?? 0)
+      }, 0)
+    const cur = stockNewItems.find(i => i.code === b.code)
+    return historyArrived + (cur?.arrivedQty ?? 0) >= b.quantity
+  })
+  computedArrivalType.value = fullyDone ? '全部到货' : '部分到货'
+}
+
+watch(stockNewItems, recalcArrivalType, { deep: true })
+
+watch(() => stockNewForm.materialType, (val) => {
+  if (editingStockRecord.value) return  // 编辑模式下 items 由 openEditDrawer 直接填充
+  stockNewItems.splice(0)
+  computedArrivalType.value = ''
+  if (!val || val.length === 0) return
+  ;['中高压', '低压'].filter(t => val.includes(t)).forEach(type => {
+    detail.value.yigongBom
+      .filter(b => b.type === type)
+      .forEach(b => {
+        const alreadyArrived = sharedStockRecords.reduce((sum, rec) => {
+          const matched = rec.items.find(i => i.code === b.code)
+          return sum + (matched?.arrivedQty ?? 0)
+        }, 0)
+        stockNewItems.push({
+          id:         b.code,
+          code:       b.code,
+          name:       b.name,
+          type:       b.type,
+          unit:       b.unit,
+          designQty:  b.quantity,
+          pendingQty: Math.max(0, b.quantity - alreadyArrived),
+          arrivedQty: null,
+          attach:     makeAttach(),
+        })
+      })
+  })
+})
+
+// 附件 Modal
+const attachModalVisible = ref(false)
+const attachModalRow     = ref<typeof stockNewItems[number] | null>(null)
+
+function openAttachModal(record: typeof stockNewItems[number]) {
+  attachModalRow.value    = record
+  attachModalVisible.value = true
+}
+
+function attachTotalCount(record: typeof stockNewItems[number]): number {
+  const a = record.attach
+  return a.daohuo.length + a.chuchang.length + a.qianshou.length + a.other.length
+}
+
+function handleCloseStockDrawer() {
+  showStockDrawer.value    = false
+  editingStockRecord.value = null
+  attachModalVisible.value = false
+  attachModalRow.value     = null
+  stockNewFormRef.value?.resetFields()
+  stockNewItems.splice(0)
+  computedArrivalType.value = ''
+}
+
+function openEditDrawer(record: StockRecord) {
+  editingStockRecord.value = record
+  // 设置物料类型（watch 因 editingStockRecord 已设置而跳过）
+  stockNewForm.materialType = record.materialType.split('、')
+  // 直接从记录填充 items，不走 watch 重建
+  stockNewItems.splice(0)
+  record.items.forEach(item => {
+    stockNewItems.push({
+      id:         item.code,
+      code:       item.code,
+      name:       item.name,
+      type:       item.type,
+      unit:       item.unit,
+      designQty:  item.designQty,
+      pendingQty: item.pendingQty,
+      arrivedQty: item.arrivedQty,
+      attach:     makeAttach(),
+    })
+  })
+  recalcArrivalType()
+  showStockDrawer.value = true
+}
+
+const SIGN_STATUS_LABEL: Record<string, string> = { signed: '已签收', unsigned: '未签收' }
+
+const STOCK_STATUS_LABEL: Record<string, string> = {
+  reviewing: '审核中',
+  approved:  '审核通过',
+  rejected:  '审核不通过',
+}
+const STOCK_STATUS_COLOR: Record<string, string> = {
+  reviewing: 'processing',
+  approved:  'success',
+  rejected:  'error',
+}
+
+async function handleSubmitStock() {
+  try {
+    await stockNewFormRef.value?.validate()
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const submitTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
+
+    // ── 编辑模式：更新已有到货单并重新提交 ──
+    if (editingStockRecord.value) {
+      const rec = sharedStockRecords.find(r => r.id === editingStockRecord.value!.id)
+      if (rec) {
+        rec.materialType  = stockNewForm.materialType.join('、')
+        rec.arrivalType   = computedArrivalType.value
+        rec.items         = stockNewItems.filter(r => r.arrivedQty !== null && r.arrivedQty > 0).map(r => ({
+          type: r.type, code: r.code, name: r.name, unit: r.unit,
+          designQty: r.designQty, pendingQty: r.pendingQty, arrivedQty: r.arrivedQty,
+        }))
+        rec.status        = 'reviewing'
+        rec.rejectReasons = []
+        rec.rejectComment = ''
+        rec.createTime    = submitTime
+      }
+      detail.value.filingStatus = 'reviewing_stock'
+      const stationId = props.editId ?? props.initData?.id
+      if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+      message.success('已重新提交，等待审核')
+      handleCloseStockDrawer()
+      return
+    }
+
+    // ── 新增模式 ──
+    const orderNo = `DH-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${String(Date.now()).slice(-4)}`
+    sharedStockRecords.push({
+      id:           `SR-${Date.now()}`,
+      orderNo,
+      materialType: stockNewForm.materialType.join('、'),
+      arrivalType:  computedArrivalType.value,
+      status:       null,
+      creator:      '张三',
+      createTime:   submitTime,
+      items: stockNewItems.filter(r => r.arrivedQty !== null && r.arrivedQty > 0).map(r => ({
+        type:       r.type,
+        code:       r.code,
+        name:       r.name,
+        unit:       r.unit,
+        designQty:  r.designQty,
+        pendingQty: r.pendingQty,
+        arrivedQty: r.arrivedQty,
+      })),
+    })
+    message.success('到货记录已添加')
+    handleCloseStockDrawer()
+  } catch {}
+}
+
+const stockNewColumns = [
+  { title: '序号',         key: 'index',      width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '到货类型',     dataIndex: 'type', key: 'type',       width: 80  },
+  { title: '物料编号',     dataIndex: 'code', key: 'code',       width: 100 },
+  { title: '物料描述',     dataIndex: 'name', key: 'name',       width: 160 },
+  { title: '单位',         dataIndex: 'unit', key: 'unit',       width: 56  },
+  { title: '设计数量',     dataIndex: 'designQty',  key: 'designQty',  width: 80 },
+  { title: '未到货数量', dataIndex: 'pendingQty', key: 'pendingQty', width: 90,
+    customRender: ({ record }: any) => h('span', { style: 'color:#ff4d4f;font-weight:500' }, record.pendingQty) },
+  { title: '本次到货数量', key: 'arrivedQty', width: 120 },
+  { title: '附件',         key: 'attachment', width: 80 },
+]
+
+// 开工 tab 施工人员列（与到货详情页保持一致）
+const personnelColumns = [
+  { title: '序号',   key: 'index',          width: 60,  customRender: ({ index }: any) => index + 1 },
+  { title: '姓名',   dataIndex: 'name',     key: 'name' },
+  { title: '岗位',   dataIndex: 'position', key: 'position' },
+  { title: '手机号', dataIndex: 'phone',    key: 'phone' },
+  { title: '操作',   key: 'action',         width: 80 },
+]
+
+const detailBodyRef   = ref<HTMLElement | null>(null)
+const tabsWrapperRef  = ref<HTMLElement | null>(null)
+const tabsStuck       = ref(false)
+const scrollPad       = ref(0)
+
+async function scrollToTabNav() {
+  // ① 等新 tab 内容渲染完，再量尺寸
+  await nextTick()
+
+  const body    = detailBodyRef.value
+  const wrapper = tabsWrapperRef.value
+  if (!body || !wrapper) return
+
+  // ② 提前锁定 stuck 状态，等 tab-bar 高度稳定后再量 target
+  tabsStuck.value = true
+  await nextTick()
+
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+
+  // ③ 用"去掉当前 scrollPad 的真实内容高"算需要多少 pad
+  //    原公式 depth = scrollHeight - clientHeight 当内容比 viewport 矮时是负数，算出的 pad 不够
+  //    正确：需要 scrollHeight + neededPad - clientHeight >= target
+  //         → neededPad >= target - naturalScrollHeight + clientHeight
+  const naturalScrollHeight = body.scrollHeight - scrollPad.value
+  const neededPad = Math.max(0, target - naturalScrollHeight + body.clientHeight + 20)
+
+  if (neededPad !== scrollPad.value) {
+    scrollPad.value = neededPad
+    await nextTick()
+  }
+
+  body.scrollTop = target
+}
+
+let _scrollHandler: (() => void) | null = null
+onMounted(() => {
+  // edit 模式：按当前状态预填 demo 记录（若从详情页跳转过来则已有数据，跳过）
+  if (props.editId) {
+    initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+  }
+  _scrollHandler = () => {
+    const body    = detailBodyRef.value
+    const wrapper = tabsWrapperRef.value
+    if (!body || !wrapper) return
+    tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
+    if (!tabsStuck.value && body.scrollTop <= 1) scrollPad.value = 0
+  }
+  detailBodyRef.value?.addEventListener('scroll', _scrollHandler, { passive: true })
+})
+onBeforeUnmount(() => {
+  if (_scrollHandler) detailBodyRef.value?.removeEventListener('scroll', _scrollHandler)
+})
+
+const saving = ref(false)
+const submitting = ref(false)
+async function handleSave() {
+  saving.value = true
+  await new Promise(r => setTimeout(r, 600))
+  saving.value = false
+  message.success('保存成功')
+}
+async function handleSubmit() {
+  submitting.value = true
+  await new Promise(r => setTimeout(r, 600))
+  sharedStockRecords.forEach(rec => {
+    if (rec.status === null) rec.status = 'reviewing'
+  })
+  hasUserSubmittedRecords.value = true
+  const stationId = props.editId ?? props.initData?.id
+  if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+  submitting.value = false
+  message.success('到货申请已提交')
+  emit('back')
+}
+
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'processing', rejected: 'error', approved: 'success',
+  waiting_stock: 'default',
+  reviewing_stock: 'processing', partial_stock: 'processing',
+  partial_stock_rejected: 'processing', full_stock_rejected: 'processing',
+  full_stock: 'success', stocked: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档审核中', rejected: '建档商务审核不通过', approved: '审核通过',
+  waiting_stock: '待到货',
+  reviewing_stock: '到货中', partial_stock: '到货中',
+  partial_stock_rejected: '到货中', full_stock_rejected: '到货中',
+  full_stock: '已到货', stocked: '已到货',
+}
+const SUB_STATUS_LABEL: Record<string, string> = {
+  reviewing_stock: '到货审核中',
+  partial_stock: '部分已到货',
+  partial_stock_rejected: '部分到货审核不通过',
+  full_stock_rejected: '全部到货审核不通过',
+}
+const SUB_STATUS_COLOR: Record<string, string> = {
+  reviewing_stock: 'processing',
+  partial_stock: 'processing',
+  partial_stock_rejected: 'error',
+  full_stock_rejected: 'error',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -848,13 +1347,13 @@ const STANDARD_PAYMENT_NODES = [
 
 const detail = ref({
   id: 'LNC-2026-0001',
-  filingStatus: (props.initStatus ?? 'filing') as string,
+  filingStatus: (props.initData?.filingStatus ?? props.initStatus ?? 'waiting_stock') as string,
   // 系统信息
   stationType: '工商业',
-  stationNo:   props.initRow?.stationNo ?? 'LNC-2026-0001',
+  stationNo:   props.initData?.stationNo ?? 'LNC-2026-0001',
   // 基本信息
   oaNo: 'A304202607100012',
-  projectName: props.initRow?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
+  projectName: props.initData?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
   projectType: 'emc',
   policyMatched: true,
   division: '安能智电事业部',
@@ -864,7 +1363,7 @@ const detail = ref({
   capacity: 320,
   gridVoltage: 'low',
   // 代理商信息
-  agentName: props.initRow?.agentName ?? '浙江绿能科技有限公司',
+  agentName: props.initData?.agentName ?? '浙江绿能科技有限公司',
   // 用电企业信息
   userEntName:    '杭州某商业综合体管理有限公司',
   propertyProof:  ['产权证明.pdf'],
@@ -940,8 +1439,14 @@ const detail = ref({
     { code: 'M002', name: '组串式逆变器 50kW',   group: '逆变器', unit: '台', quantity: 8 },
   ],
   yigongBom: [
-    { code: 'TB0002', name: '400kVA柱上变压器', type: '中高压', unit: '台', quantity: 2 },
-    { code: 'TJ0080', name: '台架变',           type: '低压',   unit: '台', quantity: 1 },
+    { code: 'TB0002', name: '400kVA柱上变压器',   type: '中高压', unit: '台', quantity: 2 },
+    { code: 'TB0005', name: '10kV真空断路器',      type: '中高压', unit: '台', quantity: 4 },
+    { code: 'TB0011', name: '10kV电缆（XLPE）',   type: '中高压', unit: '米', quantity: 120 },
+    { code: 'TB0018', name: '环网柜',              type: '中高压', unit: '台', quantity: 1 },
+    { code: 'TJ0080', name: '台架变',              type: '低压',   unit: '台', quantity: 1 },
+    { code: 'TJ0103', name: '低压配电柜',          type: '低压',   unit: '台', quantity: 3 },
+    { code: 'TJ0117', name: '低压电缆（VV）',      type: '低压',   unit: '米', quantity: 200 },
+    { code: 'TJ0122', name: '并网逆变器 50kW',     type: '低压',   unit: '台', quantity: 8 },
   ],
   designQualFiles: ['设计资质证书.pdf'],
   electricalDesignFiles: ['电气设计图.dwg'],
@@ -963,10 +1468,25 @@ const detail = ref({
     attachmentName: '杭州滨江综合体光伏备案批复文件.pdf',
   },
   rejectInfo: {
-    stage: '商务审核',
+    stage: '到货审核',
     reviewer: '李四（安能审核员）',
     time: '2026-08-11 15:30',
-    reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+    reason: '到货数量与计划不符，请核实后重新提交。',
+  },
+  startInfo: {
+    siteManager:            '张建国',
+    siteManagerPhone:       '13812340001',
+    startDate:              '2026-08-01',
+    insuranceFiles:         ['中高压施工单位保险.pdf'],
+    safetyDisclosureFiles:  ['质量安全技术交底.pdf'],
+    engineeringOtherFiles:  [] as string[],
+    techDisclosureFiles:    ['技术交底.pdf'],
+    equipmentAgreementFiles:[] as string[],
+    techOtherFiles:         [] as string[],
+    personnel: [
+      { id: 'p1', name: '张建国', position: '施工队长',   phone: '13812340001' },
+      { id: 'p2', name: '李明',   position: '电工',       phone: '13812340002' },
+    ],
   },
   logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null }[],
 })
@@ -978,33 +1498,80 @@ watch(() => props.initStatus, (val) => {
 // ─── 状态对应的流转日志 ───────────────────────────────────────────────────────
 
 const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
-  filing: [
-    { id: 2, type: 'create', event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  waiting_stock: [
+    { id: 1, type: 'create', event: '创建到货申请', operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
-  pending_review: [
-    { id: 3, type: 'submit', event: '提交建档',  operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',  operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',  operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  reviewing_stock: [
+    { id: 2, type: 'submit', event: '提交到货申请',  operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
+    { id: 1, type: 'create', event: '创建到货申请',  operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
-  rejected: [
-    { id: 4, type: 'reject', event: '审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 3, type: 'submit', event: '提交建档',   operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',   operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  partial_stock_rejected: [
+    { id: 3, type: 'reject', event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '部分物料到货数量不足，请补充' },
+    { id: 2, type: 'submit', event: '提交到货申请',        operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
+    { id: 1, type: 'create', event: '创建到货申请',        operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
-  approved: [
-    { id: 4, type: 'approve', event: '审核通过', operator: '李四（审核员）', time: '2026-08-11 10:00', note: null },
-    { id: 3, type: 'submit',  event: '提交建档', operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create',  event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create',  event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  full_stock_rejected: [
+    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交' },
+    { id: 2, type: 'submit', event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
+    { id: 1, type: 'create', event: '创建到货申请',       operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
+  ],
+  stocked: [
+    { id: 3, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-13 10:00', note: null },
+    { id: 2, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
+    { id: 1, type: 'create',  event: '创建到货申请', operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
 }
 
 // ─── 日志分组 ─────────────────────────────────────────────────────────────────
 
 const groupedLogs = computed(() => {
-  const logs = LOGS_BY_STATUS[detail.value.filingStatus] ?? []
+  let logs: typeof detail.value.logs
+
+  const submitted = sharedStockRecords.filter(r => r.status !== null)
+  if (submitted.length > 0) {
+    const recordLogs: typeof detail.value.logs = []
+    let nextId = 2
+    for (const rec of submitted) {
+      const noteArr: string[] = []
+      if (rec.rejectReasons?.length) noteArr.push(rec.rejectReasons.join('、'))
+      if (rec.rejectComment) noteArr.push(rec.rejectComment)
+      recordLogs.push({
+        id: nextId++,
+        type: 'submit',
+        event: `提交到货申请（${rec.orderNo}）`,
+        operator: `${rec.creator}（代理商）`,
+        time: rec.createTime,
+        note: null,
+      })
+      if (rec.status === 'approved') {
+        recordLogs.push({
+          id: nextId++,
+          type: 'approve',
+          event: rec.arrivalType === '全部到货' ? '全部到货审核通过' : '部分到货审核通过',
+          operator: '李四（审核员）',
+          time: rec.reviewTime ?? rec.createTime,
+          note: null,
+        })
+      } else if (rec.status === 'rejected') {
+        recordLogs.push({
+          id: nextId++,
+          type: 'reject',
+          event: rec.arrivalType === '全部到货' ? '全部到货审核不通过' : '部分到货审核不通过',
+          operator: '李四（审核员）',
+          time: rec.reviewTime ?? rec.createTime,
+          note: noteArr.join('；') || null,
+        })
+      }
+    }
+    recordLogs.sort((a, b) => b.id - a.id)
+    logs = [
+      ...recordLogs,
+      { id: 1, type: 'create', event: '创建到货申请', operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
+    ]
+  } else {
+    logs = LOGS_BY_STATUS[detail.value.filingStatus] ?? []
+  }
+
   const map = new Map<string, typeof logs>()
   for (const log of logs) {
     const date = log.time.split(' ')[0]
@@ -1017,53 +1584,32 @@ const groupedLogs = computed(() => {
 // ─── 权限 ────────────────────────────────────────────────────────────────────
 
 const canEdit = computed(() =>
-  ['filing', 'rejected'].includes(detail.value.filingStatus)
+  ['waiting_stock', 'reviewing_stock', 'partial_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
+)
+const allFullyArrived = computed(() =>
+  detail.value.yigongBom.length > 0 && detail.value.yigongBom.every(b => {
+    const total = sharedStockRecords.reduce((sum, rec) => {
+      const m = rec.items.find(i => i.code === b.code)
+      return sum + (m?.arrivedQty ?? 0)
+    }, 0)
+    return total >= b.quantity
+  })
 )
 const canVoid = computed(() =>
-  detail.value.filingStatus === 'filing'
+  detail.value.filingStatus === 'waiting_stock'
 )
+// 已提交过全部到货（非驳回状态下不可再提交）
+const hasSubmittedFullArrival = computed(() => {
+  const isRejected = ['partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
+  if (isRejected) return false
+  return sharedStockRecords.some(r => r.arrivalType === '全部到货' && r.status !== null)
+})
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
-const activeTab = ref('survey')
+const activeTab = ref('stock')
 
-const detailBodyRef = ref<HTMLElement | null>(null)
-const tabsWrapperRef = ref<HTMLElement | null>(null)
-const tabsStuck = ref(false)
-
-async function scrollToTabNav() {
-  await nextTick()
-  const wrapper = tabsWrapperRef.value
-  if (!wrapper) return
-  const container = detailBodyRef.value
-  if (!container) return
-  // getBoundingClientRect gives position relative to viewport; subtract container top
-  // then add current scrollTop to get the target scroll offset within the container.
-  // +20 pushes past the sticky threshold (top: -16px) so tabsStuck triggers.
-  const top = container.scrollTop + wrapper.getBoundingClientRect().top - container.getBoundingClientRect().top + 20
-  container.scrollTo({ top, behavior: 'smooth' })
-}
-
-let _scrollHandler: (() => void) | null = null
-
-onMounted(() => {
-  const container = detailBodyRef.value
-  if (!container) return
-  _scrollHandler = () => {
-    const wrapper = tabsWrapperRef.value
-    if (!wrapper) return
-    tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top - 15
-  }
-  container.addEventListener('scroll', _scrollHandler, { passive: true })
-})
-
-onUnmounted(() => {
-  if (_scrollHandler && detailBodyRef.value) {
-    detailBodyRef.value.removeEventListener('scroll', _scrollHandler)
-  }
-})
-
-// ── 合同付款比例（非标详情可编辑）────────────────────────────
+// ── 合同付款比例（非标详情只读展示）──────────────────────────
 const DETAIL_PAYMENT_NODES = ['开工', '并网', '竣工验收', '质保金']
 const detailPaymentContracts = computed(() => {
   const c = detail.value.commercial
@@ -1080,31 +1626,6 @@ const detailPaymentContracts = computed(() => {
   return base
 })
 
-const paymentEditData = ref<{ ratios: (number | null)[] }[]>([])
-const paymentSubmitting = ref(false)
-
-watch(detailPaymentContracts, (contracts) => {
-  paymentEditData.value = contracts.map(c => ({
-    ratios: c.nodes.map((n: any) => n.ratio)
-  }))
-}, { immediate: true })
-
-function paymentTotal(idx: number) {
-  return (paymentEditData.value[idx]?.ratios ?? []).reduce((s, r) => s + (r ?? 0), 0)
-}
-
-async function handlePaymentSubmit() {
-  const allValid = detailPaymentContracts.value.every((_, idx) => paymentTotal(idx) === 100)
-  if (!allValid) {
-    message.error('各合同付款比例之和须等于 100%')
-    return
-  }
-  paymentSubmitting.value = true
-  await new Promise(r => setTimeout(r, 800))
-  paymentSubmitting.value = false
-  message.success('付款比例已提交')
-}
-
 const sceneColumns = [
   { title: '序号',       key: 'index',       width: 60,  customRender: ({ index }: { index: number }) => index + 1 },
   { title: '应用场景',   dataIndex: 'type',  key: 'type',  width: 140 },
@@ -1113,20 +1634,20 @@ const sceneColumns = [
   { title: '特殊方案',   dataIndex: 'specialPlan', key: 'specialPlan', width: 160, customRender: ({ text }: { text: string | null }) => text || '—' },
 ]
 const jiagongReadonlyColumns = [
-  { title: '序号',     key: 'index',    width: 52,  customRender: ({ index }: { index: number }) => index + 1 },
-  { title: '物料编码', dataIndex: 'code',     key: 'code',  width: 120 },
-  { title: '物料名称', dataIndex: 'name',     key: 'name',  width: 220, ellipsis: true },
-  { title: '物料组',   dataIndex: 'group',    key: 'group', width: 90 },
-  { title: '单位',     dataIndex: 'unit',     key: 'unit',  width: 64 },
-  { title: 'BOM类型',  key: 'bomType', width: 90, customRender: () => '电器BOM' },
+  { title: '序号',     key: 'index',    width: 50, customRender: ({ index }: { index: number }) => index + 1 },
+  { title: '物料编码', dataIndex: 'code',     key: 'code',  width: 110 },
+  { title: '物料名称', dataIndex: 'name',     key: 'name',  ellipsis: true },
+  { title: '物料组',   dataIndex: 'group',    key: 'group', width: 80 },
+  { title: '单位',     dataIndex: 'unit',     key: 'unit',  width: 56 },
+  { title: 'BOM类型',  key: 'bomType', width: 80, customRender: () => '电器BOM' },
   { title: '确认数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
 ]
 const yigongReadonlyColumns = [
-  { title: '序号',     key: 'index',    width: 52,  customRender: ({ index }: { index: number }) => index + 1 },
-  { title: '类型',     dataIndex: 'type',  key: 'type',  width: 80 },
-  { title: '物料编号', dataIndex: 'code',  key: 'code',  width: 120 },
-  { title: '物料描述', dataIndex: 'name',  key: 'name',  width: 220, ellipsis: true },
-  { title: '单位',     dataIndex: 'unit',  key: 'unit',  width: 64 },
+  { title: '序号',     key: 'index',    width: 50, customRender: ({ index }: { index: number }) => index + 1 },
+  { title: '类型',     dataIndex: 'type',  key: 'type',  width: 72 },
+  { title: '物料编号', dataIndex: 'code',  key: 'code',  width: 110 },
+  { title: '物料描述', dataIndex: 'name',  key: 'name',  ellipsis: true },
+  { title: '单位',     dataIndex: 'unit',  key: 'unit',  width: 56 },
   { title: '确认数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
 ]
 
@@ -1152,8 +1673,8 @@ async function voidFiling(_id: string) {}
 
 const reviewPanelVisible = ref(true)
 const reviewCollapsed    = ref(true)
-const showReviewFab   = computed(() => detail.value.filingStatus === 'pending_review' && reviewPanelVisible.value &&  reviewCollapsed.value)
-const showReviewPanel = computed(() => detail.value.filingStatus === 'pending_review' && reviewPanelVisible.value && !reviewCollapsed.value)
+const showReviewFab   = computed(() => detail.value.filingStatus === 'reviewing_stock' && reviewPanelVisible.value &&  reviewCollapsed.value)
+const showReviewPanel = computed(() => detail.value.filingStatus === 'reviewing_stock' && reviewPanelVisible.value && !reviewCollapsed.value)
 
 watch(reviewCollapsed, async (collapsed) => {
   if (!collapsed) {
@@ -1167,13 +1688,12 @@ watch(reviewCollapsed, async (collapsed) => {
 })
 
 const REJECT_REASONS = [
-  '商务信息填写有误',
-  '附件资料不完整或不清晰',
-  '备案证信息与项目不符',
-  '项目容量填写有误',
-  '合同信息缺失或有误',
-  '代理商资质不满足要求',
-  '勘察数据与现场不符',
+  '到货数量与计划不符',
+  '到货单信息有误',
+  '签收单缺失或不清晰',
+  '物料型号不符',
+  '收货人信息错误',
+  '到货日期填写有误',
   '其他原因',
 ]
 const reviewRejectReasons = ref<string[]>([])
@@ -1262,7 +1782,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 <style scoped>
 /* ── 整体布局 ── */
 .detail-page {
-  height: calc(100vh - 81px);
+  height: calc(100vh - 81px); /* 减去 App 固定顶栏高度，detail-body.clientHeight 才与可见区一致 */
   overflow: hidden;
   background: #f5f5f5;
   display: flex;
@@ -1293,13 +1813,15 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .detail-body {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  gap: 16px;
-  padding: 16px 16px 0;
+  padding: 0 16px 16px;
   overscroll-behavior: contain;
 }
-.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px; }
-.detail-sidebar { width: 300px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 0; height: calc(100vh - 170px); }
+.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.tabs-wrapper { background: #fff; border-radius: 8px; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+/* 吸顶时 nav 撑满全宽（抵消 detail-body 两侧各 16px padding），卡片本体不变 */
+.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { margin-left: -16px; margin-right: -16px; border-radius: 0; }
+.detail-sidebar { width: 300px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 72px; height: calc(100vh - 170px); }
 
 /* ── 退回原因卡片 ── */
 .reject-card {
@@ -1332,10 +1854,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 /* ── 主内容卡片 ── */
 .detail-card { border-radius: 8px; }
 .detail-card--plain { background: #fff; padding: 20px; }
-.detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
-.tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { border-radius: 0; }
 .detail-tabs :deep(.ant-tabs-content-holder) { padding: 0; }
-.tab-body { padding: 20px; }
+.tab-body { padding: 20px; background: #fff; border-radius: 0 0 8px 8px; }
 
 /* ── 信息分区 ── */
 .info-section {
@@ -1389,6 +1909,11 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
   min-width: 0;
 }
 .info-item--span2 { grid-column: span 2; }
+.info-item--span3 { grid-column: span 3; }
+.section-sub-title { font-size: 16px; font-weight: 500; color: rgba(0,0,0,0.88); margin: 20px 0; display: flex; align-items: center; gap: 8px; }
+.section-sub-title::before { content: ''; width: 3px; height: 16px; background: #1677ff; border-radius: 2px; flex-shrink: 0; }
+.upload-hint-icon { font-size: 13px; color: #8c8c8c; cursor: pointer; flex-shrink: 0; margin-left: 4px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; }
 .info-item--span4 { grid-column: span 4; }
 .info-label {
   font-size: 14px;
@@ -1420,6 +1945,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 }
 .contract-block-ro .info-grid { padding: 16px; }
 .section-sub { font-size: 12px; color: #8c8c8c; }
+
+
 
 /* ── 勘察照片只读 ── */
 .photo-readonly-col   { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
@@ -1503,7 +2030,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .field-label        { color: #8c8c8c; flex-shrink: 0; }
 .field-value        { color: #1f1f1f; }
 .field-value--muted { color: rgba(0,0,0,.45); }
-.field-value--red   { color: #1a1a1a; }
+.field-value--red   { color: #f5222d; }
 
 /* ── 审核面板 ── */
 .review-fab {
@@ -1577,11 +2104,11 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .payment-ratio-table th { padding: 10px 12px; text-align: left; background: #f5f5f5; color: #595959; font-weight: 500; border-bottom: 1px solid #e8e8e8; }
 .payment-ratio-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; position: relative; top: -0.5px; }
 .payment-ratio-table tbody tr:last-child td { border-bottom: none; }
+:deep(.stat-row-done td) { background: #f6ffed !important; color: #389e0d; }
+:deep(.stat-drawer-body .ant-table-tbody > tr > td) { padding-top: 13px !important; padding-bottom: 13px !important; }
 .payment-row-label { color: #8c8c8c; font-size: 13px; white-space: nowrap; }
 .payment-amount-cell { color: #262626; font-variant-numeric: tabular-nums; }
 .payment-total-cell { font-weight: 600; color: #262626; }
-.payment-total-cell--error { color: #dc2626; }
-.payment-total-hint { font-size: 11px; font-weight: 400; color: #dc2626; margin-top: 2px; }
 .copy-icon {
   margin-left: 5px;
   font-size: 12px;
@@ -1590,4 +2117,13 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
   vertical-align: middle; position: relative; top: -0.5px;
 }
 .copy-icon:hover { color: #1677ff; }
+
+/* Drawer 只读显示值 */
+.drawer-readonly-val { font-size: 14px; color: rgba(0,0,0,0.88); line-height: 32px; }
+
+/* 附件上传 Modal */
+.attach-modal-body { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
+.attach-group { display: flex; flex-direction: column; gap: 8px; }
+.attach-group-label { font-size: 14px; color: rgba(0,0,0,0.88); display: flex; align-items: center; gap: 2px; }
+.attach-req { color: #ff4d4f; }
 </style>

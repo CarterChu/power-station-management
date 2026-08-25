@@ -29,6 +29,8 @@
       </a-space>
     </div>
 
+    <div ref="filingBodyRef" class="filing-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
+
     <!-- 退回原因卡片（仅审核不通过时展示） -->
     <div v-if="filingStatus === 'rejected'" class="reject-card">
       <div class="reject-card-header">
@@ -105,9 +107,9 @@
             </a-form-item>
           </a-col>
           <a-col :span="6">
-            <a-form-item label="项目地址" name="addressRegion" :rules="[{ required: true, message: '请选择省市区' }]">
+            <a-form-item label="项目地址" name="addressRegion" :rules="[{ required: true, message: '请选择至省市区/镇' }]">
               <a-cascader v-model:value="projectInfo.addressRegion" :options="REGION_OPTIONS"
-                placeholder="省 / 市 / 区" style="width:100%" />
+                placeholder="省 / 市 / 区 / 乡镇" style="width:100%" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -183,7 +185,7 @@
         </a-row>
 
         <!-- 合同信息 -->
-        <div class="section-sub-title">合同信息</div>
+        <div class="section-sub-title">EMC信息</div>
         <a-row :gutter="[24, 0]">
           <a-col :span="6">
             <a-form-item label="EMC 电价" name="emcPrice" :rules="[{ required: true, message: '请输入EMC电价' }]">
@@ -312,13 +314,13 @@
 
     </a-card>
 
-    <!-- 建档信息卡片 -->
-    <a-card :bordered="false" class="main-card" style="margin-top:0" :body-style="{ padding: '8px 20px 20px' }">
+    <div ref="tabsWrapperRef" class="tabs-wrapper" :class="{ 'tabs-stuck': tabsStuck }">
       <a-tabs
         v-model:active-key="activeTab"
         class="form-tabs"
-        :tab-bar-style="{ marginBottom: 0 }"
+        :tab-bar-style="{ padding: tabsStuck ? '0 24px' : '8px 24px 0', marginBottom: 0 }"
         @change="handleTabChange"
+        @tab-click="scrollToTabNav"
       >
         <!-- 勘察 TAB -->
         <a-tab-pane key="survey" tab="勘察" force-render>
@@ -614,6 +616,7 @@
             <div class="section-header" style="margin-bottom:12px">
               <span class="section-sub-title" style="margin:0">甲供 BOM</span>
               <a-space size="small">
+                <a-button size="small" @click="message.success('模版已下载')">下载模版</a-button>
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
                 </a-upload>
@@ -638,6 +641,7 @@
             <div class="section-header" style="margin:32px 0 12px">
               <span class="section-sub-title" style="margin:0">乙供中高/低压 BOM</span>
               <a-space size="small">
+                <a-button size="small" @click="message.success('模版已下载')">下载模版</a-button>
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
                 </a-upload>
@@ -1080,9 +1084,7 @@
           <div style="padding: 28px 0 12px">
             <div class="section-sub-title" style="margin-top:0">备案证关联</div>
             <template v-if="design.gridMode === 'offgrid'">
-              <a-alert message="离网模式无需关联备案证"
-                description="上网模式为「离网」时，系统不强制要求备案证关联。"
-                type="info" show-icon style="max-width:560px" />
+              <a-alert message="上网模式为「离网」时无需关联备案证" type="info" show-icon />
             </template>
             <template v-else>
               <template v-if="!record.filingCert">
@@ -1156,8 +1158,9 @@
         </a-tab-pane>
 
       </a-tabs>
+    </div>
 
-    </a-card>
+    </div><!-- /filing-body -->
 
     <!-- 备案证弹窗 -->
     <a-modal v-model:open="certModalVisible" title="关联备案证" :width="960" :footer="null" destroy-on-close>
@@ -1194,7 +1197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import FileUploadField from '../components/FileUploadField.vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
@@ -1221,34 +1224,102 @@ const REGION_OPTIONS = [
   {
     value: '浙江省', label: '浙江省', children: [
       { value: '杭州市', label: '杭州市', children: [
-        { value: '滨江区', label: '滨江区' }, { value: '余杭区', label: '余杭区' },
-        { value: '萧山区', label: '萧山区' }, { value: '西湖区', label: '西湖区' },
+        { value: '滨江区', label: '滨江区', children: [
+          { value: '长河街道', label: '长河街道' }, { value: '西兴街道', label: '西兴街道' },
+          { value: '浦沿街道', label: '浦沿街道' },
+        ]},
+        { value: '余杭区', label: '余杭区', children: [
+          { value: '临平街道', label: '临平街道' }, { value: '余杭街道', label: '余杭街道' },
+          { value: '仁和街道', label: '仁和街道' }, { value: '良渚街道', label: '良渚街道' },
+        ]},
+        { value: '萧山区', label: '萧山区', children: [
+          { value: '城厢街道', label: '城厢街道' }, { value: '北干街道', label: '北干街道' },
+          { value: '益农镇', label: '益农镇' }, { value: '河上镇', label: '河上镇' },
+        ]},
+        { value: '西湖区', label: '西湖区', children: [
+          { value: '北山街道', label: '北山街道' }, { value: '西溪街道', label: '西溪街道' },
+          { value: '转塘街道', label: '转塘街道' },
+        ]},
       ]},
       { value: '宁波市', label: '宁波市', children: [
-        { value: '鄞州区', label: '鄞州区' }, { value: '江北区', label: '江北区' }, { value: '北仑区', label: '北仑区' },
+        { value: '鄞州区', label: '鄞州区', children: [
+          { value: '首南街道', label: '首南街道' }, { value: '钟公庙街道', label: '钟公庙街道' },
+          { value: '咸祥镇', label: '咸祥镇' }, { value: '姜山镇', label: '姜山镇' },
+        ]},
+        { value: '江北区', label: '江北区', children: [
+          { value: '中马街道', label: '中马街道' }, { value: '文教街道', label: '文教街道' },
+          { value: '慈城镇', label: '慈城镇' },
+        ]},
+        { value: '北仑区', label: '北仑区', children: [
+          { value: '新碶街道', label: '新碶街道' }, { value: '大碶街道', label: '大碶街道' },
+          { value: '柴桥街道', label: '柴桥街道' }, { value: '白峰镇', label: '白峰镇' },
+        ]},
       ]},
       { value: '温州市', label: '温州市', children: [
-        { value: '鹿城区', label: '鹿城区' }, { value: '瓯海区', label: '瓯海区' },
+        { value: '鹿城区', label: '鹿城区', children: [
+          { value: '五马街道', label: '五马街道' }, { value: '蒲鞋市街道', label: '蒲鞋市街道' },
+          { value: '山福镇', label: '山福镇' },
+        ]},
+        { value: '瓯海区', label: '瓯海区', children: [
+          { value: '娄桥街道', label: '娄桥街道' }, { value: '梧田街道', label: '梧田街道' },
+          { value: '泽雅镇', label: '泽雅镇' },
+        ]},
       ]},
     ],
   },
   {
     value: '江苏省', label: '江苏省', children: [
       { value: '苏州市', label: '苏州市', children: [
-        { value: '工业园区', label: '工业园区' }, { value: '吴中区', label: '吴中区' }, { value: '相城区', label: '相城区' },
+        { value: '工业园区', label: '工业园区', children: [
+          { value: '娄葑街道', label: '娄葑街道' }, { value: '唯亭街道', label: '唯亭街道' },
+          { value: '胜浦街道', label: '胜浦街道' },
+        ]},
+        { value: '吴中区', label: '吴中区', children: [
+          { value: '长桥街道', label: '长桥街道' }, { value: '甪直镇', label: '甪直镇' },
+          { value: '木渎镇', label: '木渎镇' }, { value: '东山镇', label: '东山镇' },
+        ]},
+        { value: '相城区', label: '相城区', children: [
+          { value: '元和街道', label: '元和街道' }, { value: '太平街道', label: '太平街道' },
+          { value: '黄埭镇', label: '黄埭镇' },
+        ]},
       ]},
       { value: '南京市', label: '南京市', children: [
-        { value: '江宁区', label: '江宁区' }, { value: '栖霞区', label: '栖霞区' },
+        { value: '江宁区', label: '江宁区', children: [
+          { value: '东山街道', label: '东山街道' }, { value: '江宁街道', label: '江宁街道' },
+          { value: '湖熟街道', label: '湖熟街道' }, { value: '横溪街道', label: '横溪街道' },
+        ]},
+        { value: '栖霞区', label: '栖霞区', children: [
+          { value: '仙林街道', label: '仙林街道' }, { value: '马群街道', label: '马群街道' },
+          { value: '燕子矶街道', label: '燕子矶街道' },
+        ]},
       ]},
       { value: '无锡市', label: '无锡市', children: [
-        { value: '惠山区', label: '惠山区' }, { value: '新吴区', label: '新吴区' },
+        { value: '惠山区', label: '惠山区', children: [
+          { value: '洛社镇', label: '洛社镇' }, { value: '前洲街道', label: '前洲街道' },
+          { value: '玉祁街道', label: '玉祁街道' },
+        ]},
+        { value: '新吴区', label: '新吴区', children: [
+          { value: '旺庄街道', label: '旺庄街道' }, { value: '鸿山街道', label: '鸿山街道' },
+          { value: '新安街道', label: '新安街道' },
+        ]},
       ]},
     ],
   },
   {
     value: '上海市', label: '上海市', children: [
       { value: '上海市', label: '上海市', children: [
-        { value: '松江区', label: '松江区' }, { value: '闵行区', label: '闵行区' }, { value: '奉贤区', label: '奉贤区' },
+        { value: '松江区', label: '松江区', children: [
+          { value: '岳阳街道', label: '岳阳街道' }, { value: '中山街道', label: '中山街道' },
+          { value: '泗泾镇', label: '泗泾镇' }, { value: '新桥镇', label: '新桥镇' },
+        ]},
+        { value: '闵行区', label: '闵行区', children: [
+          { value: '江川路街道', label: '江川路街道' }, { value: '古美路街道', label: '古美路街道' },
+          { value: '浦锦街道', label: '浦锦街道' }, { value: '马桥镇', label: '马桥镇' },
+        ]},
+        { value: '奉贤区', label: '奉贤区', children: [
+          { value: '南桥镇', label: '南桥镇' }, { value: '奉城镇', label: '奉城镇' },
+          { value: '庄行镇', label: '庄行镇' },
+        ]},
       ]},
     ],
   },
@@ -1633,6 +1704,32 @@ const confirmMaterial = () => {
 const activeTab = ref('survey')
 const handleTabChange = (_key: string) => {}
 
+const filingBodyRef  = ref<HTMLElement | null>(null)
+const tabsWrapperRef = ref<HTMLElement | null>(null)
+const tabsStuck      = ref(false)
+const scrollPad      = ref(0)
+
+async function scrollToTabNav() {
+  await nextTick()
+  const body    = filingBodyRef.value
+  const wrapper = tabsWrapperRef.value
+  if (!body || !wrapper) return
+  tabsStuck.value = true
+  await nextTick()
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+  const naturalScrollHeight = body.scrollHeight - scrollPad.value
+  const neededPad = Math.max(0, target - naturalScrollHeight + body.clientHeight + 20)
+  if (neededPad !== scrollPad.value) {
+    scrollPad.value = neededPad
+    await nextTick()
+  }
+  body.scrollTop = target
+}
+
+let _scrollHandler: (() => void) | null = null
+
 const handleBack   = () => emit('back')
 const handleSave   = async () => {
   saving.value = true
@@ -1661,6 +1758,17 @@ const buildPayload = () => ({
 })
 
 onMounted(async () => {
+  const body = filingBodyRef.value
+  if (body) {
+    _scrollHandler = () => {
+      const wrapper = tabsWrapperRef.value
+      if (!wrapper) return
+      tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
+      if (!tabsStuck.value && body.scrollTop <= 1) scrollPad.value = 0
+    }
+    body.addEventListener('scroll', _scrollHandler, { passive: true })
+  }
+
   if (!props.editId) return
   const data = await fetchFilingDetail(props.editId)
   Object.assign(projectInfo, {
@@ -1676,6 +1784,10 @@ onMounted(async () => {
   if (data.filingStatus === 'rejected' && data.rejectInfo) {
     Object.assign(rejectInfo, data.rejectInfo)
   }
+})
+
+onUnmounted(() => {
+  if (_scrollHandler) filingBodyRef.value?.removeEventListener('scroll', _scrollHandler)
 })
 
 async function saveFilingDraft(_payload: any): Promise<void> {}
@@ -1719,18 +1831,16 @@ async function fetchFilingDetail(_id: string) {
 
 <style scoped>
 .filing-page {
-  min-height: 100vh;
+  height: calc(100vh - 81px);
+  overflow: hidden;
   background: #f5f5f5;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0;
 }
 
 /* ── 固定顶栏 ── */
 .filing-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 160px;
@@ -1770,7 +1880,7 @@ async function fetchFilingDetail(_id: string) {
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
-  margin: 16px 16px 0;
+  margin: 16px 0 0;
 }
 .reject-card-header {
   display: flex; align-items: center; gap: 6px;
@@ -1783,7 +1893,9 @@ async function fetchFilingDetail(_id: string) {
 .reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
 
 /* ── 主卡片 ── */
-.main-card { margin: 16px; border-radius: 8px; }
+.filing-body { flex: 1; overflow-y: auto; padding: 0 16px 16px; overscroll-behavior: contain; }
+.main-card { margin-top: 16px; border-radius: 8px; }
+.tabs-wrapper { background: #fff; border-radius: 8px; margin-top: 16px; }
 
 /* ── 一级 Section 标题（对应回购页 section-title） ── */
 .section-title--toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
@@ -1936,7 +2048,9 @@ async function fetchFilingDetail(_id: string) {
 
 /* ── Tabs ── */
 .form-tabs :deep(.ant-tabs-tab-btn) { font-size: 14px; }
-.form-tabs :deep(.ant-tabs-nav) { margin-left: -20px; margin-right: -20px; padding: 0 20px; }
+.form-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.form-tabs :deep(.ant-tabs-content-holder) { padding: 0 20px; }
+.tabs-stuck .form-tabs :deep(.ant-tabs-nav) { margin-left: -16px !important; margin-right: -16px !important; border-radius: 0; }
 
 /* ── 勘察 tab 分割线 ── */
 .form-tabs :deep(.ant-divider-horizontal) { margin: 0 0 20px; }

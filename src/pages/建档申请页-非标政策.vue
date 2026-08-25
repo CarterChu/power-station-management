@@ -29,6 +29,8 @@
       </a-space>
     </div>
 
+    <div ref="filingBodyRef" class="filing-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
+
     <!-- 退回原因卡片（仅审核不通过时展示） -->
     <div v-if="filingStatus === 'rejected'" class="reject-card">
       <div class="reject-card-header">
@@ -197,13 +199,13 @@
       </div>
     </a-card>
 
-    <!-- 建档信息卡片 -->
-    <a-card :bordered="false" class="main-card" style="margin-top:0" :body-style="{ padding: '8px 20px 20px' }">
+    <div ref="tabsWrapperRef" class="tabs-wrapper" :class="{ 'tabs-stuck': tabsStuck }">
       <a-tabs
         v-model:active-key="activeTab"
         class="form-tabs"
-        :tab-bar-style="{ marginBottom: 0 }"
+        :tab-bar-style="{ padding: tabsStuck ? '0 24px' : '8px 24px 0', marginBottom: 0 }"
         @change="handleTabChange"
+        @tab-click="scrollToTabNav"
       >
         <!-- 勘察 TAB -->
         <a-tab-pane key="survey" tab="勘察" force-render>
@@ -499,6 +501,7 @@
             <div class="section-header" style="margin-bottom:12px">
               <span class="section-sub-title" style="margin:0">甲供 BOM</span>
               <a-space size="small">
+                <a-button size="small" @click="message.success('模版已下载')">下载模版</a-button>
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
                 </a-upload>
@@ -523,6 +526,7 @@
             <div class="section-header" style="margin:32px 0 12px">
               <span class="section-sub-title" style="margin:0">乙供中高/低压 BOM</span>
               <a-space size="small">
+                <a-button size="small" @click="message.success('模版已下载')">下载模版</a-button>
                 <a-upload :before-upload="handleBomImport" :custom-request="noopRequest" :show-upload-list="false" accept=".xlsx,.xls">
                   <a-button size="small">批量导入</a-button>
                 </a-upload>
@@ -965,9 +969,7 @@
           <div style="padding: 28px 0 12px">
             <div class="section-sub-title" style="margin-top:0">备案证关联</div>
             <template v-if="design.gridMode === 'offgrid'">
-              <a-alert message="离网模式无需关联备案证"
-                description="上网模式为「离网」时，系统不强制要求备案证关联。"
-                type="info" show-icon style="max-width:560px" />
+              <a-alert message="上网模式为「离网」时无需关联备案证" type="info" show-icon />
             </template>
             <template v-else>
               <template v-if="!record.filingCert">
@@ -1124,7 +1126,9 @@
         </a-tab-pane>
 
       </a-tabs>
-    </a-card>
+    </div>
+
+    </div><!-- /filing-body -->
 
     <!-- 备案证弹窗 -->
     <a-modal v-model:open="certModalVisible" title="关联备案证" :width="960" :footer="null" destroy-on-close>
@@ -1161,7 +1165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { LeftOutlined, PlusOutlined, UploadOutlined, QuestionCircleOutlined, DownOutlined } from '@ant-design/icons-vue'
 import FileUploadField from '../components/FileUploadField.vue'
@@ -1635,7 +1639,44 @@ const calcNodeAmount = (amount: number | null | undefined, ratio: number | null)
 const activeTab = ref('survey')
 const handleTabChange = (_key: string) => {}
 
+const filingBodyRef  = ref<HTMLElement | null>(null)
+const tabsWrapperRef = ref<HTMLElement | null>(null)
+const tabsStuck      = ref(false)
+const scrollPad      = ref(0)
+
+async function scrollToTabNav() {
+  await nextTick()
+  const body    = filingBodyRef.value
+  const wrapper = tabsWrapperRef.value
+  if (!body || !wrapper) return
+  tabsStuck.value = true
+  await nextTick()
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+  const naturalScrollHeight = body.scrollHeight - scrollPad.value
+  const neededPad = Math.max(0, target - naturalScrollHeight + body.clientHeight + 20)
+  if (neededPad !== scrollPad.value) {
+    scrollPad.value = neededPad
+    await nextTick()
+  }
+  body.scrollTop = target
+}
+
+let _scrollHandler: (() => void) | null = null
+
 onMounted(async () => {
+  const body = filingBodyRef.value
+  if (body) {
+    _scrollHandler = () => {
+      const wrapper = tabsWrapperRef.value
+      if (!wrapper) return
+      tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
+      if (!tabsStuck.value && body.scrollTop <= 1) scrollPad.value = 0
+    }
+    body.addEventListener('scroll', _scrollHandler, { passive: true })
+  }
+
   if (!props.editId) return
   // 编辑模式：从接口加载已有数据
   await new Promise(r => setTimeout(r, 300))
@@ -1654,20 +1695,23 @@ onMounted(async () => {
     })
   }
 })
+
+onUnmounted(() => {
+  if (_scrollHandler) filingBodyRef.value?.removeEventListener('scroll', _scrollHandler)
+})
 </script>
 
 <style scoped>
 .filing-page {
-  min-height: 100vh;
+  height: calc(100vh - 81px);
+  overflow: hidden;
   background: #f5f6fa;
   display: flex;
   flex-direction: column;
 }
 
 .filing-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 160px;
@@ -1681,7 +1725,9 @@ onMounted(async () => {
 .back-btn { color: #595959; flex-shrink: 0; }
 .filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 
-.main-card { margin: 16px; border-radius: 8px; }
+.filing-body { flex: 1; overflow-y: auto; padding: 0 16px 16px; overscroll-behavior: contain; }
+.main-card { margin-top: 16px; border-radius: 8px; }
+.tabs-wrapper { background: #fff; border-radius: 8px; margin-top: 16px; }
 
 .filing-summary {
   display: flex;
@@ -1707,7 +1753,7 @@ onMounted(async () => {
   border-radius: 8px;
   background: #fff;
   overflow: hidden;
-  margin: 16px 16px 0;
+  margin: 16px 0 0;
 }
 .reject-card-header {
   display: flex; align-items: center; gap: 6px;
@@ -1840,7 +1886,9 @@ onMounted(async () => {
 
 /* ── Tabs ── */
 .form-tabs :deep(.ant-tabs-tab-btn) { font-size: 14px; }
-.form-tabs :deep(.ant-tabs-nav) { margin-left: -20px; margin-right: -20px; padding: 0 20px; }
+.form-tabs :deep(.ant-tabs-nav) { position: sticky; top: 0; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.form-tabs :deep(.ant-tabs-content-holder) { padding: 0 20px; }
+.tabs-stuck .form-tabs :deep(.ant-tabs-nav) { margin-left: -16px !important; margin-right: -16px !important; border-radius: 0; }
 .form-tabs :deep(.ant-divider-horizontal) { margin: 0 0 20px; }
 
 /* ── 合同付款比例 ── */
