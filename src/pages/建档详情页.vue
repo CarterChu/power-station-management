@@ -715,7 +715,7 @@ function copyStationNo(no: string) {
 
 const FILING_REJECTED_STATUSES = ['biz_self_rejected', 'tech_self_rejected', 'biz_rejected', 'tech_rejected', 'all_self_rejected', 'all_rejected']
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'warning',
+  filing: 'warning', pending_review: 'processing',
   biz_self_rejected: 'error', tech_self_rejected: 'error',
   biz_rejected: 'error', tech_rejected: 'error',
   all_self_rejected: 'error', all_rejected: 'error',

@@ -1326,7 +1326,7 @@ const REGION_OPTIONS = [
 ]
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'processing', rejected: 'error',
+  filing: 'warning', pending_review: 'processing', rejected: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
   filing: '建档中', pending_review: '建档审核中', rejected: '建档审核不通过',

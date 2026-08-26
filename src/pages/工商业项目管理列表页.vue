@@ -334,7 +334,7 @@ const STOCK_SIMPLIFIED_BADGE: Record<string, 'default' | 'processing' | 'success
   done:        'success',
 }
 const FILING_STATUS_TAG_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'warning',
+  filing: 'warning', pending_review: 'processing',
   biz_self_rejected: 'error', tech_self_rejected: 'error',
   biz_rejected: 'error', tech_rejected: 'error',
   all_self_rejected: 'error', all_rejected: 'error',

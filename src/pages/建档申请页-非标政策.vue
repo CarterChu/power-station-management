@@ -1184,7 +1184,7 @@ const props = defineProps<{
 const emit = defineEmits<{ back: [] }>()
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'processing', rejected: 'error',
+  filing: 'warning', pending_review: 'processing', rejected: 'error',
   approved: 'success', voided: 'default',
 }
 const STATUS_LABEL: Record<string, string> = {
