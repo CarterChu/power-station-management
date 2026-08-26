@@ -6,7 +6,7 @@
         <a-tooltip :title="detail.projectName">
           <span class="detail-title">{{ detail.projectName }}</span>
         </a-tooltip>
-        <a-tag color="blue">到货</a-tag>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#fa8c16"></span>到货</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
@@ -39,7 +39,7 @@
 
         <!-- ── 项目信息 ── -->
         <div class="detail-card detail-card--plain">
-          <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: !projectInfoOpen }" /></div>
+          <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: projectInfoOpen }" /></div>
           <div v-show="projectInfoOpen">
 
             <!-- 标准政策布局 -->
@@ -268,7 +268,7 @@
                 <div class="info-section">
                   <div class="info-section-title" style="margin-bottom:8px">应用场景</div>
                   <div style="font-size:14px;color:rgba(0,0,0,0.65);margin-bottom:12px">
-                    应用场景是否混装 {{ detail.scenes.length > 1 ? '是' : '否' }}
+                    应用场景是否混装：{{ detail.scenes.length > 1 ? '是' : '否' }}
                   </div>
                   <a-table :columns="sceneColumns" :data-source="detail.scenes" :pagination="false" size="small" />
                 </div>
@@ -604,54 +604,7 @@
 
       <!-- 右侧：流转日志 -->
       <div class="detail-sidebar">
-        <div class="log-card">
-          <div class="log-card-header">
-            <div class="section-title">流转日志</div>
-          </div>
-          <div class="log-card-body">
-          <div class="approval-list">
-            <div v-for="group in groupedLogs" :key="group.date" class="approval-date-group">
-              <div class="approval-date-header">
-                <CalendarOutlined class="approval-date-icon" />
-                <span class="approval-date-text">{{ group.date }}</span>
-              </div>
-              <div class="approval-items">
-                <div v-for="(log, idx) in group.logs" :key="log.id" class="approval-item">
-                  <div class="approval-connector">
-                    <div class="connector-line connector-line--top" />
-                    <component :is="LOG_ICON[log.type]" class="connector-icon" :class="`connector-icon--${log.type}`" />
-                    <div v-if="!(group === groupedLogs[groupedLogs.length-1] && idx === group.logs.length-1)" class="connector-line connector-line--bottom" />
-                  </div>
-                  <div class="approval-card-wrap">
-                    <div class="approval-card">
-                      <div class="approval-card-header">
-                        <span class="approval-card-title">{{ log.event }}</span>
-                        <span :class="['approval-tag', `approval-tag--${log.type}`]">
-                          {{ LOG_TAG_LABEL[log.type] }}
-                        </span>
-                      </div>
-                      <div class="approval-card-body">
-                        <div class="approval-field">
-                          <span class="field-label">操作人</span>
-                          <span class="field-value">{{ log.operator }}</span>
-                        </div>
-                        <div v-if="log.note" class="approval-field">
-                          <span class="field-label">备注</span>
-                          <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']">{{ log.note }}</span>
-                        </div>
-                        <div class="approval-field">
-                          
-                          <span class="field-value field-value--muted">{{ log.time }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
-        </div>
+        <FlowLog :logs="currentLogs" />
       </div>
     </div>
 
@@ -732,9 +685,10 @@ import { message } from 'ant-design-vue'
 import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
+import FlowLog from '../components/FlowLog.vue'
 import {
-  LeftOutlined, DownOutlined, CopyOutlined, CalendarOutlined,
-  FileAddOutlined, CheckCircleOutlined, CheckCircleFilled, CloseCircleOutlined, EditOutlined,
+  LeftOutlined, DownOutlined, CopyOutlined,
+  CheckCircleFilled,
   AuditOutlined, HolderOutlined,
 } from '@ant-design/icons-vue'
 
@@ -753,12 +707,15 @@ const tabsStuck = ref(false)
 
 async function scrollToTabNav() {
   await nextTick()
+  const body    = detailBodyRef.value
   const wrapper = tabsWrapperRef.value
-  if (!wrapper) return
-  const container = detailBodyRef.value
-  if (!container) return
-  const top = Math.round(wrapper.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop)
-  container.scrollTo({ top, behavior: 'smooth' })
+  if (!body || !wrapper) return
+  tabsStuck.value = true
+  await nextTick()
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+  body.scrollTop = target
 }
 
 let _scrollHandler: (() => void) | null = null
@@ -998,9 +955,10 @@ onMounted(() => {
   const container = detailBodyRef.value
   if (container) {
     _scrollHandler = () => {
+      const body    = detailBodyRef.value
       const wrapper = tabsWrapperRef.value
-      if (!wrapper) return
-      tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top - 15
+      if (!body || !wrapper) return
+      tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
     }
     container.addEventListener('scroll', _scrollHandler, { passive: true })
   }
@@ -1019,21 +977,6 @@ function copyStationNo(no: string) {
 }
 
 // ─── 流转日志 ─────────────────────────────────────────────────────────────────
-
-const LOG_ICON: Record<string, any> = {
-  create:  FileAddOutlined,
-  submit:  CheckCircleOutlined,
-  reject:  CloseCircleOutlined,
-  approve: CheckCircleOutlined,
-  void:    EditOutlined,
-}
-const LOG_TAG_LABEL: Record<string, string> = {
-  create:  '创建',
-  submit:  '已提交',
-  reject:  '不通过',
-  approve: '已通过',
-  void:    '已作废',
-}
 
 type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null }
 
@@ -1082,12 +1025,9 @@ const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
   ],
 }
 
-const groupedLogs = computed(() => {
-  let logs: LogEntry[]
-
+const currentLogs = computed((): LogEntry[] => {
   const submitted = sharedStockRecords.filter(r => r.status !== null)
   if (submitted.length > 0) {
-    // Build per-record log entries
     const recordLogs: LogEntry[] = []
     let nextId = BASE_LOGS.length + 1
     for (const rec of submitted) {
@@ -1123,18 +1063,9 @@ const groupedLogs = computed(() => {
       }
     }
     recordLogs.sort((a, b) => b.id - a.id)
-    logs = [...recordLogs, ...BASE_LOGS]
-  } else {
-    logs = LOGS_BY_STATUS[detail.value.filingStatus] ?? BASE_LOGS
+    return [...recordLogs, ...BASE_LOGS]
   }
-
-  const map = new Map<string, LogEntry[]>()
-  for (const log of logs) {
-    const date = log.time.split(' ')[0]
-    if (!map.has(date)) map.set(date, [])
-    map.get(date)!.push(log)
-  }
-  return Array.from(map.entries()).map(([date, logs]) => ({ date, logs }))
+  return LOGS_BY_STATUS[detail.value.filingStatus] ?? BASE_LOGS
 })
 
 
@@ -1324,6 +1255,8 @@ function nowTimeStr(): string {
 }
 .detail-header-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
 .detail-header-left :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; }
+.node-dot-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(0,0,0,0.65); background: #f5f5f5; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 7px; line-height: 20px; flex-shrink: 0; }
+.node-dot-tag__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .back-btn { color: #595959; flex-shrink: 0; }
 .detail-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 .detail-header-meta { display: flex; align-items: center; margin-left: 12px; gap: 0; flex-shrink: 0; }
@@ -1346,19 +1279,6 @@ function nowTimeStr(): string {
 .detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
 .tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { border-radius: 0; }
 
-.reject-card {
-  border: 1px solid rgba(220,38,38,.25);
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  background: #fff;
-  overflow: hidden;
-}
-.reject-card-header { display: flex; align-items: center; gap: 6px; padding: 10px 16px 0; font-size: 15px; font-weight: 600; color: #dc2626; }
-.reject-card-body   { padding: 8px 16px 12px; }
-.reject-meta        { display: flex; gap: 20px; font-size: 12px; color: #595959; margin-bottom: 8px; }
-.reject-meta-item strong { color: #1a1a1a; }
-.reject-reason      { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
-
 .detail-card { border-radius: 8px; }
 .detail-card--plain { background: #fff; padding: 20px; }
 .detail-tabs :deep(.ant-tabs-content-holder) { padding: 0; }
@@ -1373,7 +1293,7 @@ function nowTimeStr(): string {
 .section-title--toggle   { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
 .section-title--collapsed { margin-bottom: 0 !important; }
 .section-toggle-icon { font-size: 12px; color: #8c8c8c; background: #f0f0f0; padding: 7px 6px 5px; border-radius: 4px; display: inline-flex; align-items: center; transition: transform 0.2s; }
-.section-toggle-icon.rotated { transform: rotate(-90deg); }
+.section-toggle-icon.rotated { transform: rotate(180deg); }
 .section-title { font-size: 16px; font-weight: 500; color: #000; margin-bottom: 24px; }
 
 .info-section-title {
@@ -1501,63 +1421,4 @@ function nowTimeStr(): string {
 .payment-ratio-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 .payment-ratio-table tbody tr:last-child td { border-bottom: none; }
 
-/* ── 流转日志 ── */
-.log-card { background: #fff; border-radius: 8px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
-.log-card-header { padding: 20px 20px 12px; flex-shrink: 0; border-bottom: 1px solid #f0f0f0; }
-.log-card-header .section-title { margin-bottom: 0; }
-.log-card-body { flex: 1; overflow-y: auto; padding: 16px 20px 20px; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.15) transparent; }
-.log-card-body::-webkit-scrollbar { width: 4px; }
-.log-card-body::-webkit-scrollbar-track { background: transparent; }
-.log-card-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
-
-.approval-list       { display: flex; flex-direction: column; gap: 16px; }
-.approval-date-group { display: flex; flex-direction: column; gap: 8px; }
-.approval-date-header { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
-.approval-date-icon   { font-size: 14px; color: rgba(0,0,0,.45); }
-.approval-date-text   { font-size: 14px; font-weight: 500; color: rgba(0,0,0,.88); }
-
-.approval-items { display: flex; flex-direction: column; padding-left: 4px; }
-.approval-item  { display: flex; gap: 12px; align-items: flex-start; }
-
-.approval-connector { display: flex; flex-direction: column; align-items: center; gap: 4px; align-self: stretch; flex-shrink: 0; }
-.connector-line         { width: 1px; background: #e6e6eb; flex-shrink: 0; }
-.connector-line--top    { height: 8px; }
-.connector-line--bottom { flex: 1 0 0; min-height: 1px; }
-.connector-icon         { font-size: 15px; flex-shrink: 0; }
-.connector-icon--create  { color: #8c8c8c; }
-.connector-icon--submit  { color: #1677ff; }
-.connector-icon--reject  { color: #f5222d; }
-.connector-icon--approve { color: #52c41a; }
-.connector-icon--void    { color: #8c8c8c; }
-
-.approval-card-wrap { flex: 1; padding-bottom: 12px; }
-.approval-card {
-  background: #fff;
-  border: 1px solid #e6e6eb;
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.approval-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.approval-card-title  { font-size: 14px; font-weight: 500; color: #1f1f1f; }
-.approval-tag {
-  font-size: 12px; font-weight: 400;
-  padding: 0 8px; height: 22px; line-height: 20px;
-  border-radius: 4px; border: 1px solid;
-  white-space: nowrap; flex-shrink: 0;
-}
-.approval-tag--create  { background: rgba(0,0,0,.02); border-color: #d9d9d9; color: rgba(0,0,0,.45); }
-.approval-tag--submit  { background: #e8f7ff; border-color: #8bceff; color: #007bfe; }
-.approval-tag--reject  { background: #ffe9e7; border-color: #ffaca7; color: #f5222d; }
-.approval-tag--approve { background: #e8fbd6; border-color: #b7eb8f; color: #52c41a; }
-.approval-tag--void    { background: rgba(0,0,0,.02); border-color: #d9d9d9; color: rgba(0,0,0,.45); }
-
-.approval-card-body { display: flex; flex-direction: column; gap: 4px; }
-.approval-field     { display: flex; gap: 4px; align-items: baseline; font-size: 13px; line-height: 20px; }
-.field-label        { color: #8c8c8c; flex-shrink: 0; }
-.field-value        { color: #1f1f1f; }
-.field-value--muted { color: rgba(0,0,0,.45); }
-.field-value--red   { color: #1a1a1a; }
 </style>

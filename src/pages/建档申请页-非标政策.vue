@@ -1822,6 +1822,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
 }
+.section-header :deep(.ant-btn) { height: 28px; }
 
 /* ── form item ── */
 :deep(.ant-form-item-label > label),

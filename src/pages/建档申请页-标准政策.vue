@@ -1939,6 +1939,7 @@ async function fetchFilingDetail(_id: string) {
   align-items: center;
   justify-content: space-between;
 }
+.section-header :deep(.ant-btn) { height: 28px; }
 
 /* ── 垂直 form-item 样式 ── */
 :deep(.ant-form-item-label > label),

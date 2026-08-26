@@ -9,7 +9,7 @@
         <a-tooltip :title="detail.projectName">
           <span class="detail-title">{{ detail.projectName }}</span>
         </a-tooltip>
-        <a-tag color="blue">建档</a-tag>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#1677ff"></span>建档</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
@@ -42,24 +42,10 @@
       <div class="detail-main">
 
         <!-- 退回原因卡片（仅审核不通过时展示） -->
-        <div v-if="detail.filingStatus === 'rejected'" class="reject-card">
-          <div class="reject-card-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-            <span>审核不通过</span>
-          </div>
-          <div class="reject-card-body">
-            <div class="reject-meta">
-              <span class="reject-meta-item">退回环节 <strong>{{ detail.rejectInfo.stage }}</strong></span>
-              <span class="reject-meta-item">审核人 <strong>{{ detail.rejectInfo.reviewer }}</strong></span>
-              <span class="reject-meta-item">时间 {{ detail.rejectInfo.time }}</span>
-            </div>
-            <div class="reject-reason">{{ detail.rejectInfo.reason }}</div>
-          </div>
-        </div>
 
         <!-- ── 项目信息 ── -->
         <div class="detail-card detail-card--plain">
-          <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: !projectInfoOpen }" /></div>
+          <div class="section-title section-title--toggle" :class="{ 'section-title--collapsed': !projectInfoOpen }" @click="projectInfoOpen = !projectInfoOpen">项目信息<DownOutlined class="section-toggle-icon" :class="{ rotated: projectInfoOpen }" /></div>
           <div v-show="projectInfoOpen">
 
           <!-- 标准政策布局 -->
@@ -145,8 +131,7 @@
         </div>
 
 
-        <a-card class="detail-card" :body-style="{ padding: 0 }">
-          <div ref="tabsWrapperRef" :class="{ 'tabs-stuck': tabsStuck }">
+        <div class="tabs-wrapper" ref="tabsWrapperRef" :class="{ 'tabs-stuck': tabsStuck }">
           <a-tabs
             v-model:active-key="activeTab"
             class="detail-tabs"
@@ -349,7 +334,7 @@
                 <div class="info-section">
                   <div class="info-section-title" style="margin-bottom:8px">应用场景</div>
                   <div style="font-size:14px;color:rgba(0,0,0,0.65);margin-bottom:12px">
-                    应用场景是否混装 {{ detail.scenes.length > 1 ? '是' : '否' }}
+                    应用场景是否混装：{{ detail.scenes.length > 1 ? '是' : '否' }}
                   </div>
                   <a-table
                     :columns="sceneColumns"
@@ -622,60 +607,12 @@
             </a-tab-pane>
 
           </a-tabs>
-          </div>
-        </a-card>
+        </div>
       </div>
 
       <!-- 右侧：流转日志 -->
       <div class="detail-sidebar">
-        <div class="log-card">
-          <div class="log-card-header">
-            <div class="section-title">流转日志</div>
-          </div>
-          <div class="log-card-body">
-          <div class="approval-list">
-            <div v-for="group in groupedLogs" :key="group.date" class="approval-date-group">
-              <div class="approval-date-header">
-                <CalendarOutlined class="approval-date-icon" />
-                <span class="approval-date-text">{{ group.date }}</span>
-              </div>
-              <div class="approval-items">
-                <div v-for="(log, idx) in group.logs" :key="log.id" class="approval-item">
-                  <div class="approval-connector">
-                    <div class="connector-line connector-line--top" />
-                    <component :is="LOG_ICON[log.type]" class="connector-icon" :class="`connector-icon--${log.type}`" />
-                    <div v-if="!(group === groupedLogs[groupedLogs.length-1] && idx === group.logs.length-1)" class="connector-line connector-line--bottom" />
-                  </div>
-                  <div class="approval-card-wrap">
-                    <div class="approval-card">
-                      <div class="approval-card-header">
-                        <span class="approval-card-title">{{ log.event }}</span>
-                        <span :class="['approval-tag', `approval-tag--${log.type}`]">
-                          {{ LOG_TAG_LABEL[log.type] }}
-                        </span>
-                      </div>
-                      <div class="approval-card-body">
-                        <div class="approval-field">
-                          <span class="field-label">操作人</span>
-                          <span class="field-value">{{ log.operator }}</span>
-                        </div>
-                        <div v-if="log.note" class="approval-field">
-                          <span class="field-label">备注</span>
-                          <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']">{{ log.note }}</span>
-                        </div>
-                        <div class="approval-field">
-                          
-                          <span class="field-value field-value--muted">{{ log.time }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
-        </div>
+        <FlowLog :logs="currentLogs" />
       </div>
     </div>
 
@@ -760,9 +697,9 @@
 import { ref, computed, watch, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
+import FlowLog from '../components/FlowLog.vue'
 import {
-  LeftOutlined, CalendarOutlined, CopyOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
+  LeftOutlined, CopyOutlined,
   AuditOutlined, HolderOutlined, DownOutlined,
 } from '@ant-design/icons-vue'
 
@@ -776,11 +713,20 @@ function copyStationNo(no: string) {
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
+const FILING_REJECTED_STATUSES = ['biz_self_rejected', 'tech_self_rejected', 'biz_rejected', 'tech_rejected', 'all_self_rejected', 'all_rejected']
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'processing', pending_review: 'processing', rejected: 'error', approved: 'success',
+  filing: 'processing', pending_review: 'warning',
+  biz_self_rejected: 'error', tech_self_rejected: 'error',
+  biz_rejected: 'error', tech_rejected: 'error',
+  all_self_rejected: 'error', all_rejected: 'error',
+  approved: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档审核中', rejected: '建档商务审核不通过', approved: '审核通过',
+  filing: '建档中', pending_review: '建档审核中',
+  biz_self_rejected: '商务自审不通过', tech_self_rejected: '技术自审不通过',
+  biz_rejected: '商务审核不通过', tech_rejected: '技术审核不通过',
+  all_self_rejected: '全部自审不通过', all_rejected: '全部审核不通过',
+  approved: '审核通过',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -816,20 +762,6 @@ const CABLE_PIPE_LABEL: Record<string, string> = {
 const CABLE_TYPE_LABEL: Record<string, string> = {
   trench: '电缆沟', conduit: '电缆排管', other: '其它',
 }
-const LOG_ICON: Record<string, any> = {
-  create:  FileAddOutlined,
-  submit:  CheckCircleOutlined,
-  reject:  CloseCircleOutlined,
-  approve: CheckCircleOutlined,
-  void:    EditOutlined,
-}
-const LOG_TAG_LABEL: Record<string, string> = {
-  create:  '创建',
-  submit:  '已提交',
-  reject:  '不通过',
-  approve: '已通过',
-  void:    '已作废',
-}
 const PHOTO_CATEGORIES = [
   { key: 'exterior', label: '外观照片' },
   { key: 'roof',     label: '屋顶照片' },
@@ -848,7 +780,7 @@ const STANDARD_PAYMENT_NODES = [
 
 const detail = ref({
   id: 'LNC-2026-0001',
-  filingStatus: (props.initStatus ?? 'filing') as string,
+  filingStatus: (props.initRow?.filingStatus ?? props.initStatus ?? 'filing') as string,
   // 系统信息
   stationType: '工商业',
   stationNo:   props.initRow?.stationNo ?? 'LNC-2026-0001',
@@ -971,13 +903,20 @@ const detail = ref({
   logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null }[],
 })
 
-watch(() => props.initStatus, (val) => {
+watch(() => props.initRow?.filingStatus ?? props.initStatus, (val) => {
   if (val) detail.value.filingStatus = val
-})
+}, { immediate: true })
+
+// filingStatus 直接从 props 派生，保证与 v-if 条件始终同步
+const filingStatusFromProps = computed(() =>
+  (props.initRow?.filingStatus ?? props.initStatus ?? 'filing') as string
+)
 
 // ─── 状态对应的流转日志 ───────────────────────────────────────────────────────
 
-const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
+type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null }
+
+const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
   filing: [
     { id: 2, type: 'create', event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
     { id: 1, type: 'create', event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
@@ -993,6 +932,20 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 2, type: 'create', event: '保存草稿',   operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
     { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
   ],
+  all_self_rejected: [
+    { id: 5, type: 'reject', event: '技术自审不通过', operator: '李四（审核员）', time: '2026-08-11 16:10', note: '技术方案不完整，设备选型有误，请修正后重新提交。' },
+    { id: 4, type: 'reject', event: '商务自审不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 3, type: 'submit', event: '提交建档',       operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
+    { id: 2, type: 'create', event: '保存草稿',       operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
+    { id: 1, type: 'create', event: '创建建档',       operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  ],
+  all_rejected: [
+    { id: 5, type: 'reject', event: '技术审核不通过', operator: '李四（审核员）', time: '2026-08-11 16:10', note: '系统设计方案不符合区域并网要求，请重新提交。' },
+    { id: 4, type: 'reject', event: '商务审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 3, type: 'submit', event: '提交建档',       operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
+    { id: 2, type: 'create', event: '保存草稿',       operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
+    { id: 1, type: 'create', event: '创建建档',       operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  ],
   approved: [
     { id: 4, type: 'approve', event: '审核通过', operator: '李四（审核员）', time: '2026-08-11 10:00', note: null },
     { id: 3, type: 'submit',  event: '提交建档', operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
@@ -1001,23 +954,19 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
   ],
 }
 
-// ─── 日志分组 ─────────────────────────────────────────────────────────────────
-
-const groupedLogs = computed(() => {
-  const logs = LOGS_BY_STATUS[detail.value.filingStatus] ?? []
-  const map = new Map<string, typeof logs>()
-  for (const log of logs) {
-    const date = log.time.split(' ')[0]
-    if (!map.has(date)) map.set(date, [])
-    map.get(date)!.push(log)
-  }
-  return Array.from(map.entries()).map(([date, logs]) => ({ date, logs }))
+const MULTI_REJECT_STATUSES = ['all_self_rejected', 'all_rejected']
+const currentLogs = computed(() => {
+  const s = detail.value.filingStatus
+  if (!FILING_REJECTED_STATUSES.includes(s)) return LOGS_BY_STATUS[s] ?? []
+  if (MULTI_REJECT_STATUSES.includes(s)) return LOGS_BY_STATUS[s] ?? []
+  const logs = LOGS_BY_STATUS['rejected'] ?? []
+  return logs.map(l => l.type === 'reject' ? { ...l, event: STATUS_LABEL[s] } : l)
 })
 
 // ─── 权限 ────────────────────────────────────────────────────────────────────
 
 const canEdit = computed(() =>
-  ['filing', 'rejected'].includes(detail.value.filingStatus)
+  ['filing', ...FILING_REJECTED_STATUSES].includes(detail.value.filingStatus)
 )
 const canVoid = computed(() =>
   detail.value.filingStatus === 'filing'
@@ -1033,34 +982,31 @@ const tabsStuck = ref(false)
 
 async function scrollToTabNav() {
   await nextTick()
+  const body    = detailBodyRef.value
   const wrapper = tabsWrapperRef.value
-  if (!wrapper) return
-  const container = detailBodyRef.value
-  if (!container) return
-  // getBoundingClientRect gives position relative to viewport; subtract container top
-  // then add current scrollTop to get the target scroll offset within the container.
-  // +20 pushes past the sticky threshold (top: -16px) so tabsStuck triggers.
-  const top = container.scrollTop + wrapper.getBoundingClientRect().top - container.getBoundingClientRect().top + 20
-  container.scrollTo({ top, behavior: 'smooth' })
+  if (!body || !wrapper) return
+  tabsStuck.value = true
+  await nextTick()
+  const target = Math.round(
+    wrapper.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop
+  )
+  body.scrollTop = target
 }
 
 let _scrollHandler: (() => void) | null = null
 
 onMounted(() => {
-  const container = detailBodyRef.value
-  if (!container) return
   _scrollHandler = () => {
+    const body    = detailBodyRef.value
     const wrapper = tabsWrapperRef.value
-    if (!wrapper) return
-    tabsStuck.value = wrapper.getBoundingClientRect().top <= container.getBoundingClientRect().top - 15
+    if (!body || !wrapper) return
+    tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
   }
-  container.addEventListener('scroll', _scrollHandler, { passive: true })
+  detailBodyRef.value?.addEventListener('scroll', _scrollHandler, { passive: true })
 })
 
 onUnmounted(() => {
-  if (_scrollHandler && detailBodyRef.value) {
-    detailBodyRef.value.removeEventListener('scroll', _scrollHandler)
-  }
+  if (_scrollHandler) detailBodyRef.value?.removeEventListener('scroll', _scrollHandler)
 })
 
 // ── 合同付款比例（非标详情可编辑）────────────────────────────
@@ -1283,6 +1229,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 }
 .detail-header-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
 .detail-header-left :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; }
+.node-dot-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(0,0,0,0.65); background: #f5f5f5; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 7px; line-height: 20px; flex-shrink: 0; }
+.node-dot-tag__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .back-btn { color: #595959; flex-shrink: 0; }
 .detail-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 .detail-header-meta { display: flex; align-items: center; margin-left: 12px; gap: 0; flex-shrink: 0; }
@@ -1294,43 +1242,19 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
   flex: 1;
   overflow-y: auto;
   display: flex;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 16px;
-  padding: 16px 16px 0;
+  padding: 16px;
   overscroll-behavior: contain;
 }
-.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding-bottom: 16px; }
+.detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .detail-sidebar { width: 300px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 0; height: calc(100vh - 170px); }
 
 /* ── 退回原因卡片 ── */
-.reject-card {
-  border: 1px solid rgba(220,38,38,.25);
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  background: #fff;
-  overflow: hidden;
-}
-.reject-card-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #dc2626;
-}
-.reject-card-body { padding: 8px 16px 12px; }
-.reject-meta {
-  display: flex;
-  gap: 20px;
-  font-size: 12px;
-  color: #595959;
-  margin-bottom: 8px;
-}
-.reject-meta-item strong { color: #1a1a1a; }
-.reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
-
 /* ── 主内容卡片 ── */
 .detail-card { border-radius: 8px; }
+.tabs-wrapper { background: #fff; border-radius: 8px; }
 .detail-card--plain { background: #fff; padding: 20px; }
 .detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
 .tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { border-radius: 0; }
@@ -1351,7 +1275,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .section-title--toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
 .section-title--collapsed { margin-bottom: 0 !important; }
 .section-toggle-icon { font-size: 12px; color: #8c8c8c; background: #f0f0f0; padding: 7px 6px 5px; border-radius: 4px; display: inline-flex; align-items: center; transition: transform 0.2s; }
-.section-toggle-icon.rotated { transform: rotate(-90deg); }
+.section-toggle-icon.rotated { transform: rotate(180deg); }
 .section-title {
   font-size: 16px;
   font-weight: 500;
@@ -1444,66 +1368,6 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .payment-node-label { font-size: 13px; font-weight: 500; }
 .payment-node-pct { font-size: 15px; font-weight: 600; color: #1677ff; }
 .payment-node-desc { font-size: 12px; color: #8c8c8c; line-height: 1.4; }
-
-/* ── 流转日志 ── */
-.log-card { background: #fff; border-radius: 8px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
-.log-card-header { padding: 20px 20px 12px; flex-shrink: 0; border-bottom: 1px solid #f0f0f0; }
-.log-card-header .section-title { margin-bottom: 0; }
-.log-card-body { flex: 1; overflow-y: auto; padding: 16px 20px 20px; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.15) transparent; }
-.log-card-body::-webkit-scrollbar { width: 4px; }
-.log-card-body::-webkit-scrollbar-track { background: transparent; }
-.log-card-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
-
-.approval-list       { display: flex; flex-direction: column; gap: 16px; }
-.approval-date-group { display: flex; flex-direction: column; gap: 8px; }
-.approval-date-header { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
-.approval-date-icon   { font-size: 14px; color: rgba(0,0,0,.45); }
-.approval-date-text   { font-size: 14px; font-weight: 500; color: rgba(0,0,0,.88); }
-
-.approval-items { display: flex; flex-direction: column; padding-left: 4px; }
-.approval-item  { display: flex; gap: 12px; align-items: flex-start; }
-
-.approval-connector { display: flex; flex-direction: column; align-items: center; gap: 4px; align-self: stretch; flex-shrink: 0; }
-.connector-line         { width: 1px; background: #e6e6eb; flex-shrink: 0; }
-.connector-line--top    { height: 8px; }
-.connector-line--bottom { flex: 1 0 0; min-height: 1px; }
-.connector-icon         { font-size: 15px; flex-shrink: 0; }
-.connector-icon--create  { color: #8c8c8c; }
-.connector-icon--submit  { color: #1677ff; }
-.connector-icon--reject  { color: #f5222d; }
-.connector-icon--approve { color: #52c41a; }
-.connector-icon--void    { color: #8c8c8c; }
-
-.approval-card-wrap { flex: 1; padding-bottom: 12px; }
-.approval-card {
-  background: #fff;
-  border: 1px solid #e6e6eb;
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.approval-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.approval-card-title  { font-size: 14px; font-weight: 500; color: #1f1f1f; }
-.approval-tag {
-  font-size: 12px; font-weight: 400;
-  padding: 0 8px; height: 22px; line-height: 20px;
-  border-radius: 4px; border: 1px solid;
-  white-space: nowrap; flex-shrink: 0;
-}
-.approval-tag--create  { background: rgba(0,0,0,.02); border-color: #d9d9d9; color: rgba(0,0,0,.45); }
-.approval-tag--submit  { background: #e8f7ff; border-color: #8bceff; color: #007bfe; }
-.approval-tag--reject  { background: #ffe9e7; border-color: #ffaca7; color: #f5222d; }
-.approval-tag--approve { background: #e8fbd6; border-color: #b7eb8f; color: #52c41a; }
-.approval-tag--void    { background: rgba(0,0,0,.02); border-color: #d9d9d9; color: rgba(0,0,0,.45); }
-
-.approval-card-body { display: flex; flex-direction: column; gap: 4px; }
-.approval-field     { display: flex; gap: 4px; align-items: baseline; font-size: 13px; line-height: 20px; }
-.field-label        { color: #8c8c8c; flex-shrink: 0; }
-.field-value        { color: #1f1f1f; }
-.field-value--muted { color: rgba(0,0,0,.45); }
-.field-value--red   { color: #1a1a1a; }
 
 /* ── 审核面板 ── */
 .review-fab {

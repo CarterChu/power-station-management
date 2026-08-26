@@ -146,6 +146,8 @@
             <StartDetail v-else-if="activeTabKey === 'start-detail'" :init-row="startDetailRow" @back="handleBackFromStartDetail" @edit="handleEditFromStartDetail" />
             <StockApply v-else-if="activeTabKey === 'stock-apply'" :edit-id="editingId" :init-status="stockApplyInitStatus" :init-data="stockApplyInitData" @back="handleBackFromStockApply" />
             <StockDetail v-else-if="activeTabKey === 'stock-detail'" :init-row="stockDetailRow" @back="handleBackFromStockDetail" @edit="handleEditFromStockDetail" />
+            <CompleteApply v-else-if="activeTabKey === 'complete-apply'" :edit-id="editingId" :init-status="completeApplyInitStatus" :init-data="completeApplyInitData" :policy-type="completePolicyType" @back="handleBackFromCompleteApply" />
+            <CompleteDetail v-else-if="activeTabKey === 'complete-detail'" :init-row="completeDetailRow" :policy-type="completePolicyType" @back="handleBackFromCompleteDetail" @edit="handleEditFromCompleteDetail" />
           </div>
         </div>
 
@@ -175,6 +177,8 @@ import StartApply from './pages/开工申请页.vue'
 import StartDetail from './pages/开工详情页.vue'
 import StockApply from './pages/到货申请页.vue'
 import StockDetail from './pages/到货详情页.vue'
+import CompleteApply from './pages/完工申请页.vue'
+import CompleteDetail from './pages/完工详情页.vue'
 
 // ── Tab 路由状态 ──
 interface Tab { key: string; label: string; closable?: boolean }
@@ -194,7 +198,11 @@ const startApplyInitStatus = ref<string | null>(null)
 const startDetailRow   = ref<Record<string, any>>({})
 const stockApplyInitData   = ref<any>(null)
 const stockApplyInitStatus = ref<string | null>(null)
-const stockDetailRow   = ref<Record<string, any>>({})
+const stockDetailRow       = ref<Record<string, any>>({})
+const completeApplyInitData   = ref<any>(null)
+const completeApplyInitStatus = ref<string | null>(null)
+const completeDetailRow       = ref<Record<string, any>>({})
+const completePolicyType      = ref<string>('standard')
 
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
@@ -218,13 +226,18 @@ function _saveState() {
       stockApplyInitData: stockApplyInitData.value,
       stockApplyInitStatus: stockApplyInitStatus.value,
       stockDetailRow: stockDetailRow.value,
+      completeApplyInitData: completeApplyInitData.value,
+      completeApplyInitStatus: completeApplyInitStatus.value,
+      completeDetailRow: completeDetailRow.value,
+      completePolicyType: completePolicyType.value,
     }))
   } catch {}
 }
 watch(
   [tabs, activeTabKey, editingId, detailStatus, detailPolicyType, detailRow,
    filingInitData, filingInitStatus, startApplyInitData, startApplyInitStatus,
-   startDetailRow, stockApplyInitData, stockApplyInitStatus, stockDetailRow],
+   startDetailRow, stockApplyInitData, stockApplyInitStatus, stockDetailRow,
+   completeApplyInitData, completeApplyInitStatus, completeDetailRow, completePolicyType],
   _saveState, { deep: true }
 )
 onMounted(() => {
@@ -246,6 +259,10 @@ onMounted(() => {
     stockApplyInitData.value = s.stockApplyInitData ?? null
     stockApplyInitStatus.value = s.stockApplyInitStatus ?? null
     if (s.stockDetailRow) stockDetailRow.value = s.stockDetailRow
+    completeApplyInitData.value = s.completeApplyInitData ?? null
+    completeApplyInitStatus.value = s.completeApplyInitStatus ?? null
+    if (s.completeDetailRow) completeDetailRow.value = s.completeDetailRow
+    if (s.completePolicyType) completePolicyType.value = s.completePolicyType
   } catch {}
 })
 
@@ -451,6 +468,16 @@ const handleNavigate = (target: string, payload?: any) => {
   } else if (target === 'stock-detail') {
     stockDetailRow.value = payload ?? {}
     openTab('stock-detail', '到货详情')
+  } else if (target === 'complete-apply') {
+    editingId.value = payload?.editId ?? null
+    completeApplyInitStatus.value = payload?.initStatus ?? null
+    completeApplyInitData.value = payload ?? null
+    if (payload?.policyType) completePolicyType.value = payload.policyType
+    openTab('complete-apply', payload?.editId ? '编辑完工申请' : '完工申请')
+  } else if (target === 'complete-detail') {
+    completeDetailRow.value = payload ?? {}
+    if (payload?.policyType) completePolicyType.value = payload.policyType
+    openTab('complete-detail', '完工详情')
   }
 }
 
@@ -504,6 +531,22 @@ const handleEditFromStockDetail = (id: string) => {
   stockApplyInitStatus.value = stockDetailRow.value.filingStatus ?? null
   stockApplyInitData.value = { ...stockDetailRow.value }
   openTab('stock-apply', '编辑到货申请')
+}
+
+const handleBackFromCompleteApply = () => {
+  editingId.value = null
+  closeTab('complete-apply')
+}
+
+const handleBackFromCompleteDetail = () => {
+  closeTab('complete-detail')
+}
+
+const handleEditFromCompleteDetail = (id: string) => {
+  editingId.value = id
+  completeApplyInitStatus.value = completeDetailRow.value.filingStatus ?? null
+  completeApplyInitData.value = { ...completeDetailRow.value }
+  openTab('complete-apply', '编辑完工申请')
 }
 </script>
 

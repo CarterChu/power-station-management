@@ -1460,6 +1460,7 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .section-sub-title::before { content: ''; width: 3px; height: 16px; background: #1677ff; border-radius: 2px; flex-shrink: 0; }
 .upload-hint-icon { font-size: 13px; color: #8c8c8c; cursor: pointer; flex-shrink: 0; margin-left: 4px; }
 .section-header { display: flex; align-items: center; justify-content: space-between; }
+.section-header :deep(.ant-btn) { height: 28px; }
 .info-item--span4 { grid-column: span 4; }
 .info-label {
   font-size: 14px;
