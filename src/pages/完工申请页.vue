@@ -24,13 +24,6 @@
         </span>
       </div>
       <a-space>
-        <a-popconfirm
-          title="确认作废该完工申请？"
-          ok-text="确认作废" ok-type="danger" cancel-text="取消"
-          @confirm="handleVoid"
-        >
-          <a-button v-if="canVoid" danger>作废</a-button>
-        </a-popconfirm>
         <a-button @click="emit('back')">取消</a-button>
         <a-button :loading="saving" @click="handleSave">保存</a-button>
         <a-button type="primary" :loading="submitting" @click="handleSubmit">提交完工申请</a-button>
@@ -438,18 +431,18 @@
 
             <!-- ──────── 完工 TAB（可编辑） ──────── -->
             <a-tab-pane key="complete" tab="完工" force-render>
-              <a-form ref="completeRef" :colon="false" :model="completeForm" layout="vertical" style="padding: 40px 20px 40px">
+              <a-form ref="completeRef" :colon="false" :model="completeForm" layout="vertical" style="padding: 20px">
 
                 <!-- 完工信息 -->
                 <div class="info-section-title">完工信息</div>
                 <a-row :gutter="[24, 0]">
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="现场负责人" name="siteManager"
                       :rules="[{ required: true, message: '请输入现场负责人' }]">
                       <a-input v-model:value="completeForm.siteManager" placeholder="请输入" :maxlength="30" />
                     </a-form-item>
                   </a-col>
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="负责人电话" name="siteManagerPhone"
                       :rules="[
                         { required: true, message: '请输入手机号' },
@@ -458,7 +451,7 @@
                       <a-input v-model:value="completeForm.siteManagerPhone" placeholder="请输入" :maxlength="11" />
                     </a-form-item>
                   </a-col>
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="实际完工日期" name="completeDate"
                       :rules="[{ required: true, message: '请选择实际完工日期' }]">
                       <a-date-picker v-model:value="completeForm.completeDate" style="width:100%" format="YYYY-MM-DD" placeholder="请选择" />
@@ -473,9 +466,7 @@
                 <div style="font-size:14px;color:rgba(0,0,0,0.65);margin-bottom:12px">
                   应用场景是否混装：{{ detail.scenes.length > 1 ? '是' : '否' }}
                 </div>
-                <a-table :columns="sceneColumns" :data-source="detail.scenes" :pagination="false" size="small" style="margin-bottom:8px" />
-
-                <a-divider style="margin-top: 0" />
+                <a-table :columns="sceneColumns" :data-source="detail.scenes" :pagination="false" size="small" style="margin-bottom:20px" />
 
                 <!-- 设备信息 -->
                 <div class="info-section-title">设备信息</div>
@@ -485,21 +476,38 @@
                 <a-tabs v-model:activeKey="deviceTab" size="small" class="device-inner-tabs">
                   <a-tab-pane key="module" tab="组件" />
                   <a-tab-pane key="inverter" tab="逆变器" />
+                  <a-tab-pane key="sim" tab="监控SIM" />
+                  <template #rightExtra>
+                    <div class="device-toolbar">
+                      <a-space :size="8">
+                        <template v-if="deviceTab === 'sim'">
+                          <a-button size="small" @click="addSimRow">增行</a-button>
+                        </template>
+                        <template v-else>
+                        <a-button size="small" @click="downloadDeviceTemplate">下载模板</a-button>
+                        <a-upload accept=".xlsx,.xls,.csv" :show-upload-list="false" :before-upload="handleDeviceFileImport">
+                          <a-button size="small">导入</a-button>
+                        </a-upload>
+                        </template>
+                        <template v-if="deviceTab === 'module'">
+                          <a-button size="small" @click="handleDeviceVerify">预校验序列号</a-button>
+                          <a-button
+                            size="small"
+                            :disabled="moduleUnattestedRows.length === 0 && moduleAttestedRows.length === 0"
+                            @click="moduleUnattestedRows.length === 0 && moduleAttestedRows.length > 0 ? openSubmittedAttestation() : openDeviceAttestation()"
+                          >
+                            <template v-if="moduleUnattestedRows.length === 0 && moduleAttestedRows.length > 0">已佐证（{{ moduleAttestedRows.length }} 条）</template>
+                            <template v-else-if="moduleUnattestedRows.length > 0">未佐证（{{ moduleUnattestedRows.length }} 条）</template>
+                            <template v-else>佐证</template>
+                          </a-button>
+                        </template>
+                        <template v-if="deviceTab !== 'sim'">
+                          <a-button size="small">导出</a-button>
+                        </template>
+                      </a-space>
+                    </div>
+                  </template>
                 </a-tabs>
-                <!-- 操作按钮栏 -->
-                <div class="device-toolbar">
-                  <a-space :size="8">
-                    <a-button size="small" @click="downloadDeviceTemplate">下载模板</a-button>
-                    <a-upload accept=".xlsx,.xls,.csv" :show-upload-list="false" :before-upload="handleDeviceFileImport">
-                      <a-button size="small">导入</a-button>
-                    </a-upload>
-                    <a-button size="small" @click="handleDeviceVerify">预校验序列号</a-button>
-                    <a-button size="small" :disabled="deviceTab !== 'module' || moduleAttestationRows.length === 0" @click="openDeviceAttestation">
-                      未佐证<template v-if="moduleAttestationRows.length > 0">（{{ moduleAttestationRows.length }} 条）</template>
-                    </a-button>
-                    <a-button size="small">导出</a-button>
-                  </a-space>
-                </div>
                 <!-- 序列号表格 -->
                 <div class="device-sn-table">
                 <a-table :columns="deviceColumns" :data-source="currentDeviceSerials" row-key="id" :pagination="false" size="small" :scroll="{ y: 400 }" style="margin-bottom:8px">
@@ -515,15 +523,20 @@
                         v-model:value="record.sn"
                         placeholder="请输入"
                         allow-clear
-                        style="width:320px"
-                        :status="(record as ModuleSerial).status === 'blocked' ? 'error' : (record as ModuleSerial).status === 'needs-attestation' ? 'warning' : undefined"
+                        :style="deviceTab === 'module' ? 'width:320px' : 'width:100%'"
+                        :status="(record as ModuleSerial).status === 'blocked' ? 'error' : (record as ModuleSerial).status === 'needs-attestation' && !(record as ModuleSerial).attestationSubmitted && !attestedSerialNos.has(record.sn) ? 'warning' : undefined"
                       />
                       <div v-if="(record as ModuleSerial).status === 'blocked'" style="font-size:12px;color:#ff4d4f;margin-top:2px">
                         {{ (record as ModuleSerial).validationMessage }}
                       </div>
-                      <div v-else-if="(record as ModuleSerial).status === 'needs-attestation'" style="font-size:12px;color:#faad14;margin-top:2px">
-                        {{ (record as ModuleSerial).validationMessage }}
-                        <a-button type="link" size="small" style="padding:0;font-size:12px;height:auto;color:#1677ff" @click="openDeviceAttestation">去佐证 →</a-button>
+                      <div v-else-if="(record as ModuleSerial).status === 'needs-attestation'" style="font-size:12px;margin-top:2px">
+                        <template v-if="(record as ModuleSerial).attestationSubmitted || attestedSerialNos.has(record.sn)">
+                          <a-button type="link" size="small" style="padding:0;font-size:12px;height:auto;color:#1677ff" @click="openSubmittedAttestation">已佐证 →</a-button>
+                        </template>
+                        <template v-else>
+                          <span style="color:#faad14">{{ (record as ModuleSerial).validationMessage }}</span>
+                          <a-button type="link" size="small" style="padding:0;font-size:12px;height:auto;color:#1677ff" @click="openDeviceAttestation">去佐证 →</a-button>
+                        </template>
                       </div>
                     </template>
                     <template v-else-if="column.key === 'collectorId'">
@@ -551,6 +564,25 @@
                     <template v-else-if="column.key === 'meterSpec'">
                       <a-input v-model:value="(record as InverterSerial).meterSpec" placeholder="请输入" allow-clear style="width:100%" />
                     </template>
+                    <template v-else-if="column.key === 'cardNo'">
+                      <a-input
+                        v-model:value="(record as SimSerial).cardNo"
+                        placeholder="请输入手机号"
+                        allow-clear
+                        :maxlength="11"
+                        style="width:66%"
+                        :status="simDuplicates.has((record as SimSerial).cardNo) ? 'error' : undefined"
+                      />
+                      <div v-if="simDuplicates.has((record as SimSerial).cardNo)" style="font-size:12px;color:#ff4d4f;margin-top:2px">卡号重复</div>
+                    </template>
+                    <template v-else-if="column.key === 'carrier'">
+                      <a-select v-model:value="(record as SimSerial).carrier" placeholder="请选择" style="width:100%" allow-clear>
+                        <a-select-option v-for="opt in CARRIER_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+                      </a-select>
+                    </template>
+                    <template v-else-if="column.key === 'remark'">
+                      <a-input v-model:value="(record as SimSerial).remark" placeholder="请输入" allow-clear :maxlength="500" style="width:66%" />
+                    </template>
                     <template v-else-if="column.key === 'status'">
                       <a-tag v-if="(record as ModuleSerial).attestationSubmitted" color="processing">已佐证</a-tag>
                       <a-tag v-else-if="(record as ModuleSerial).status === 'passed'" color="success">通过</a-tag>
@@ -559,7 +591,8 @@
                       <a-tag v-else>待校验</a-tag>
                     </template>
                     <template v-else-if="column.key === 'action'">
-                      <a-button type="link" danger size="small" style="padding:0" disabled @click="removeDeviceSerial(record.id)">删除</a-button>
+                      <a-button v-if="deviceTab === 'sim'" type="link" danger size="small" style="padding:0" @click="removeSimRow(record.id)">删除</a-button>
+                      <a-button v-else type="link" danger size="small" style="padding:0" disabled>删除</a-button>
                     </template>
                   </template>
                 </a-table>
@@ -568,12 +601,34 @@
 
                 <a-divider style="margin-top: 0" />
 
-                <!-- 完工照片 -->
-                <div class="info-section-title">完工照片</div>
+                <!-- 工程图片 -->
+                <div class="info-section-title">工程图片</div>
                 <a-row :gutter="[24, 0]">
-                  <a-col v-for="cat in COMPLETE_PHOTO_CATEGORIES" :key="cat.key" :span="12">
-                    <a-form-item :label="cat.label">
-                      <FileUploadField v-model:file-list="completeForm.photos[cat.key]" accept=".jpg,.jpeg,.png" multiple>
+                  <a-col v-for="n in 16" :key="n" :span="12">
+                    <a-form-item :label="`配置照片${n}`">
+                      <a-upload
+                        v-model:file-list="completeForm.photos[`photo${n}`]"
+                        list-type="picture-card"
+                        :custom-request="noopRequest"
+                        accept="image/*"
+                        multiple
+                      >
+                        <div class="upload-trigger">
+                          <PlusOutlined /><div style="margin-top:4px;font-size:12px">上传</div>
+                        </div>
+                      </a-upload>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+
+                <a-divider style="margin-top: 0" />
+
+                <!-- 表单资料 -->
+                <div class="info-section-title">表单资料</div>
+                <a-row :gutter="[24, 16]">
+                  <a-col v-for="n in 5" :key="n" :span="12">
+                    <a-form-item :label="`配置附件${n}`">
+                      <FileUploadField v-model:file-list="completeForm.attachments[`attach${n}`]" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
                         <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
                       </FileUploadField>
                     </a-form-item>
@@ -595,6 +650,7 @@
     v-model:open="attestOpen"
     :rows="attestRows"
     :on-submit-attestation="submitAttestation"
+    :already-submitted="attestViewSubmitted"
     @submitted="handleAttestationSubmitted"
   />
 </template>
@@ -610,7 +666,7 @@ import { sharedStockRecords } from '../stores/stockRecords'
 import {
   LeftOutlined, CopyOutlined,
   CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
-  DownOutlined, UploadOutlined, QuestionCircleOutlined, CheckCircleFilled,
+  DownOutlined, UploadOutlined, PlusOutlined, QuestionCircleOutlined, CheckCircleFilled,
 } from '@ant-design/icons-vue'
 
 const props = defineProps<{ editId?: string | null; initStatus?: string | null; initData?: Record<string, any> | null; policyType?: string }>()
@@ -627,11 +683,29 @@ const completeForm = reactive({
   completeDate:             null as any,
 
   photos: {
-    exterior: [] as any[],
-    module:   [] as any[],
-    electric: [] as any[],
-    grid:     [] as any[],
-    other:    [] as any[],
+    photo1: [] as any[],
+    photo2: [] as any[],
+    photo3: [] as any[],
+    photo4: [] as any[],
+    photo5: [] as any[],
+    photo6: [] as any[],
+    photo7: [] as any[],
+    photo8: [] as any[],
+    photo9: [] as any[],
+    photo10: [] as any[],
+    photo11: [] as any[],
+    photo12: [] as any[],
+    photo13: [] as any[],
+    photo14: [] as any[],
+    photo15: [] as any[],
+    photo16: [] as any[],
+  },
+  attachments: {
+    attach1: [] as any[],
+    attach2: [] as any[],
+    attach3: [] as any[],
+    attach4: [] as any[],
+    attach5: [] as any[],
   },
 })
 
@@ -642,13 +716,18 @@ function toggleStockCard(id: string) {
 }
 
 // ── 设备信息 ──
-const deviceTab = ref<'module' | 'inverter'>('module')
+const deviceTab = ref<'module' | 'inverter' | 'sim'>('module')
 
 type ValidationStatus = 'pending' | 'passed' | 'blocked' | 'needs-attestation'
 interface ModuleSerial  { id: string; code: string; name: string; sn: string; status: ValidationStatus; validationCode?: string; validationMessage?: string; validationDetail?: string; attestationReason?: string; attestationSubmitted?: boolean }
 interface InverterSerial { id: string; name: string; code: string; monitorModule: string; sn: string; collectorId: string; spec: string; simCard: string; meterSpec: string }
+interface SimSerial { id: string; cardNo: string; carrier: string; remark: string }
 
-
+const CARRIER_OPTIONS = [
+  { value: 'mobile',  label: '中国移动' },
+  { value: 'unicom',  label: '中国联通' },
+  { value: 'telecom', label: '中国电信' },
+]
 
 const moduleColumns = [
   { title: '序号',     key: 'idx',    width: 52 },
@@ -670,15 +749,20 @@ const inverterColumns = [
   { title: '智能电表规格', dataIndex: 'meterSpec', key: 'meterSpec' },
   { title: '操作',       key: 'action', width: 64 },
 ]
-const deviceColumns = computed(() => deviceTab.value === 'module' ? moduleColumns : inverterColumns)
-
-const COMPLETE_PHOTO_CATEGORIES = [
-  { key: 'exterior', label: '整体外观照片' },
-  { key: 'module',   label: '组件安装照片' },
-  { key: 'electric', label: '电气设备照片' },
-  { key: 'grid',     label: '并网箱照片'   },
-  { key: 'other',    label: '其他照片'     },
+const simColumns = [
+  { title: '序号',   key: 'idx',     width: 52 },
+  { title: '卡号',   dataIndex: 'cardNo',  key: 'cardNo' },
+  { title: '运营商', dataIndex: 'carrier', key: 'carrier', width: 140 },
+  { title: '备注',   dataIndex: 'remark',  key: 'remark' },
+  { title: '操作',   key: 'action',  width: 64 },
 ]
+const deviceColumns = computed(() =>
+  deviceTab.value === 'module' ? moduleColumns
+  : deviceTab.value === 'inverter' ? inverterColumns
+  : simColumns
+)
+
+// COMPLETE_PHOTO_CATEGORIES removed — using v-for n in 16/5 inline
 
 // ── 只读表格列 ──
 const personnelReadonlyColumns = [
@@ -768,6 +852,7 @@ onBeforeUnmount(() => {
 const canVoid = computed(() => detail.value.filingStatus === 'waiting_complete')
 
 const saving = ref(false)
+const noopRequest = ({ onSuccess }: any) => { setTimeout(() => onSuccess?.("ok"), 0) }
 const submitting = ref(false)
 
 function copyStationNo(no: string) {
@@ -785,6 +870,23 @@ async function handleSubmit() {
   try {
     await completeRef.value?.validate()
   } catch {
+    return
+  }
+  // SIM 监控校验
+  if (simSerials.length === 0) {
+    message.warning('必填SIM监控信息为空，请完善')
+    deviceTab.value = 'sim'
+    return
+  }
+  const emptyCard = simSerials.find(r => !r.cardNo || !r.carrier)
+  if (emptyCard) {
+    message.warning('请完善SIM监控信息中的卡号和运营商')
+    deviceTab.value = 'sim'
+    return
+  }
+  if (simDuplicates.value.size > 0) {
+    message.warning('SIM卡号存在重复，请检查后提交')
+    deviceTab.value = 'sim'
     return
   }
   submitting.value = true
@@ -968,9 +1070,34 @@ const inverterSerials = reactive<InverterSerial[]>(
     )
 )
 
+const simSerials = reactive<SimSerial[]>([])
+
 const currentDeviceSerials = computed(() =>
-  deviceTab.value === 'module' ? moduleSerials : inverterSerials
+  deviceTab.value === 'module' ? moduleSerials
+  : deviceTab.value === 'inverter' ? inverterSerials
+  : simSerials
 )
+
+// 本站内重复卡号（排除空值）
+const simDuplicates = computed(() => {
+  const seen = new Set<string>()
+  const dups = new Set<string>()
+  for (const r of simSerials) {
+    if (!r.cardNo) continue
+    if (seen.has(r.cardNo)) dups.add(r.cardNo)
+    else seen.add(r.cardNo)
+  }
+  return dups
+})
+
+function addSimRow() {
+  simSerials.push({ id: `sim-${Date.now()}`, cardNo: '', carrier: '', remark: '' })
+}
+
+function removeSimRow(id: string) {
+  const idx = simSerials.findIndex(r => r.id === id)
+  if (idx !== -1) simSerials.splice(idx, 1)
+}
 
 function removeDeviceSerial(id: string) {
   const list = deviceTab.value === 'module' ? moduleSerials : inverterSerials
@@ -991,13 +1118,22 @@ function lookupSerialValidation(sn: string): Partial<ModuleSerial> {
 const attestOpen = ref(false)
 const attestRows = ref<any[]>([])
 const attestedPhotos = ref<Map<string, any[]>>(new Map())
+const attestedSerialNos = ref<Set<string>>(new Set())
+const attestViewSubmitted = ref(false)
 
 const moduleAttestationRows = computed(() =>
   moduleSerials.filter(r => r.status === 'needs-attestation')
 )
+const moduleUnattestedRows = computed(() =>
+  moduleSerials.filter(r => r.status === 'needs-attestation' && !attestedSerialNos.value.has(r.sn) && !r.attestationSubmitted)
+)
+const moduleAttestedRows = computed(() =>
+  moduleSerials.filter(r => r.status === 'needs-attestation' && (attestedSerialNos.value.has(r.sn) || r.attestationSubmitted))
+)
 
 function openDeviceAttestation() {
-  attestRows.value = moduleAttestationRows.value.map(row => ({
+  const rows = moduleUnattestedRows.value.length > 0 ? moduleUnattestedRows.value : moduleAttestedRows.value
+  attestRows.value = rows.map(row => ({
     key: row.id,
     materialCode: row.code,
     materialName: row.name,
@@ -1009,6 +1145,24 @@ function openDeviceAttestation() {
     attestationSubmitted: row.attestationSubmitted,
     photos: attestedPhotos.value.get(row.sn) ?? [],
   }))
+  attestViewSubmitted.value = false
+  attestOpen.value = true
+}
+
+function openSubmittedAttestation() {
+  attestRows.value = moduleAttestedRows.value.map(row => ({
+    key: row.id,
+    materialCode: row.code,
+    materialName: row.name,
+    serialNo: row.sn,
+    validationCode: row.validationCode,
+    validationMessage: row.validationMessage,
+    validationDetail: row.validationDetail,
+    attestationReason: row.attestationReason,
+    attestationSubmitted: true,
+    photos: attestedPhotos.value.get(row.sn) ?? [],
+  }))
+  attestViewSubmitted.value = true
   attestOpen.value = true
 }
 
@@ -1018,6 +1172,8 @@ async function submitAttestation(data: any[]) {
 }
 
 function handleAttestationSubmitted(rows: any[]) {
+  const serialNos = rows.map((r: any) => r.serialNo)
+  attestedSerialNos.value = new Set([...attestedSerialNos.value, ...serialNos])
   const photosMap = new Map(attestedPhotos.value)
   rows.forEach((r: any) => {
     photosMap.set(r.serialNo, r.photos)
@@ -1157,9 +1313,10 @@ const rejectInfo = computed(() => ({
 .device-inner-card { }
 .device-inner-tabs { }
 .device-inner-tabs .ant-tabs-nav { margin-bottom: 0; }
-.device-toolbar { display: flex; justify-content: flex-end; padding: 8px 0 16px; }
+.device-inner-tabs :deep(.ant-tabs-nav)::before { display: none; }
+.device-toolbar { display: flex; align-items: center; }
 .device-toolbar :deep(.ant-btn) { height: 28px; }
-.device-sn-table { }
+.device-sn-table { padding-top: 8px; }
 
 .sn-input-wrap { display: flex; flex-direction: column; gap: 2px; }
 .sn-verified-hint { font-size: 12px; cursor: pointer; }

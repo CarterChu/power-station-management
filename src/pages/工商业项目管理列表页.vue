@@ -106,7 +106,7 @@
           >编辑</a-button>
 
           <a-button
-            v-if="row.filingStatus && !['filing', 'waiting_start', 'waiting_stock'].includes(row.filingStatus)"
+            v-if="row.filingStatus"
             type="link"
             size="small"
             @click="handleDetail(row)"

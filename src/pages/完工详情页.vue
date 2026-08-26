@@ -252,6 +252,7 @@
             <!-- ──────── 完工 TAB ──────── -->
             <a-tab-pane key="complete" tab="完工">
               <div class="tab-body">
+                <!-- 完工信息 -->
                 <div class="info-section" style="margin-top:0">
                   <div class="info-section-title">完工信息</div>
                   <div class="info-grid">
@@ -260,33 +261,80 @@
                     <div class="info-item"><span class="info-label">实际完工日期</span><span class="info-value">{{ detail.completeInfo.completeDate || '—' }}</span></div>
                   </div>
                 </div>
+                <!-- 应用场景 -->
                 <div class="info-section">
-                  <div class="info-section-title">竣工工程资料</div>
-                  <div class="info-grid">
-                    <div class="info-item info-item--span2"><span class="info-label">竣工图</span><span class="info-value"><FileAttachmentView v-if="detail.completeInfo.completionDrawingFiles?.length" :files="detail.completeInfo.completionDrawingFiles" /><span v-else>—</span></span></div>
-                    <div class="info-item info-item--span2"><span class="info-label">竣工报告</span><span class="info-value"><FileAttachmentView v-if="detail.completeInfo.completionReportFiles?.length" :files="detail.completeInfo.completionReportFiles" /><span v-else>—</span></span></div>
-                    <div class="info-item info-item--span2"><span class="info-label">其他工程资料</span><span class="info-value"><FileAttachmentView v-if="detail.completeInfo.engineeringOtherFiles?.length" :files="detail.completeInfo.engineeringOtherFiles" /><span v-else>—</span></span></div>
+                  <div class="info-section-title">应用场景</div>
+                  <div style="font-size:14px;color:rgba(0,0,0,0.65);margin-bottom:12px">应用场景是否混装：{{ detail.scenes.length > 1 ? '是' : '否' }}</div>
+                  <a-table :columns="sceneColumns" :data-source="detail.scenes" :pagination="false" size="small" />
+                </div>
+                <!-- 设备信息 -->
+                <div class="info-section" style="border-top:none;padding-top:10px">
+                  <div class="info-section-title">设备信息</div>
+                  <a-tabs v-model:activeKey="detailDeviceTab" size="small" class="device-inner-tabs">
+                    <a-tab-pane key="module" tab="组件" />
+                    <a-tab-pane key="inverter" tab="逆变器" />
+                    <a-tab-pane key="sim" tab="监控SIM" />
+                  </a-tabs>
+                  <div style="padding-top:8px">
+                    <a-table
+                      v-if="detailDeviceTab === 'module'"
+                      :columns="detailModuleColumns" :data-source="detail.completeInfo.moduleSerials"
+                      row-key="id" :pagination="false" size="small" :scroll="{ y: 400 }"
+                    >
+                      <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'status'">
+                          <a-tag v-if="record.attestationSubmitted" color="processing">已佐证</a-tag>
+                          <a-tag v-else-if="record.status === 'passed'" color="success">通过</a-tag>
+                          <a-tag v-else-if="record.status === 'blocked'" color="error">阻断</a-tag>
+                          <a-tag v-else-if="record.status === 'needs-attestation'" color="warning">需佐证</a-tag>
+                          <a-tag v-else>待校验</a-tag>
+                        </template>
+                      </template>
+                    </a-table>
+                    <a-table
+                      v-else-if="detailDeviceTab === 'inverter'"
+                      :columns="detailInverterColumns" :data-source="detail.completeInfo.inverterSerials"
+                      row-key="id" :pagination="false" size="small" :scroll="{ y: 400 }"
+                    />
+                    <a-table
+                      v-else
+                      :columns="detailSimColumns" :data-source="detail.completeInfo.simSerials"
+                      row-key="id" :pagination="false" size="small" :scroll="{ y: 400 }"
+                    >
+                      <template #bodyCell="{ column, record }">
+                        <template v-if="column.key === 'carrier'">{{ CARRIER_OPTIONS.find(o => o.value === record.carrier)?.label || record.carrier || '—' }}</template>
+                      </template>
+                    </a-table>
                   </div>
                 </div>
+                <!-- 工程图片 -->
                 <div class="info-section">
-                  <div class="info-section-title">竣工技术资料</div>
-                  <div class="info-grid">
-                    <div class="info-item info-item--span2"><span class="info-label">竣工验收报告</span><span class="info-value"><FileAttachmentView v-if="detail.completeInfo.acceptanceReportFiles?.length" :files="detail.completeInfo.acceptanceReportFiles" /><span v-else>—</span></span></div>
-                    <div class="info-item info-item--span2"><span class="info-label">质量验收记录</span><span class="info-value"><FileAttachmentView v-if="detail.completeInfo.qualityCheckFiles?.length" :files="detail.completeInfo.qualityCheckFiles" /><span v-else>—</span></span></div>
-                  </div>
-                </div>
-                <div class="info-section">
-                  <div class="info-section-title">完工照片</div>
-                  <a-row :gutter="[24, 16]">
-                    <a-col v-for="cat in COMPLETE_PHOTO_CATEGORIES" :key="cat.key" :span="12">
+                  <div class="info-section-title">工程图片</div>
+                  <a-row :gutter="[24, 0]">
+                    <a-col v-for="n in 16" :key="n" :span="12">
                       <div class="photo-readonly-col">
-                        <span class="photo-readonly-label">{{ cat.label }}</span>
+                        <span class="photo-readonly-label">配置照片{{ n }}</span>
                         <div class="photo-readonly-imgs">
-                          <template v-if="detail.completeInfo.photos[cat.key]?.length">
-                            <a-image v-for="(img, i) in detail.completeInfo.photos[cat.key]" :key="i" :src="img" :width="80" :height="80" style="object-fit:cover;border-radius:4px" />
+                          <template v-if="detail.completeInfo.photos[`photo${n}`]?.length">
+                            <a-image v-for="(img, i) in detail.completeInfo.photos[`photo${n}`]" :key="i" :src="img" :width="80" :height="80" style="object-fit:cover;border-radius:4px" />
                           </template>
                           <span v-else class="empty-hint">—</span>
                         </div>
+                      </div>
+                    </a-col>
+                  </a-row>
+                </div>
+                <!-- 表单资料 -->
+                <div class="info-section">
+                  <div class="info-section-title">表单资料</div>
+                  <a-row :gutter="[24, 0]">
+                    <a-col v-for="n in 5" :key="n" :span="12">
+                      <div class="info-item">
+                        <span class="info-label">配置附件{{ n }}</span>
+                        <span class="info-value">
+                          <FileAttachmentView v-if="detail.completeInfo.attachments[`attach${n}`]?.length" :files="detail.completeInfo.attachments[`attach${n}`]" />
+                          <span v-else>—</span>
+                        </span>
                       </div>
                     </a-col>
                   </a-row>
@@ -480,6 +528,42 @@ const yigongReadonlyColumns = [
   { title: '确认数量', dataIndex: 'quantity', key: 'quantity', width: 80 },
 ]
 
+const sceneColumns = [
+  { title: '序号',         key: 'index',           width: 60,  customRender: ({ index }: any) => index + 1 },
+  { title: '应用场景',     dataIndex: 'type',       key: 'type',        width: 140 },
+  { title: '应用场景块数', dataIndex: 'blocks',     key: 'blocks',      width: 120 },
+  { title: '倾角',         dataIndex: 'tiltAngle',  key: 'tiltAngle',   width: 100, customRender: ({ text }: any) => text != null ? text + '°' : '—' },
+  { title: '特殊方案',     dataIndex: 'specialPlan',key: 'specialPlan', width: 160, customRender: ({ text }: any) => text || '—' },
+]
+const detailModuleColumns = [
+  { title: '序号',     key: 'idx',    width: 52, customRender: ({ index }: any) => index + 1 },
+  { title: '料号编码', dataIndex: 'code',   key: 'code',   width: 140 },
+  { title: '料号名称', dataIndex: 'name',   key: 'name',   width: 320 },
+  { title: '序列号',   dataIndex: 'sn',     key: 'sn' },
+  { title: '校验状态', dataIndex: 'status', key: 'status', width: 120 },
+]
+const detailInverterColumns = [
+  { title: '序号',         key: 'idx',           width: 52, customRender: ({ index }: any) => index + 1 },
+  { title: '物料名称',     dataIndex: 'name',         key: 'name' },
+  { title: '物料编码',     dataIndex: 'code',         key: 'code' },
+  { title: '监控器模块',   dataIndex: 'monitorModule', key: 'monitorModule' },
+  { title: '设备序列号',   dataIndex: 'sn',           key: 'sn' },
+  { title: '采集器编号',   dataIndex: 'collectorId',  key: 'collectorId' },
+  { title: '逆变器规格',   dataIndex: 'spec',         key: 'spec' },
+  { title: '物联网卡号',   dataIndex: 'simCard',      key: 'simCard' },
+  { title: '智能电表规格', dataIndex: 'meterSpec',    key: 'meterSpec' },
+]
+const detailSimColumns = [
+  { title: '序号',   key: 'idx',     width: 52, customRender: ({ index }: any) => index + 1 },
+  { title: '卡号',   dataIndex: 'cardNo',  key: 'cardNo' },
+  { title: '运营商', dataIndex: 'carrier', key: 'carrier', width: 140 },
+  { title: '备注',   dataIndex: 'remark',  key: 'remark' },
+]
+const CARRIER_OPTIONS = [
+  { value: 'mobile', label: '中国移动' }, { value: 'unicom', label: '中国联通' }, { value: 'telecom', label: '中国电信' },
+]
+const detailDeviceTab = ref<'module' | 'inverter' | 'sim'>('module')
+
 // ── mock 数据 ──
 const detail = ref({
   id: props.initRow?.id ?? 'LNC-2026-0036',
@@ -538,20 +622,46 @@ const detail = ref({
     { id: 2, name: '组串式逆变器 50kW',   type: '甲供', unit: '台', applied: 6,   arrived: 6,   status: '已到货' },
     { id: 3, name: '400kVA柱上变压器',    type: '乙供', unit: '台', applied: 1,   arrived: 1,   status: '已到货' },
   ],
+  scenes: [
+    { type: '平屋面', blocks: 480, capacity: 261.6 },
+  ],
   completeInfo: {
     siteManager: '张建国', siteManagerPhone: '13812340001', completeDate: '2026-08-18',
-    completionDrawingFiles: ['竣工图纸全套.pdf'],
-    completionReportFiles:  ['竣工报告.pdf'],
-    engineeringOtherFiles:  [],
-    acceptanceReportFiles:  ['竣工验收报告.pdf'],
-    qualityCheckFiles:      ['质量验收记录.pdf'],
-    techOtherFiles:         [],
+    moduleSerials: [
+      { id: 'm1', code: 'M001', name: '单晶硅光伏组件 545W', sn: 'SN20241201A001', status: 'passed' },
+      { id: 'm2', code: 'M001', name: '单晶硅光伏组件 545W', sn: 'SN20241201A002', status: 'passed' },
+    ],
+    inverterSerials: [
+      { id: 'i1', name: '组串式逆变器 50kW', code: 'M002', monitorModule: 'MON-A1', sn: 'SN20241201B001', collectorId: 'COL-001', spec: '50kW/800V', simCard: '13900010001', meterSpec: 'DTZ866' },
+    ],
+    simSerials: [
+      { id: 's1', cardNo: '13900010001', carrier: 'mobile', remark: '' },
+      { id: 's2', cardNo: '13900010002', carrier: 'unicom',  remark: '备用卡' },
+    ],
     photos: {
-      exterior: Array.from({ length: 4 }, (_, i) => `https://picsum.photos/seed/cpext${i + 1}/160/160`),
-      module:   Array.from({ length: 3 }, (_, i) => `https://picsum.photos/seed/cpmod${i + 1}/160/160`),
-      electric: Array.from({ length: 2 }, (_, i) => `https://picsum.photos/seed/cpelec${i + 1}/160/160`),
-      grid:     Array.from({ length: 2 }, (_, i) => `https://picsum.photos/seed/cpgrid${i + 1}/160/160`),
-      other:    [] as string[],
+      photo1: Array.from({ length: 1 }, (_, i) => `https://picsum.photos/seed/cpx1${i+1}/160/160`),
+      photo2: Array.from({ length: 1 }, (_, i) => `https://picsum.photos/seed/cpx2${i+1}/160/160`),
+      photo3: Array.from({ length: 1 }, (_, i) => `https://picsum.photos/seed/cpx3${i+1}/160/160`),
+      photo4: Array.from({ length: 1 }, (_, i) => `https://picsum.photos/seed/cpx4${i+1}/160/160`),
+      photo5: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx5${i+1}/160/160`),
+      photo6: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx6${i+1}/160/160`),
+      photo7: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx7${i+1}/160/160`),
+      photo8: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx8${i+1}/160/160`),
+      photo9: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx9${i+1}/160/160`),
+      photo10: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx10${i+1}/160/160`),
+      photo11: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx11${i+1}/160/160`),
+      photo12: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx12${i+1}/160/160`),
+      photo13: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx13${i+1}/160/160`),
+      photo14: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx14${i+1}/160/160`),
+      photo15: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx15${i+1}/160/160`),
+      photo16: Array.from({ length: 0 }, (_, i) => `https://picsum.photos/seed/cpx16${i+1}/160/160`),
+    },
+    attachments: {
+      attach1: ["完工图纸全套.pdf"],
+      attach2: ["竣工报告.pdf"],
+      attach3: [],
+      attach4: [],
+      attach5: [],
     },
   },
 })
@@ -566,31 +676,31 @@ function copyStationNo(no: string) {
 
 // ── 流转日志 ──
 type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null; images?: string[] }
+
+const BASE_LOGS: LogEntry[] = [
+  { id: 6, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-12 11:00', note: null },
+  { id: 5, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-08 10:30', note: null },
+  { id: 4, type: 'approve', event: '开工审核通过', operator: '李四（审核员）', time: '2026-07-18 10:00', note: null },
+  { id: 3, type: 'submit',  event: '提交开工申请', operator: '张三（代理商）', time: '2026-07-16 09:30', note: null },
+  { id: 2, type: 'approve', event: '建档审核通过', operator: '李四（审核员）', time: '2026-06-15 10:00', note: null },
+  { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）', time: '2026-06-10 09:00', note: null },
+]
+
 const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
-  waiting_complete: [
-    { id: 3, type: 'approve', event: '到货审核通过',  operator: '李四（审核员）', time: '2026-08-10 10:00', note: null },
-    { id: 2, type: 'approve', event: '开工审核通过',  operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-    { id: 1, type: 'submit',  event: '提交建档申请',  operator: '张三（代理商）', time: '2026-06-10 09:00', note: null },
-  ],
+  waiting_complete: BASE_LOGS,
   reviewing_complete: [
-    { id: 4, type: 'submit',  event: '提交完工申请',  operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
-    { id: 3, type: 'approve', event: '到货审核通过',  operator: '李四（审核员）', time: '2026-08-10 10:00', note: null },
-    { id: 2, type: 'approve', event: '开工审核通过',  operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-    { id: 1, type: 'submit',  event: '提交建档申请',  operator: '张三（代理商）', time: '2026-06-10 09:00', note: null },
+    { id: 7, type: 'submit',  event: '提交完工申请', operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
+    ...BASE_LOGS,
   ],
   complete_rejected: [
-    { id: 5, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '竣工图不完整，请补充全套竣工图纸后重新提交。', images: ['https://picsum.photos/seed/cpreject1/200'] },
-    { id: 4, type: 'submit',  event: '提交完工申请',   operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
-    { id: 3, type: 'approve', event: '到货审核通过',   operator: '李四（审核员）', time: '2026-08-10 10:00', note: null },
-    { id: 2, type: 'approve', event: '开工审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-06-10 09:00', note: null },
+    { id: 8, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '设备序列号信息不完整，请补充所有组件序列号及SIM监控卡信息后重新提交。', images: ['https://picsum.photos/seed/cpreject1/200/150'] },
+    { id: 7, type: 'submit',  event: '提交完工申请',   operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
+    ...BASE_LOGS,
   ],
   completed: [
-    { id: 5, type: 'approve', event: '完工审核通过', operator: '李四（审核员）', time: '2026-08-22 10:00', note: null },
-    { id: 4, type: 'submit',  event: '提交完工申请', operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
-    { id: 3, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-10 10:00', note: null },
-    { id: 2, type: 'approve', event: '开工审核通过', operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-    { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）', time: '2026-06-10 09:00', note: null },
+    { id: 8, type: 'approve', event: '完工审核通过', operator: '李四（审核员）', time: '2026-08-22 10:00', note: null },
+    { id: 7, type: 'submit',  event: '提交完工申请', operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
+    ...BASE_LOGS,
   ],
 }
 const currentLogs = computed(() => LOGS_BY_STATUS[detail.value.filingStatus] ?? [])
@@ -708,7 +818,7 @@ function submitReview(action: 'pass' | 'reject') {
 .detail-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .detail-sidebar { width: 300px; flex-shrink: 0; position: sticky; top: 0; height: calc(100vh - 170px); }
 .tabs-wrapper { background: #fff; border-radius: 8px; }
-.detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 9; background: #fff; border-radius: 8px 8px 0 0; }
+.detail-tabs :deep(.ant-tabs-nav) { position: sticky !important; top: -16px !important; z-index: 100; background: #fff; border-radius: 8px 8px 0 0; }
 .tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { border-radius: 0; }
 
 .detail-card { border-radius: 8px; }
@@ -728,6 +838,8 @@ function submitReview(action: 'pass' | 'reject') {
 .section-title { font-size: 16px; font-weight: 500; color: #000; margin-bottom: 24px; }
 
 .info-section-title { font-size: 16px; font-weight: 500; color: rgba(0,0,0,0.88); margin: 20px 0; display: flex; align-items: center; gap: 8px; }
+.device-inner-tabs .ant-tabs-nav { margin-bottom: 0; }
+.device-inner-tabs :deep(.ant-tabs-nav)::before { display: none; }
 .info-section-title::before { content: ''; display: inline-block; width: 3px; height: 16px; background: #1677ff; border-radius: 2px; flex-shrink: 0; }
 
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }

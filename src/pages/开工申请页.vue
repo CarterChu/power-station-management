@@ -579,13 +579,13 @@
                 <!-- 开工信息 -->
                 <div class="section-sub-title" style="margin-top:0">开工信息</div>
                 <a-row :gutter="[24, 0]">
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="现场负责人" name="siteManager"
                       :rules="[{ required: true, message: '请输入现场负责人' }]">
                       <a-input v-model:value="startForm.siteManager" placeholder="请输入" :maxlength="30" />
                     </a-form-item>
                   </a-col>
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="负责人电话" name="siteManagerPhone"
                       :rules="[
                         { required: true, message: '请输入手机号' },
@@ -594,7 +594,7 @@
                       <a-input v-model:value="startForm.siteManagerPhone" placeholder="请输入" :maxlength="11" />
                     </a-form-item>
                   </a-col>
-                  <a-col :span="8">
+                  <a-col :span="6">
                     <a-form-item label="开工日期" name="startDate"
                       :rules="[{ required: true, message: '请选择开工日期' }]">
                       <a-date-picker v-model:value="startForm.startDate" style="width:100%" format="YYYY-MM-DD" placeholder="请选择" />
