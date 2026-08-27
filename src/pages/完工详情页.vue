@@ -693,7 +693,7 @@ const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
     ...BASE_LOGS,
   ],
   complete_rejected: [
-    { id: 8, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '设备序列号信息不完整，请补充所有组件序列号及SIM监控卡信息后重新提交。', images: ['https://picsum.photos/seed/cpreject1/200/150'] },
+    { id: 8, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '工程图片12不符合要求，请重新上传后重新提交。', images: ['https://picsum.photos/seed/cpreject1/200/150'] },
     { id: 7, type: 'submit',  event: '提交完工申请',   operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
     ...BASE_LOGS,
   ],

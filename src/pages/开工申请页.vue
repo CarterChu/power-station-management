@@ -42,20 +42,7 @@
       <div class="detail-main">
 
         <!-- 退回原因卡片（仅开工审核不通过时展示） -->
-        <div v-if="detail.filingStatus === 'start_rejected'" class="reject-card">
-          <div class="reject-card-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-            <span>审核不通过</span>
-          </div>
-          <div class="reject-card-body">
-            <div class="reject-meta">
-              <span class="reject-meta-item">退回环节 <strong>{{ detail.rejectInfo.stage }}</strong></span>
-              <span class="reject-meta-item">审核人 <strong>{{ detail.rejectInfo.reviewer }}</strong></span>
-              <span class="reject-meta-item">时间 {{ detail.rejectInfo.time }}</span>
-            </div>
-            <div class="reject-reason">{{ detail.rejectInfo.reason }}</div>
-          </div>
-        </div>
+        <RejectCard v-if="detail.filingStatus === 'start_rejected'" :info="rejectInfo" :title="STATUS_LABEL[detail.filingStatus]" />
 
         <!-- ── 项目信息 ── -->
         <div class="detail-card detail-card--plain">
@@ -738,6 +725,7 @@
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
+import RejectCard from '../components/RejectCard.vue'
 import FileUploadField from '../components/FileUploadField.vue'
 import {
   LeftOutlined, CalendarOutlined, CopyOutlined,
@@ -902,6 +890,13 @@ const STATUS_COLOR: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
 }
+const rejectInfo = computed(() => ({
+  stage: detail.value.rejectInfo.stage,
+  reviewer: detail.value.rejectInfo.reviewer,
+  time: detail.value.rejectInfo.time,
+  reason: detail.value.rejectInfo.reason,
+  images: detail.value.rejectInfo.images,
+}))
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -1084,9 +1079,10 @@ const detail = ref({
   },
   rejectInfo: {
     stage: '开工审核',
-    reviewer: '李四（安能审核员）',
+    reviewer: '李四（审核员）',
     time: '2026-08-11 15:30',
-    reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
+    reason: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。',
+    images: ['https://picsum.photos/seed/reject1/200', 'https://picsum.photos/seed/reject2/200', 'https://picsum.photos/seed/reject3/200'],
   },
   logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null }[],
 })
@@ -1368,34 +1364,6 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 /* 吸顶时 nav 撑满全宽（抵消 detail-body 两侧各 16px padding），卡片本体不变 */
 .tabs-stuck .detail-tabs :deep(.ant-tabs-nav) { margin-left: -16px; margin-right: -16px; border-radius: 0; }
 .detail-sidebar { width: 300px; flex-shrink: 0; align-self: flex-start; position: sticky; top: 72px; height: calc(100vh - 170px); }
-
-/* ── 退回原因卡片 ── */
-.reject-card {
-  border: 1px solid rgba(220,38,38,.25);
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  background: #fff;
-  overflow: hidden;
-}
-.reject-card-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #dc2626;
-}
-.reject-card-body { padding: 8px 16px 12px; }
-.reject-meta {
-  display: flex;
-  gap: 20px;
-  font-size: 12px;
-  color: #595959;
-  margin-bottom: 8px;
-}
-.reject-meta-item strong { color: #1a1a1a; }
-.reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
 
 /* ── 主内容卡片 ── */
 .detail-card { border-radius: 8px; }

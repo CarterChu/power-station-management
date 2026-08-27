@@ -9,7 +9,7 @@
         <a-tooltip :title="isEdit ? `修改建档-${projectInfo.projectName}` : props.initData?.policyMatched === false ? '非标准政策建档' : '标准政策建档'">
           <span class="filing-title">{{ isEdit ? `修改建档-${projectInfo.projectName}` : props.initData?.policyMatched === false ? '非标准政策建档' : '标准政策建档' }}</span>
         </a-tooltip>
-        <a-tag color="green">建档</a-tag>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#1677ff"></span>建档</span>
         <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]">
           {{ STATUS_LABEL[filingStatus] }}
         </a-tag>
@@ -32,23 +32,10 @@
     <div ref="filingBodyRef" class="filing-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
 
     <!-- 退回原因卡片（仅审核不通过时展示） -->
-    <div v-if="filingStatus === 'rejected'" class="reject-card">
-      <div class="reject-card-header">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#dc2626;flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-        <span>审核不通过</span>
-      </div>
-      <div class="reject-card-body">
-        <div class="reject-meta">
-          <span class="reject-meta-item">退回环节 <strong>{{ rejectInfo.stage }}</strong></span>
-          <span class="reject-meta-item">审核人 <strong>{{ rejectInfo.reviewer }}</strong></span>
-          <span class="reject-meta-item">时间 {{ rejectInfo.time }}</span>
-        </div>
-        <div class="reject-reason">{{ rejectInfo.reason }}</div>
-      </div>
-    </div>
+    <RejectCard v-if="filingStatus && FILING_REJECTED_STATUSES.includes(filingStatus)" :info="rejectInfo" :title="STATUS_LABEL[filingStatus]" style="margin-top:16px" />
 
     <!-- 主体 -->
-    <a-card :bordered="false" class="main-card" :style="filingStatus === 'rejected' ? { marginTop: '12px' } : {}" :body-style="{ padding: '20px' }">
+    <a-card :bordered="false" class="main-card" :style="filingStatus && FILING_REJECTED_STATUSES.includes(filingStatus) ? { marginTop: '12px' } : {}" :body-style="{ padding: '20px' }">
 
       <!-- 建档信息摘要 -->
       <div v-if="props.initData" class="filing-summary">
@@ -1200,6 +1187,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import FileUploadField from '../components/FileUploadField.vue'
+import RejectCard from '../components/RejectCard.vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 
 const props = defineProps<{
@@ -1326,10 +1314,17 @@ const REGION_OPTIONS = [
 ]
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'warning', pending_review: 'processing', rejected: 'error',
+  filing: 'warning', pending_review: 'processing',
+  rejected: 'error',
+  biz_self_rejected: 'error', tech_self_rejected: 'error',
+  biz_rejected: 'error', tech_rejected: 'error',
+  all_self_rejected: 'error', all_rejected: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
   filing: '建档中', pending_review: '建档审核中', rejected: '建档审核不通过',
+  biz_self_rejected: '商务自审不通过', tech_self_rejected: '技术自审不通过',
+  biz_rejected: '商务审核不通过', tech_rejected: '技术审核不通过',
+  all_self_rejected: '全部自审不通过', all_rejected: '全部审核不通过',
 }
 const SURVEY_PHOTO_CATS = [
   { key: 'aerialPhotos',        label: '航拍图' },
@@ -1386,10 +1381,23 @@ const STANDARD_PAYMENT_NODES = [
 
 const filingStatus = ref<string | null>(props.initStatus ?? null)
 watch(() => props.initStatus, (val) => { if (val != null) filingStatus.value = val })
-const rejectInfo = reactive({
-  stage: '建档审核', reviewer: '李四（审核员）',
-  time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
-})
+const FILING_REJECTED_STATUSES = ['rejected','biz_self_rejected','tech_self_rejected','biz_rejected','tech_rejected','all_self_rejected','all_rejected']
+const REJECT_INFO_MAP: Record<string, any> = {
+  rejected:          { stage: '建档审核',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+  biz_self_rejected: { stage: '商务自审',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+  tech_self_rejected:{ stage: '技术自审',   reviewer: '李四（审核员）', time: '2026-08-11 16:10', reason: '技术方案不完整，设备选型有误，请修正后重新提交。' },
+  biz_rejected:      { stage: '商务审核',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+  tech_rejected:     { stage: '技术审核',   reviewer: '李四（审核员）', time: '2026-08-11 16:10', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
+  all_self_rejected: { stage: '建档审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
+    { title: '商务自审不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { title: '技术自审不通过', reason: '技术方案不完整，设备选型有误，请修正后重新提交。' },
+  ]},
+  all_rejected: { stage: '建档审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
+    { title: '商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { title: '技术审核不通过', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
+  ]},
+}
+const rejectInfo = computed(() => REJECT_INFO_MAP[filingStatus.value ?? ''] ?? {})
 const projectInfoOpen = ref(true)
 const saving       = ref(false)
 const submitting   = ref(false)
@@ -1781,9 +1789,7 @@ onMounted(async () => {
   commercial.emcContract = data.emcContract
   record.filingCert = data.filingCert
   filingStatus.value = data.filingStatus
-  if (data.filingStatus === 'rejected' && data.rejectInfo) {
-    Object.assign(rejectInfo, data.rejectInfo)
-  }
+  
 })
 
 onUnmounted(() => {
@@ -1851,6 +1857,8 @@ async function fetchFilingDetail(_id: string) {
   box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .filing-header-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+.node-dot-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(0,0,0,0.65); background: #f5f5f5; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 7px; line-height: 20px; flex-shrink: 0; }
+.node-dot-tag__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .filing-header-left :deep(.ant-tag) { flex-shrink: 0; margin-inline-end: 0; }
 .back-btn { color: #595959; flex-shrink: 0; }
 .filing-title { font-size: 16px; font-weight: 600; margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
@@ -1872,25 +1880,6 @@ async function fetchFilingDetail(_id: string) {
 .filing-summary-item { display: flex; align-items: center; }
 .filing-summary-item strong { color: #1a1a1a; margin-left: 2px; }
 .filing-summary-divider { width: 1px; height: 14px; background: #d9d9d9; margin: 0 14px; }
-
-/* ── 退回原因卡片 ── */
-.reject-card {
-  border: 1px solid rgba(220,38,38,.25);
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
-  background: #fff;
-  overflow: hidden;
-  margin: 16px 0 0;
-}
-.reject-card-header {
-  display: flex; align-items: center; gap: 6px;
-  padding: 10px 16px 0;
-  font-size: 15px; font-weight: 600; color: #dc2626;
-}
-.reject-card-body { padding: 8px 16px 12px; }
-.reject-meta { display: flex; gap: 20px; font-size: 12px; color: #595959; margin-bottom: 8px; }
-.reject-meta-item strong { color: #1a1a1a; }
-.reject-reason { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
 
 /* ── 主卡片 ── */
 .filing-body { flex: 1; overflow-y: auto; padding: 0 16px 16px; overscroll-behavior: contain; }

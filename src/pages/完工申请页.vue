@@ -6,8 +6,8 @@
         <a-button type="text" class="back-btn" @click="emit('back')">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="props.editId ? `编辑完工申请-${detail.projectName}` : `完工申请-${detail.projectName}`">
-          <span class="detail-title">{{ props.editId ? `编辑完工申请-${detail.projectName}` : `完工申请-${detail.projectName}` }}</span>
+        <a-tooltip :title="detail.filingStatus === 'complete_rejected' ? `修改完工申请-${detail.projectName}` : props.editId ? `编辑完工申请-${detail.projectName}` : `完工申请-${detail.projectName}`">
+          <span class="detail-title">{{ detail.filingStatus === 'complete_rejected' ? `修改完工申请-${detail.projectName}` : props.editId ? `编辑完工申请-${detail.projectName}` : `完工申请-${detail.projectName}` }}</span>
         </a-tooltip>
         <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#13c2c2"></span>完工</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
@@ -1249,8 +1249,9 @@ watch(() => props.initStatus, (val) => {
 })
 
 const rejectInfo = computed(() => ({
-  stage: '完工审核', reviewer: '李四（审核员）', time: '2026-08-20 15:30',
-  reason: '竣工图不完整，请补充全套竣工图纸后重新提交。',
+  stage: '完工审核', reviewer: '李四（审核员）', time: '2026-08-21 15:30',
+  reason: '工程图片12不符合要求，请重新上传后重新提交。',
+  images: ['https://picsum.photos/seed/cpreject1/200/150'],
 }))
 </script>
 
