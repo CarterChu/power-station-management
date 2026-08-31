@@ -193,9 +193,9 @@ import DispatchDetail from './pages/派工详情页.vue'
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list-b', label: '电站列表', closable: false },
+  { key: 'list', label: '电站列表', closable: false },
 ])
-const activeTabKey = ref('list-b')
+const activeTabKey = ref('list')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -337,7 +337,9 @@ const menuGroups = [
     domain: '工商业电站管理',
     icon: NavIconStation,
     items: [
-      { key: 'biz-list-b',    label: '电站列表' },
+      { key: 'biz-dashboard', label: '电站工作台' },
+      { key: 'biz-list',      label: '电站列表' },
+      { key: 'biz-list-b',    label: '电站列表（方案B）' },
     ],
   },
   {
@@ -404,7 +406,8 @@ function getMenuGroupDomain(key: string): string {
 }
 
 const activeMenuKey = computed(() => {
-  if (['list-b', 'stock-apply-b', 'stock-detail-b', 'list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value)) return 'biz-list-b'
+  if (['list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value)) return 'biz-list'
+  if (['list-b', 'stock-apply-b', 'stock-detail-b'].includes(page.value)) return 'biz-list-b'
   return ''
 })
 
@@ -431,7 +434,9 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list-b') openTab('list-b', '电站列表', false)
+  if (key === 'biz-list') openTab('list', '电站列表', false)
+  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
+  else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
   const domain = getMenuGroupDomain(key)
   if (domain && !menuOpenKeys.value.includes(domain)) {
     menuOpenKeys.value = [domain]
