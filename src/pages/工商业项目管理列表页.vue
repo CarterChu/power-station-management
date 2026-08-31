@@ -11,7 +11,12 @@
           :class="{ active: !nodeMultiSelect && activeNodeCard === card.nodeKey }"
           @click="selectNodeCard(card.nodeKey)"
         >
-          <div class="slist-node-label">{{ card.label }}</div>
+          <div class="slist-node-label" style="display:flex;align-items:center;gap:4px">
+            {{ card.label }}
+            <a-tooltip v-if="card.nodeKey === null" title="统计所有电站编号维度的电站数量，非电站节点数量之和" placement="top">
+              <QuestionCircleOutlined style="font-size:12px;color:#8c8c8c;cursor:default;position:relative;top:-1px" @click.stop />
+            </a-tooltip>
+          </div>
           <div class="slist-node-count">{{ card.count }}</div>
         </div>
       </div>
@@ -44,7 +49,7 @@
 
       <!-- 建档状态列 -->
       <template #filingStatusSlot="{ row }">
-        <template v-if="row.nodeStatus === 'stock'">
+        <template v-if="row.nodeStatus === 'stock' && props.variant !== 'B'">
           <a-tooltip v-if="row.filingStatus" :title="FILING_STATUS_LABEL[row.filingStatus]">
             <a-tag :color="STOCK_SIMPLIFIED_TAG_COLOR[stockSimplifiedKey(row.filingStatus)]" style="cursor:default">
               {{ STOCK_SIMPLIFIED_LABEL[stockSimplifiedKey(row.filingStatus)] }}
@@ -75,7 +80,21 @@
             type="link"
             size="small"
             @click="handleApplyStock(row)"
-          >到货申请</a-button>
+          >{{ props.variant === 'B' ? '去到货' : '到货申请' }}</a-button>
+
+          <a-button
+            v-if="row.nodeStatus === 'dispatch' && row.filingStatus === 'waiting_dispatch'"
+            type="link"
+            size="small"
+            @click="handleApplyDispatch(row)"
+          >去派工</a-button>
+
+          <a-button
+            v-if="row.nodeStatus === 'dispatch' && row.filingStatus === 'dispatching'"
+            type="link"
+            size="small"
+            @click="handleApplyDispatch(row)"
+          >编辑</a-button>
 
           <a-button
             v-if="row.nodeStatus === 'complete' && row.filingStatus === 'waiting_complete'"
@@ -240,9 +259,10 @@ import { ref, reactive, h, computed, onMounted, nextTick } from 'vue'
 import { sharedStockRecords, hasUserSubmittedRecords } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 
+const props = defineProps<{ variant?: string }>()
 const emit = defineEmits<{ navigate: [target: string, payload?: any] }>()
 import { message, Modal, Tooltip } from 'ant-design-vue'
-import { RightOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { RightOutlined, DownOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 // ─── 地区选项（弹窗用） ────────────────────────────────────────────────────────
@@ -281,28 +301,30 @@ const MODAL_REGION_OPTIONS = [
 // ─── 节点卡片 ─────────────────────────────────────────────────────────────────
 
 const nodeCards = [
-  { label: '全部', nodeKey: null,       count: 58 },
-  { label: '建档', nodeKey: 'filing',   count: 19 },
-  { label: '开工', nodeKey: 'start',    count: 10 },
-  { label: '到货', nodeKey: 'stock',    count: 10 },
-  { label: '完工', nodeKey: 'complete', count: 12 },
-  { label: '并网', nodeKey: 'grid',     count: 4  },
-  { label: '竣工', nodeKey: 'done',     count: 3  },
+  { label: '全部', nodeKey: null,         count: 58 },
+  { label: '建档', nodeKey: 'filing',     count: 19 },
+  { label: '开工', nodeKey: 'start',      count: 10 },
+  { label: '到货', nodeKey: 'stock',      count: 10 },
+  { label: '派工', nodeKey: 'dispatch',   count: 7  },
+  { label: '完工', nodeKey: 'complete',   count: 12 },
+  { label: '并网', nodeKey: 'grid',       count: 4  },
+  { label: '竣工', nodeKey: 'done',       count: 3  },
 ]
 
 const NODE_STATUS_COLOR: Record<string, string> = {
   filing: 'blue', start: 'green', stock: 'orange',
-  complete: 'cyan', grid: 'purple', done: 'default',
+  dispatch: 'geekblue', complete: 'cyan', grid: 'purple', done: 'default',
 }
 const NODE_STATUS_LABEL: Record<string, string> = {
   filing: '建档', start: '开工', stock: '到货',
-  complete: '完工', grid: '并网', done: '竣工',
+  dispatch: '派工', complete: '完工', grid: '并网', done: '竣工',
 }
 const FILING_STATUS_BADGE: Record<string, 'processing' | 'error' | 'default' | 'success'> = {
   filing: 'processing', pending_review: 'processing', rejected: 'error',
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
   waiting_stock: 'default', reviewing_stock: 'processing', partial_stock: 'processing', full_stock: 'success',
   partial_stock_rejected: 'error', full_stock_rejected: 'error',
+  waiting_dispatch: 'default', dispatching: 'processing', dispatched: 'success',
 }
 const FILING_STATUS_LABEL: Record<string, string> = {
   filing: '建档中', pending_review: '建档审核中',
@@ -313,6 +335,7 @@ const FILING_STATUS_LABEL: Record<string, string> = {
   waiting_stock: '待到货', reviewing_stock: '到货审核中', partial_stock: '部分已到货', full_stock: '全部已到货',
   partial_stock_rejected: '部分到货审核不通过', full_stock_rejected: '全部到货审核不通过',
   waiting_complete: '待完工', reviewing_complete: '完工审核中', complete_rejected: '完工审核不通过', completed: '已完工',
+  waiting_dispatch: '待派工', dispatching: '派工中', dispatched: '已派工',
 }
 
 const STOCK_SIMPLIFIED_MAP: Record<string, 'waiting' | 'in_progress' | 'done'> = {
@@ -339,9 +362,10 @@ const FILING_STATUS_TAG_COLOR: Record<string, string> = {
   biz_rejected: 'error', tech_rejected: 'error',
   all_self_rejected: 'error', all_rejected: 'error',
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
-  waiting_stock: 'default', reviewing_stock: 'processing', partial_stock: 'processing', full_stock: 'success',
+  waiting_stock: 'default', reviewing_stock: 'processing', partial_stock: 'cyan', full_stock: 'success',
   partial_stock_rejected: 'error', full_stock_rejected: 'error',
   waiting_complete: 'default', reviewing_complete: 'processing', complete_rejected: 'error', completed: 'success',
+  waiting_dispatch: 'default', dispatching: 'processing', dispatched: 'success',
 }
 const STOCK_SIMPLIFIED_TAG_COLOR: Record<string, string> = {
   waiting: 'default', in_progress: 'processing', done: 'success',
@@ -349,6 +373,8 @@ const STOCK_SIMPLIFIED_TAG_COLOR: Record<string, string> = {
 function stockSimplifiedKey(filingStatus: string): 'waiting' | 'in_progress' | 'done' {
   return STOCK_SIMPLIFIED_MAP[filingStatus] ?? 'waiting'
 }
+
+const stockTarget = computed(() => props.variant === 'B' ? 'stock-apply-b' : 'stock-apply')
 
 // ─── 状态 ─────────────────────────────────────────────────────────────────────
 
@@ -520,6 +546,7 @@ const filters = [
       { label: '建档', value: 'filing' },
       { label: '开工', value: 'start' },
       { label: '到货', value: 'stock' },
+      { label: '派工', value: 'dispatch' },
       { label: '完工', value: 'complete' },
       { label: '并网', value: 'grid' },
       { label: '竣工', value: 'done' },
@@ -543,9 +570,15 @@ const filters = [
       { label: '开工审核中',     value: 'applying_start' },
       { label: '开工审核不通过', value: 'start_rejected' },
       { label: '已开工',         value: 'started' },
-      { label: '待到货',         value: 'waiting_stock' },
-      { label: '到货中',         value: 'stock_in_progress' },
-      { label: '已到货',         value: 'stock_done' },
+      { label: '待到货',             value: 'waiting_stock' },
+      { label: '到货审核中',         value: 'reviewing_stock' },
+      { label: '部分已到货',         value: 'partial_stock' },
+      { label: '全部已到货',         value: 'full_stock' },
+      { label: '部分到货审核不通过', value: 'partial_stock_rejected' },
+      { label: '全部到货审核不通过', value: 'full_stock_rejected' },
+      { label: '待派工',             value: 'waiting_dispatch' },
+      { label: '派工中',             value: 'dispatching' },
+      { label: '已派工',             value: 'dispatched' },
     ],
   },
   { label: '创建时间', key: 'createdAtRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
@@ -597,7 +630,7 @@ const handleEdit = (row: any) => {
   } else if (row.nodeStatus === 'start') {
     emit('navigate', 'start-apply', { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
   } else if (row.nodeStatus === 'stock') {
-    emit('navigate', 'stock-apply', { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
+    emit('navigate', stockTarget.value, { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
   } else if (row.nodeStatus === 'complete') {
     emit('navigate', 'complete-apply', { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
   }
@@ -608,7 +641,11 @@ const handleApplyStart = (row: any) => {
 }
 
 const handleApplyStock = (row: any) => {
-  emit('navigate', 'stock-apply', { id: row.id, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
+  emit('navigate', stockTarget.value, { id: row.id, filingStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
+}
+
+const handleApplyDispatch = (row: any) => {
+  emit('navigate', 'dispatch-apply', { id: row.id, filingStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
 }
 
 const handleApplyComplete = (row: any) => {
@@ -621,9 +658,12 @@ const handleDetail = (row: any) => {
   } else if (row.nodeStatus === 'start') {
     emit('navigate', 'start-detail', { filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
   } else if (row.nodeStatus === 'stock') {
-    emit('navigate', 'stock-detail', { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
+    const detailTarget = props.variant === 'B' ? 'stock-detail-b' : 'stock-detail'
+    emit('navigate', detailTarget, { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
   } else if (row.nodeStatus === 'complete') {
     emit('navigate', 'complete-detail', { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
+  } else if (row.nodeStatus === 'dispatch') {
+    emit('navigate', 'dispatch-detail', { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
   }
 }
 
@@ -699,6 +739,15 @@ const MOCK_LIST = [
   { id: 'c11', stationNo: 'LNC-2026-0046', projectName: '宁波市象山县水产加工厂光伏',     projectCompany: '宁波象山清洁能源有限公司',   agentName: '宁波晴天能源科技有限公司',       address: '浙江省宁波市象山县爵溪工业区',       nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-05-18 11:30' },
   { id: 'c12', stationNo: 'LNC-2026-0047', projectName: '南京市溧水区航空零件厂光伏',     projectCompany: '南京溧水光伏管理有限公司',   agentName: '南京绿源能源技术有限公司',       address: '江苏省南京市溧水区经济开发区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-05-15 08:45' },
 
+  // ── 派工节点（方案B专有）──
+  { id: 'dp01', stationNo: 'LNC-2026-0048a', projectName: '无锡市江阴市精密零件厂屋顶光伏',     projectCompany: '无锡江阴精工能源有限公司',       agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区A区',     nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'standard',    createdAt: '2026-05-08 09:00' },
+  { id: 'dp02', stationNo: 'LNC-2026-0048b', projectName: '无锡市江阴市电气设备厂屋顶光伏',     projectCompany: '无锡江阴电气清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区B区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-05-06 14:00' },
+  { id: 'dp03', stationNo: 'LNC-2026-0048c', projectName: '无锡市江阴市汽车配件厂屋顶光伏',     projectCompany: '无锡江阴汽配清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区C区',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-05-04 10:00' },
+  { id: 'dp04', stationNo: 'LNC-2026-0049a', projectName: '苏州市吴江区纺织印染厂屋顶光伏',     projectCompany: '苏州吴江清洁能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区盛泽镇工业园',       nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'nonstandard', createdAt: '2026-05-03 11:30' },
+  { id: 'dp05', stationNo: 'LNC-2026-0049b', projectName: '苏州市吴江区电子元器件厂屋顶光伏',   projectCompany: '苏州吴江电子能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区震泽镇工业区',       nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'nonstandard', createdAt: '2026-05-01 09:00' },
+  { id: 'dp06', stationNo: 'LNC-2026-0050a', projectName: '南京市江宁区智能制造产业园屋顶光伏', projectCompany: '南京江宁智慧能源有限公司',       agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区麒麟科技创新园',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-04-28 15:00' },
+  { id: 'dp07', stationNo: 'LNC-2026-0050b', projectName: '南京市江宁区新能源装备厂屋顶光伏',   projectCompany: '南京江宁清洁能源科技有限公司', agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区禄口经济开发区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-04-25 10:30' },
+
   // ── 并网节点 × 4 ── filingStatus 待补充
   { id: 'p01', stationNo: 'LNC-2026-0048', projectName: '无锡市江阴市钢铁企业屋顶光伏', projectCompany: '无锡江阴光伏资产有限公司', agentName: '无锡联合能源有限公司', address: '江苏省无锡市江阴市临港工业区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-05-10 14:00' },
   { id: 'p02', stationNo: 'LNC-2026-0049', projectName: '常州市金坛区蓄电池工厂屋顶光伏', projectCompany: '常州金坛光伏有限公司', agentName: '常州新日能源科技有限公司', address: '江苏省常州市金坛区工业新区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'nonstandard', createdAt: '2026-05-05 10:30' },
@@ -714,10 +763,12 @@ const MOCK_LIST = [
 async function getProjectList(params: any): Promise<{ list: any[]; total: number }> {
   // 接入时替换：return http.post('/api/lnc/project/list', params)
   await new Promise(r => setTimeout(r, 200))
-  // 应用详情页操作后的状态覆盖
-  let list = MOCK_LIST.map(r =>
-    stationStatusOverrides[r.id] ? { ...r, filingStatus: stationStatusOverrides[r.id] } : r
-  )
+  // 应用详情页操作后的状态覆盖（B方案用 'b:' 前缀隔离，避免与A方案互串）
+  const overrideKey = (id: string) => props.variant === 'B' ? 'b:' + id : id
+  let list = MOCK_LIST.map(r => {
+    const ov = stationStatusOverrides[overrideKey(r.id)]
+    return ov ? { ...r, filingStatus: ov } : r
+  })
 
   if (params.nodeStatus?.length)   list = list.filter(r => params.nodeStatus.includes(r.nodeStatus))
   if (params.filingStatus) {
@@ -757,6 +808,7 @@ async function voidProject(_id: string) {
 .node-dot--filing   { background: #1677ff; }
 .node-dot--start    { background: #52c41a; }
 .node-dot--stock    { background: #fa8c16; }
+.node-dot--dispatch { background: #2f54eb; }
 .node-dot--complete { background: #13c2c2; }
 .node-dot--grid     { background: #722ed1; }
 .node-dot--done     { background: #d9d9d9; }

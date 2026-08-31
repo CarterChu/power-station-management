@@ -693,7 +693,7 @@ const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
     ...BASE_LOGS,
   ],
   complete_rejected: [
-    { id: 8, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '工程图片12不符合要求，请重新上传后重新提交。', images: ['https://picsum.photos/seed/cpreject1/200/150'] },
+    { id: 8, type: 'reject',  event: '完工审核不通过', operator: '李四（审核员）', time: '2026-08-21 15:30', note: '工程图片12不符合要求，请重新上传后重新提交。', images: ['data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YjhiOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+'] },
     { id: 7, type: 'submit',  event: '提交完工申请',   operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
     ...BASE_LOGS,
   ],

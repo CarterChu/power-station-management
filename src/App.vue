@@ -139,6 +139,7 @@
           <!-- 页面内容 -->
           <div class="app-content">
             <LncProjectList v-if="activeTabKey === 'list'" @navigate="handleNavigate" />
+            <LncProjectList v-else-if="activeTabKey === 'list-b'" variant="B" @navigate="handleNavigate" />
             <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
             <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
             <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
@@ -148,6 +149,10 @@
             <StockDetail v-else-if="activeTabKey === 'stock-detail'" :init-row="stockDetailRow" @back="handleBackFromStockDetail" @edit="handleEditFromStockDetail" />
             <CompleteApply v-else-if="activeTabKey === 'complete-apply'" :edit-id="editingId" :init-status="completeApplyInitStatus" :init-data="completeApplyInitData" :policy-type="completePolicyType" @back="handleBackFromCompleteApply" />
             <CompleteDetail v-else-if="activeTabKey === 'complete-detail'" :init-row="completeDetailRow" :policy-type="completePolicyType" @back="handleBackFromCompleteDetail" @edit="handleEditFromCompleteDetail" />
+            <StockApplyB v-else-if="activeTabKey === 'stock-apply-b'" :init-status="stockApplyBInitStatus" :init-data="stockApplyBInitData" @back="handleBackFromStockApplyB" />
+            <StockDetailB v-else-if="activeTabKey === 'stock-detail-b'" :init-row="stockDetailBRow" @back="handleBackFromStockDetailB" @edit="handleEditFromStockDetailB" />
+            <DispatchApply v-else-if="activeTabKey === 'dispatch-apply'" :init-status="dispatchApplyInitStatus" :init-data="dispatchApplyInitData" @back="handleBackFromDispatchApply" />
+            <DispatchDetail v-else-if="activeTabKey === 'dispatch-detail'" :init-row="dispatchDetailRow" @back="handleBackFromDispatchDetail" @edit="handleEditFromDispatchDetail" />
           </div>
         </div>
 
@@ -179,14 +184,18 @@ import StockApply from './pages/到货申请页.vue'
 import StockDetail from './pages/到货详情页.vue'
 import CompleteApply from './pages/完工申请页.vue'
 import CompleteDetail from './pages/完工详情页.vue'
+import StockApplyB from './pages/到货申请页-B.vue'
+import StockDetailB from './pages/到货详情页-B.vue'
+import DispatchApply from './pages/派工申请页.vue'
+import DispatchDetail from './pages/派工详情页.vue'
 
 // ── Tab 路由状态 ──
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list', label: '电站列表', closable: false },
+  { key: 'list-b', label: '电站列表', closable: false },
 ])
-const activeTabKey = ref('list')
+const activeTabKey = ref('list-b')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -203,6 +212,12 @@ const completeApplyInitData   = ref<any>(null)
 const completeApplyInitStatus = ref<string | null>(null)
 const completeDetailRow       = ref<Record<string, any>>({})
 const completePolicyType      = ref<string>('standard')
+const stockApplyBInitData    = ref<any>(null)
+const stockApplyBInitStatus  = ref<string | null>(null)
+const stockDetailBRow        = ref<Record<string, any>>({})
+const dispatchApplyInitData   = ref<any>(null)
+const dispatchApplyInitStatus = ref<string | null>(null)
+const dispatchDetailRow       = ref<Record<string, any>>({})
 
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
@@ -322,8 +337,7 @@ const menuGroups = [
     domain: '工商业电站管理',
     icon: NavIconStation,
     items: [
-      { key: 'biz-dashboard', label: '电站工作台' },
-      { key: 'biz-list',      label: '电站列表' },
+      { key: 'biz-list-b',    label: '电站列表' },
     ],
   },
   {
@@ -389,9 +403,10 @@ function getMenuGroupDomain(key: string): string {
   return menuGroups.find((g) => g.items.some((i) => i.key === key))?.domain ?? ''
 }
 
-const activeMenuKey = computed(() =>
-  ['list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value) ? 'biz-list' : ''
-)
+const activeMenuKey = computed(() => {
+  if (['list-b', 'stock-apply-b', 'stock-detail-b', 'list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value)) return 'biz-list-b'
+  return ''
+})
 
 const activeMenuGroupDomain = computed(() =>
   menuGroups.find(g => g.items.some(i => i.key === activeMenuKey.value))?.domain ?? null
@@ -416,8 +431,7 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list') openTab('list', '电站列表', false)
-  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
+  if (key === 'biz-list-b') openTab('list-b', '电站列表', false)
   const domain = getMenuGroupDomain(key)
   if (domain && !menuOpenKeys.value.includes(domain)) {
     menuOpenKeys.value = [domain]
@@ -478,7 +492,37 @@ const handleNavigate = (target: string, payload?: any) => {
     completeDetailRow.value = payload ?? {}
     if (payload?.policyType) completePolicyType.value = payload.policyType
     openTab('complete-detail', '完工详情')
+  } else if (target === 'stock-apply-b') {
+    stockApplyBInitStatus.value = payload?.initStatus ?? payload?.filingStatus ?? null
+    stockApplyBInitData.value = payload ?? null
+    openTab('stock-apply-b', '编辑到货（B）')
+  } else if (target === 'stock-detail-b') {
+    stockDetailBRow.value = payload ?? {}
+    openTab('stock-detail-b', '到货详情（B）')
+  } else if (target === 'dispatch-apply') {
+    dispatchApplyInitStatus.value = payload?.initStatus ?? payload?.filingStatus ?? null
+    dispatchApplyInitData.value = payload ?? null
+    openTab('dispatch-apply', '派工领料')
+  } else if (target === 'dispatch-detail') {
+    dispatchDetailRow.value = payload ?? {}
+    openTab('dispatch-detail', '派工详情')
   }
+}
+
+const handleBackFromStockApplyB = () => closeTab('stock-apply-b')
+const handleBackFromDispatchApply = () => closeTab('dispatch-apply')
+const handleBackFromDispatchDetail = () => closeTab('dispatch-detail')
+const handleEditFromDispatchDetail = (id: string) => {
+  dispatchApplyInitData.value = { ...dispatchDetailRow.value, id }
+  dispatchApplyInitStatus.value = dispatchDetailRow.value?.filingStatus ?? null
+  openTab('dispatch-apply', '派工领料')
+}
+const handleBackFromStockDetailB = () => closeTab('stock-detail-b')
+const handleEditFromStockDetailB = () => {
+  const row = stockDetailBRow.value
+  stockApplyBInitData.value = row
+  stockApplyBInitStatus.value = row?.filingStatus ?? null
+  openTab('stock-apply-b', '编辑到货')
 }
 
 const handleEditFromDetail = (id: string) => {

@@ -156,6 +156,17 @@ const expanded = ref(true)
   overflow: hidden;
   flex-shrink: 0;
 }
+.reject-thumb :deep(.ant-image) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.reject-thumb :deep(.ant-image-img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 </style>
 
 <style>

@@ -12,8 +12,10 @@ export type StockRecord = {
   id: string; orderNo: string; materialType: string; arrivalType: string
   status: string | null; creator: string; createTime: string
   items: StockItem[]
+  receiver?: string; receiverPhone?: string; signStatus?: string | null; signTime?: string; remark?: string
   rejectReasons?: string[]
   rejectComment?: string
+  rejectImages?: string[]
   reviewTime?: string
 }
 
@@ -47,6 +49,7 @@ export function initDemoStockRecords(filingStatus: string, bom: BomItem[]) {
     partial_stock: [{
       id: '_demo_1', orderNo: 'DH-2026-0001', materialType: '中高压、低压', arrivalType: '部分到货',
       status: 'approved', creator: '张三', createTime: '2026-08-14 09:00', reviewTime: '2026-08-15 10:00',
+      receiver: '李四', receiverPhone: '13812345678', signStatus: 'signed', signTime: '2026-08-15', remark: '',
       items: partialItems,
     }],
     partial_stock_rejected: [{
@@ -59,16 +62,19 @@ export function initDemoStockRecords(filingStatus: string, bom: BomItem[]) {
       id: '_demo_1', orderNo: 'DH-2026-0001', materialType: '中高压、低压', arrivalType: '全部到货',
       status: 'rejected', creator: '张三', createTime: '2026-08-14 09:00', reviewTime: '2026-08-15 10:30',
       rejectReasons: ['到货数量与计划不符'], rejectComment: '到货数量与计划不符，请核实后重新提交',
+      rejectImages: ['https://picsum.photos/seed/rej3/320/240', 'https://picsum.photos/seed/rej4/320/240'],
       items: fullItems,
     }],
     full_stock: [{
       id: '_demo_1', orderNo: 'DH-2026-0001', materialType: '中高压、低压', arrivalType: '全部到货',
       status: 'approved', creator: '张三', createTime: '2026-08-14 09:00', reviewTime: '2026-08-15 10:00',
+      receiver: '李四', receiverPhone: '13812345678', signStatus: 'signed', signTime: '2026-08-15', remark: '',
       items: fullItems,
     }],
     stocked: [{
       id: '_demo_1', orderNo: 'DH-2026-0001', materialType: '中高压、低压', arrivalType: '全部到货',
       status: 'approved', creator: '张三', createTime: '2026-08-14 09:00', reviewTime: '2026-08-15 10:00',
+      receiver: '李四', receiverPhone: '13812345678', signStatus: 'signed', signTime: '2026-08-15', remark: '',
       items: fullItems,
     }],
   }

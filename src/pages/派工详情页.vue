@@ -3,17 +3,14 @@
     <!-- 固定顶栏 -->
     <div class="detail-header">
       <div class="detail-header-left">
+        <a-button type="text" class="back-btn" @click="emit('back')"><template #icon><LeftOutlined /></template></a-button>
         <a-tooltip :title="detail.projectName">
           <span class="detail-title">{{ detail.projectName }}</span>
         </a-tooltip>
-        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#fa8c16"></span>到货</span>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#eb2f96"></span>派工</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
-        <a-tag
-          v-if="SUB_STATUS_LABEL[detail.filingStatus]"
-          :color="SUB_STATUS_COLOR[detail.filingStatus]"
-        >{{ SUB_STATUS_LABEL[detail.filingStatus] }}</a-tag>
         <span class="detail-header-meta">
           <span class="detail-header-meta-item">{{ detail.stationType }}</span>
           <span class="detail-header-meta-divider" />
@@ -495,11 +492,6 @@
                             {{ record.orderNo }}
                             <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                             <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
-                            <span
-                              v-if="record.status === 'rejected'"
-                              style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
-                              @click.stop="openRejectDetail(record)"
-                            >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
                             <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
@@ -515,6 +507,17 @@
                             @click.stop="openReviewPanel(record.id)"
                           >审核</a-button>
                           <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
+                        </div>
+                      </div>
+                      <div
+                        v-if="record.status === 'rejected' && (record.rejectReasons?.length || record.rejectComment)"
+                        style="padding:8px 16px;background:rgba(220,38,38,.04);border-bottom:1px solid #fee2e2;font-size:13px;color:#dc2626"
+                      >
+                        <div v-if="record.rejectReasons?.length" style="margin-bottom:2px">
+                          <span style="font-weight:600">不通过原因：</span>{{ record.rejectReasons.join('、') }}
+                        </div>
+                        <div v-if="record.rejectComment">
+                          <span style="font-weight:600">审核意见：</span>{{ record.rejectComment }}
                         </div>
                       </div>
                       <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table">
@@ -557,7 +560,8 @@
                           <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                             {{ record.orderNo }}
                             <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
-                            <a-tag color="success" style="margin:0">审核通过</a-tag>
+                            <a-tag v-if="detail.filingStatus === 'dispatched'" color="success" style="margin:0">已确认</a-tag>
+                            <a-tag v-else-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
                             <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
@@ -588,6 +592,66 @@
                   </div>
                 </template>
 
+              </div>
+            </a-tab-pane>
+
+            <!-- 派工 tab -->
+            <a-tab-pane key="dispatch" tab="派工">
+              <div class="tab-body">
+                <div class="info-section" style="margin-top:0">
+                  <div class="info-section-title">
+                    派工信息
+                    <span style="flex:1"></span>
+                    <a-button size="small" @click="dispatchStatOpen = true">派工统计</a-button>
+                  </div>
+                  <a-empty v-if="dispatchRecords.length === 0" description="暂无派工记录" style="padding:24px 0" />
+                  <div v-for="record in dispatchRecords" :key="record.id" class="payment-contract-card">
+                    <div
+                      class="payment-contract-header"
+                      style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
+                      :style="collapsedDispatchCards.has(record.id) ? { borderBottom: 'none' } : {}"
+                      @click="toggleDispatchCard(record.id)"
+                    >
+                      <div>
+                        <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
+                          {{ record.orderNo }}
+                          <a-tag :color="record.orderType === 'return' ? 'warning' : 'processing'" style="margin:0">{{ record.orderType === 'return' ? '退料单' : '领料单' }}</a-tag>
+                          <a-tag v-if="detail.filingStatus === 'dispatched'" color="success" style="margin:0">已确认</a-tag>
+                          <a-tag v-else-if="record.status === 'reviewing'" color="orange" style="margin:0">确认中</a-tag>
+                        </div>
+                        <div class="payment-contract-meta-row" style="margin-top:8px">
+                          <span class="payment-meta-item"><span class="payment-meta-label">仓库</span><span class="payment-meta-value">{{ record.warehouse }}</span></span>
+                          <span v-if="detail.filingStatus === 'dispatched' && record.voucherNo" class="payment-meta-item"><span class="payment-meta-label">供应链凭证号</span><span class="payment-meta-value">{{ record.voucherNo }}</span></span>
+                          <span v-if="record.orderType === 'return'" class="payment-meta-item"><span class="payment-meta-label">关联领料单</span><span class="payment-meta-value">{{ record.relatedOrderNo }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
+                          <span v-if="record.remark" class="payment-meta-item"><span class="payment-meta-label">备注</span><span class="payment-meta-value">{{ record.remark }}</span></span>
+                        </div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedDispatchCards.has(record.id) }" />
+                      </div>
+                    </div>
+                    <table v-show="!collapsedDispatchCards.has(record.id)" class="payment-ratio-table" style="border-top:1px solid #f0f0f0">
+                      <thead>
+                        <tr>
+                          <th style="width:44px">序号</th>
+                          <th style="width:72px">物料组</th>
+                          <th style="width:100px">物料编号</th>
+                          <th style="width:180px">物料描述</th>
+                          <th style="width:44px">单位</th>
+                          <th style="width:96px">{{ record.orderType === 'return' ? '本次退料数量' : '本次派工数量' }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(item, idx) in record.items" :key="item.code">
+                          <td>{{ idx + 1 }}</td><td>{{ item.group }}</td><td>{{ item.code }}</td>
+                          <td>{{ item.name }}</td><td>{{ item.unit }}</td><td>{{ item.qty }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </a-tab-pane>
 
@@ -670,48 +734,40 @@
       </div>
     </div>
 
+    <!-- 派工统计 Drawer -->
+    <a-drawer
+      v-model:open="dispatchStatOpen"
+      title="派工统计"
+      placement="right"
+      :width="960"
+      :destroy-on-close="false"
+    >
+      <div class="stat-drawer-body">
+        <a-table
+          class="stat-table"
+          :data-source="dispatchStatRows"
+          :columns="dispatchStatColumns"
+          :pagination="false"
+          size="small"
+          row-key="code"
+          :scroll="{ y: 'calc(100vh - 120px)' }"
+          :locale="{ emptyText: '暂无派工数据' }"
+        />
+      </div>
+    </a-drawer>
+
   </div>
-
-  <a-modal
-    v-model:open="rejectDetailVisible"
-    title="审核不通过详情"
-    :footer="null"
-    width="520px"
-    destroy-on-close
-  >
-    <div v-if="rejectDetailEntry" style="padding:4px 0">
-      <div v-if="rejectDetailEntry.items?.length" style="margin-bottom:16px">
-        <div
-          v-for="r in rejectDetailEntry.items"
-          :key="r"
-          style="padding:4px 0;color:#262626;font-size:14px"
-        >· {{ r }}</div>
-      </div>
-      <div v-if="rejectDetailEntry.images?.length">
-        <div style="font-weight:600;margin-bottom:8px;color:#262626">图片</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <img
-            v-for="(src, i) in rejectDetailEntry.images"
-            :key="i"
-            :src="src"
-            style="width:152px;height:114px;object-fit:cover;border-radius:4px;border:1px solid #f0f0f0;cursor:pointer"
-          />
-        </div>
-      </div>
-    </div>
-  </a-modal>
-
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
 import {
-  LeftOutlined, DownOutlined, CopyOutlined, RightOutlined,
+  LeftOutlined, DownOutlined, CopyOutlined,
   CheckCircleFilled,
   AuditOutlined, HolderOutlined,
 } from '@ant-design/icons-vue'
@@ -723,7 +779,7 @@ const props = defineProps<{
 const emit = defineEmits<{ back: []; edit: [id: string] }>()
 
 const projectInfoOpen = ref(false)
-const activeTab       = ref('stock')
+const activeTab       = ref('dispatch')
 
 const detailBodyRef = ref<HTMLElement | null>(null)
 const tabsWrapperRef = ref<HTMLElement | null>(null)
@@ -749,6 +805,100 @@ function toggleStockCard(id: string) {
   if (collapsedStockCards.has(id)) collapsedStockCards.delete(id)
   else collapsedStockCards.add(id)
 }
+const collapsedDispatchCards = reactive(new Set<string>())
+function toggleDispatchCard(id: string) {
+  if (collapsedDispatchCards.has(id)) collapsedDispatchCards.delete(id)
+  else collapsedDispatchCards.add(id)
+}
+
+const dispatchStatOpen = ref(false)
+
+const DISPATCH_MATERIAL_GROUPS = [
+  { group: '支架', items: [
+    { code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', designQty: 480 },
+    { code: 'SU-002', name: '斜撑杆 φ60×3.5', unit: '根', designQty: 240 },
+    { code: 'SU-003', name: '压块 M8 不锈钢', unit: '个', designQty: 1920 },
+  ]},
+  { group: '组件', items: [
+    { code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', designQty: 320 },
+    { code: 'PV-002', name: '单晶硅光伏组件 540Wp', unit: '块', designQty: 80 },
+  ]},
+  { group: '逆变器', items: [
+    { code: 'IN-001', name: '组串式逆变器 50kW', unit: '台', designQty: 8 },
+    { code: 'IN-002', name: '汇流箱 16路', unit: '台', designQty: 4 },
+  ]},
+  { group: '电表箱', items: [
+    { code: 'EM-001', name: '并网计量箱 三相四线', unit: '台', designQty: 2 },
+    { code: 'EM-002', name: '防逆流装置', unit: '套', designQty: 2 },
+  ]},
+]
+
+const MOCK_DISPATCH_RECORDS = [
+  {
+    id: 'dp001', orderNo: 'ML-2026-0001', orderType: 'material', status: 'reviewing',
+    warehouse: '浙江省区域仓库', voucherNo: 'SC-2026-00123', remark: '首批领料，含支架、组件及逆变器',
+    creator: '张三（代理商）', createTime: '2026-07-14 10:30',
+    items: [
+      { group: '支架', code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 480 },
+      { group: '组件', code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', qty: 320 },
+      { group: '逆变器', code: 'IN-001', name: '组串式逆变器 50kW', unit: '台', qty: 8 },
+      { group: '电表箱', code: 'EM-001', name: '并网计量箱 三相四线', unit: '台', qty: 2 },
+    ],
+  },
+  {
+    id: 'dp002', orderNo: 'TL-2026-0001', orderType: 'return', status: 'reviewing',
+    warehouse: '浙江省区域仓库', voucherNo: 'SC-2026-00124', relatedOrderNo: 'ML-2026-0001', remark: '支架及组件数量有误，部分退库',
+    creator: '张三（代理商）', createTime: '2026-07-20 14:00',
+    items: [
+      { group: '支架', code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 10 },
+      { group: '组件', code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', qty: 5 },
+    ],
+  },
+]
+const dispatchRecords = reactive(
+  (props.initRow?.filingStatus ?? 'dispatching') === 'waiting_dispatch'
+    ? [] : [...MOCK_DISPATCH_RECORDS]
+)
+
+const dispatchStatRows = computed(() => {
+  const map: Record<string, { group: string; code: string; name: string; unit: string; designQty: number; dispatchedQty: number; returnedQty: number; actualQty: number }> = {}
+  DISPATCH_MATERIAL_GROUPS.forEach(g => {
+    g.items.forEach(item => {
+      map[item.code] = { group: g.group, code: item.code, name: item.name, unit: item.unit, designQty: item.designQty, dispatchedQty: 0, returnedQty: 0, actualQty: 0 }
+    })
+  })
+  dispatchRecords.forEach((rec: any) => {
+    rec.items.forEach((item: any) => {
+      if (map[item.code]) {
+        if (rec.orderType === 'material') map[item.code].dispatchedQty += item.qty
+        else map[item.code].returnedQty += item.qty
+      }
+    })
+  })
+  Object.values(map).forEach(row => { row.actualQty = row.dispatchedQty - row.returnedQty })
+  return Object.values(map)
+})
+const dispatchStatColumns = [
+  { title: '序号',           key: 'index',        width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '物料组',         dataIndex: 'group',  key: 'group',        width: 90  },
+  { title: '物料编号',       dataIndex: 'code',   key: 'code',         width: 110 },
+  { title: '物料描述',       dataIndex: 'name',   key: 'name' },
+  { title: '单位',           dataIndex: 'unit',   key: 'unit',         width: 56  },
+  { title: '设计数量',       dataIndex: 'designQty',     key: 'designQty',     width: 90  },
+  { title: '已派工出库数量', dataIndex: 'dispatchedQty', key: 'dispatchedQty', width: 120 },
+  { title: '已退库数量',     dataIndex: 'returnedQty',   key: 'returnedQty',   width: 100 },
+  {
+    title: '实际派工出库数量', dataIndex: 'actualQty', key: 'actualQty', width: 130,
+    customRender: ({ record }: any) => {
+      const v = record.actualQty
+      const done = v >= record.designQty
+      return h('span', { style: done ? 'color:#52c41a;font-weight:500' : '' }, v)
+    },
+  },
+]
+
+
+
 
 const STOCK_STATUS_LABEL: Record<string, string> = {
   reviewing: '审核中',
@@ -765,29 +915,17 @@ const STOCK_STATUS_COLOR: Record<string, string> = {
 // ─── 常量 ─────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  waiting_stock: 'default',
-  reviewing_stock: 'processing', partial_stock: 'processing',
-  partial_stock_rejected: 'processing', full_stock_rejected: 'processing',
-  full_stock: 'success', stocked: 'success',
+  waiting_dispatch: 'default',
+  dispatching: 'processing',
+  dispatched: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  waiting_stock: '待到货',
-  reviewing_stock: '到货中', partial_stock: '到货中',
-  partial_stock_rejected: '到货中', full_stock_rejected: '到货中',
-  full_stock: '已到货', stocked: '已到货',
+  waiting_dispatch: '待派工',
+  dispatching: '派工中',
+  dispatched: '已派工',
 }
-const SUB_STATUS_LABEL: Record<string, string> = {
-  reviewing_stock: '到货审核中',
-  partial_stock: '部分已到货',
-  partial_stock_rejected: '部分到货审核不通过',
-  full_stock_rejected: '全部到货审核不通过',
-}
-const SUB_STATUS_COLOR: Record<string, string> = {
-  reviewing_stock: 'processing',
-  partial_stock: 'processing',
-  partial_stock_rejected: 'error',
-  full_stock_rejected: 'error',
-}
+const SUB_STATUS_LABEL: Record<string, string> = {}
+const SUB_STATUS_COLOR: Record<string, string> = {}
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -862,10 +1000,10 @@ const yigongReadonlyColumns = [
 // ─── mock 数据 ────────────────────────────────────────────────────────────────
 
 const detail = ref({
-  id: props.initRow?.id ?? 'LNC-2026-0001',
-  filingStatus: (props.initRow?.filingStatus ?? 'reviewing_stock') as string,
+  id: props.initRow?.id ?? 'LNC-2026-0048a',
+  filingStatus: (props.initRow?.filingStatus ?? 'dispatching') as string,
   stationType: '工商业',
-  stationNo:   props.initRow?.stationNo   ?? 'LNC-2026-0001',
+  stationNo:   props.initRow?.stationNo   ?? 'LNC-2026-0048a',
   oaNo: 'A304202607100012',
   projectName: props.initRow?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
   projectType: 'emc',
@@ -1004,93 +1142,32 @@ function copyStationNo(no: string) {
 
 type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null }
 
-// 建档→开工的公共历史（所有到货状态共享）
+// 建档→到货审核通过的公共历史（所有派工状态共享）
 const BASE_LOGS: LogEntry[] = [
-  { id: 6, type: 'approve', event: '开工审核通过', operator: '李四（审核员）', time: '2026-08-12 10:00', note: null },
-  { id: 5, type: 'submit',  event: '提交开工申请', operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
-  { id: 4, type: 'approve', event: '建档审核通过', operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-  { id: 3, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
-  { id: 2, type: 'create',  event: '保存草稿',     operator: '张三（代理商）', time: '2026-07-14 14:05', note: null },
-  { id: 1, type: 'create',  event: '创建建档',     operator: '张三（代理商）', time: '2026-07-14 09:32', note: null },
+  { id: 8, type: 'approve', event: '到货审核通过',  operator: '李四（审核员）', time: '2026-08-16 11:00', note: null },
+  { id: 7, type: 'submit',  event: '提交到货申请',  operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
+  { id: 6, type: 'approve', event: '开工审核通过',  operator: '李四（审核员）', time: '2026-08-12 10:00', note: null },
+  { id: 5, type: 'submit',  event: '提交开工申请',  operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+  { id: 4, type: 'approve', event: '建档审核通过',  operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+  { id: 3, type: 'submit',  event: '提交建档申请',  operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
+  { id: 2, type: 'create',  event: '保存草稿',       operator: '张三（代理商）', time: '2026-07-14 14:05', note: null },
+  { id: 1, type: 'create',  event: '创建建档',       operator: '张三（代理商）', time: '2026-07-14 09:32', note: null },
 ]
 
 const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
-  waiting_stock: [
+  dispatching: [
+    { id: 9, type: 'submit',  event: '提交领料申请（ML-2026-0001）', operator: '张三（代理商）', time: '2026-08-18 10:30', note: null },
     ...BASE_LOGS,
   ],
-  reviewing_stock: [
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
-  ],
-  partial_stock: [
-    { id: 8, type: 'approve', event: '部分到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请',     operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
-  ],
-  partial_stock_rejected: [
-    { id: 8, type: 'reject',  event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-15 10:30', note: '部分物料到货数量不足，请补充' },
-    { id: 7, type: 'submit',  event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
-  ],
-  full_stock_rejected: [
-    { id: 8, type: 'reject',  event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-15 10:30', note: '到货数量与计划不符，请核实后重新提交' },
-    { id: 7, type: 'submit',  event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
-  ],
-  full_stock: [
-    { id: 8, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
-  ],
-  stocked: [
-    { id: 8, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
+  dispatched: [
+    { id: 11, type: 'approve', event: '派工物料审核通过', operator: '李四（审核员）', time: '2026-08-22 10:00', note: null },
+    { id: 10, type: 'submit',  event: '提交退料申请（TL-2026-0001）', operator: '张三（代理商）', time: '2026-08-20 14:00', note: null },
+    { id: 9,  type: 'submit',  event: '提交领料申请（ML-2026-0001）', operator: '张三（代理商）', time: '2026-08-18 10:30', note: null },
     ...BASE_LOGS,
   ],
 }
 
-const currentLogs = computed((): LogEntry[] => {
-  const submitted = sharedStockRecords.filter(r => r.status !== null)
-  if (submitted.length > 0) {
-    const recordLogs: LogEntry[] = []
-    let nextId = BASE_LOGS.length + 1
-    for (const rec of submitted) {
-      const noteArr: string[] = []
-      if (rec.rejectReasons?.length) noteArr.push(rec.rejectReasons.join('、'))
-      if (rec.rejectComment) noteArr.push(rec.rejectComment)
-      recordLogs.push({
-        id: nextId++,
-        type: 'submit',
-        event: `提交到货申请（${rec.orderNo}）`,
-        operator: `${rec.creator}（代理商）`,
-        time: rec.createTime,
-        note: null,
-      })
-      if (rec.status === 'approved') {
-        recordLogs.push({
-          id: nextId++,
-          type: 'approve',
-          event: rec.arrivalType === '全部到货' ? '全部到货审核通过' : '部分到货审核通过',
-          operator: '李四（审核员）',
-          time: rec.reviewTime ?? rec.createTime,
-          note: null,
-        })
-      } else if (rec.status === 'rejected') {
-        recordLogs.push({
-          id: nextId++,
-          type: 'reject',
-          event: rec.arrivalType === '全部到货' ? '全部到货审核不通过' : '部分到货审核不通过',
-          operator: '李四（审核员）',
-          time: rec.reviewTime ?? rec.createTime,
-          note: noteArr.join('；') || null,
-        })
-      }
-    }
-    recordLogs.sort((a, b) => b.id - a.id)
-    return [...recordLogs, ...BASE_LOGS]
-  }
-  return LOGS_BY_STATUS[detail.value.filingStatus] ?? BASE_LOGS
-})
+const currentLogs = computed((): LogEntry[] => LOGS_BY_STATUS[detail.value.filingStatus] ?? BASE_LOGS)
 
 
 // ─── 审核面板 ─────────────────────────────────────────────────────────────────
@@ -1254,20 +1331,6 @@ function nowTimeStr(): string {
   const d = new Date()
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-const rejectDetailVisible = ref(false)
-const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
-function openRejectDetail(record: StockRecord) {
-  const noteArr: string[] = []
-  if (record.rejectReasons?.length) noteArr.push(record.rejectReasons.join('、'))
-  if (record.rejectComment) noteArr.push(record.rejectComment)
-  const note = noteArr.join('；')
-  rejectDetailEntry.value = {
-    items: note ? note.split('；').filter(Boolean) : [],
-    images: record.rejectImages ?? [],
-  }
-  rejectDetailVisible.value = true
 }
 </script>
 
@@ -1459,4 +1522,6 @@ function openRejectDetail(record: StockRecord) {
 .payment-ratio-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 .payment-ratio-table tbody tr:last-child td { border-bottom: none; }
 
+.info-section-title :deep(.ant-btn) { height: 28px; }
+:deep(.stat-drawer-body .ant-table-tbody > tr > td) { padding-top: 13px !important; padding-bottom: 13px !important; }
 </style>

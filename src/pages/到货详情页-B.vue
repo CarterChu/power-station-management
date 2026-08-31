@@ -3,6 +3,7 @@
     <!-- 固定顶栏 -->
     <div class="detail-header">
       <div class="detail-header-left">
+        <a-button type="text" class="back-btn" @click="emit('back')"><template #icon><LeftOutlined /></template></a-button>
         <a-tooltip :title="detail.projectName">
           <span class="detail-title">{{ detail.projectName }}</span>
         </a-tooltip>
@@ -481,7 +482,11 @@
                 <!-- ── 到货中：到货单列表 + 审核状态 ── -->
                 <template v-else-if="['reviewing_stock','partial_stock','partial_stock_rejected','full_stock_rejected'].includes(detail.filingStatus)">
                   <div class="info-section" style="margin-top:0">
-                    <div class="info-section-title">到货信息</div>
+                    <div class="info-section-title">
+                      到货信息
+                      <span style="flex:1"></span>
+                      <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
+                    </div>
                     <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
                     <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
                       <div
@@ -541,7 +546,11 @@
                 <!-- ── 已到货：完成 banner + 到货单汇总 ── -->
                 <template v-else>
                   <div class="info-section" style="margin-top:0">
-                    <div class="info-section-title">到货信息</div>
+                    <div class="info-section-title">
+                      到货信息
+                      <span style="flex:1"></span>
+                      <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
+                    </div>
                     <div v-if="sharedStockRecords.length > 0" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.25);border-radius:6px;font-size:13px;color:#16a34a;">
                       <CheckCircleFilled style="font-size:15px;flex-shrink:0" />
                       全部物料已到货，共 {{ sharedStockRecords.length }} 张到货单
@@ -670,6 +679,23 @@
       </div>
     </div>
 
+    <!-- 到货统计 Drawer -->
+    <a-drawer v-model:open="showStockStatDrawer" title="到货统计" :width="900" :destroy-on-close="false">
+      <div class="stat-drawer-body">
+        <a-table
+          class="stat-table"
+          :data-source="stockStatRows"
+          :columns="stockStatColumns"
+          :pagination="false"
+          size="small"
+          row-key="code"
+          :scroll="{ y: 'calc(100vh - 120px)' }"
+          :locale="{ emptyText: '暂无到货数据' }"
+          :row-class-name="(record: any) => record.arrivedQty >= record.designQty ? 'stat-row-done' : ''"
+        />
+      </div>
+    </a-drawer>
+
   </div>
 
   <a-modal
@@ -704,7 +730,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
@@ -766,28 +792,18 @@ const STOCK_STATUS_COLOR: Record<string, string> = {
 
 const STATUS_COLOR: Record<string, string> = {
   waiting_stock: 'default',
-  reviewing_stock: 'processing', partial_stock: 'processing',
-  partial_stock_rejected: 'processing', full_stock_rejected: 'processing',
+  reviewing_stock: 'processing', partial_stock: 'cyan',
+  partial_stock_rejected: 'error', full_stock_rejected: 'error',
   full_stock: 'success', stocked: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
   waiting_stock: '待到货',
-  reviewing_stock: '到货中', partial_stock: '到货中',
-  partial_stock_rejected: '到货中', full_stock_rejected: '到货中',
-  full_stock: '已到货', stocked: '已到货',
+  reviewing_stock: '到货审核中', partial_stock: '部分已到货',
+  partial_stock_rejected: '部分到货审核不通过', full_stock_rejected: '全部到货审核不通过',
+  full_stock: '全部已到货', stocked: '已到货',
 }
-const SUB_STATUS_LABEL: Record<string, string> = {
-  reviewing_stock: '到货审核中',
-  partial_stock: '部分已到货',
-  partial_stock_rejected: '部分到货审核不通过',
-  full_stock_rejected: '全部到货审核不通过',
-}
-const SUB_STATUS_COLOR: Record<string, string> = {
-  reviewing_stock: 'processing',
-  partial_stock: 'processing',
-  partial_stock_rejected: 'error',
-  full_stock_rejected: 'error',
-}
+const SUB_STATUS_LABEL: Record<string, string> = {}
+const SUB_STATUS_COLOR: Record<string, string> = {}
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -1247,7 +1263,7 @@ function syncFilingStatus() {
 
   // 写入列表覆盖表（用电站 id 作 key，来自 initRow）
   const stationId = props.initRow?.id
-  if (stationId) stationStatusOverrides[stationId] = next
+  if (stationId) stationStatusOverrides['b:' + stationId] = next
 }
 
 function nowTimeStr(): string {
@@ -1255,6 +1271,47 @@ function nowTimeStr(): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+
+// ── 到货统计 Drawer ──
+const showStockStatDrawer = ref(false)
+
+const stockStatRows = computed(() => {
+  return detail.value.yigongBom.map((b: any) => {
+    const arrived = sharedStockRecords.reduce((sum, rec) => {
+      const matched = rec.items.find(i => i.code === b.code)
+      return sum + (matched?.arrivedQty ?? 0)
+    }, 0)
+    return {
+      code:       b.code,
+      name:       b.name,
+      type:       b.type,
+      unit:       b.unit,
+      designQty:  b.quantity,
+      arrivedQty: arrived,
+      pendingQty: Math.max(0, b.quantity - arrived),
+    }
+  })
+})
+
+const stockStatColumns = [
+  { title: '序号',       key: 'index',      width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '到货类型',   dataIndex: 'type', key: 'type',       width: 90  },
+  { title: '物料编号',   dataIndex: 'code', key: 'code',       width: 110 },
+  { title: '物料描述',   dataIndex: 'name', key: 'name' },
+  { title: '单位',       dataIndex: 'unit', key: 'unit',       width: 56  },
+  { title: '设计数量',   dataIndex: 'designQty',  key: 'designQty',  width: 90 },
+  {
+    title: '未到货数量', dataIndex: 'pendingQty', key: 'pendingQty', width: 100,
+    customRender: ({ record }: any) => h('span', { style: 'color:#ff4d4f;font-weight:500' }, record.pendingQty),
+  },
+  {
+    title: '到货数量', dataIndex: 'arrivedQty', key: 'arrivedQty', width: 90,
+    customRender: ({ record }: any) => {
+      const done = record.arrivedQty >= record.designQty
+      return h('span', { style: done ? 'color:#52c41a;font-weight:500' : '' }, record.arrivedQty)
+    },
+  },
+]
 
 const rejectDetailVisible = ref(false)
 const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
@@ -1459,4 +1516,6 @@ function openRejectDetail(record: StockRecord) {
 .payment-ratio-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 .payment-ratio-table tbody tr:last-child td { border-bottom: none; }
 
+.info-section-title :deep(.ant-btn) { height: 28px; }
+:deep(.stat-drawer-body .ant-table-tbody > tr > td) { padding-top: 13px !important; padding-bottom: 13px !important; }
 </style>

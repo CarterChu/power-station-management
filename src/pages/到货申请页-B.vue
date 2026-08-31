@@ -6,8 +6,8 @@
         <a-button type="text" class="back-btn" @click="emit('back')">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}`">
-          <span class="detail-title">{{ props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}` }}</span>
+        <a-tooltip :title="`编辑到货-${detail.projectName}`">
+          <span class="detail-title">{{ `编辑到货-${detail.projectName}` }}</span>
         </a-tooltip>
         <a-tag color="blue">到货</a-tag>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
@@ -27,21 +27,7 @@
           <span class="detail-header-meta-item">{{ detail.stationNo }}<CopyOutlined class="copy-icon" @click="copyStationNo(detail.stationNo)" /></span>
         </span>
       </div>
-      <a-space>
-        <a-button @click="emit('back')">取消</a-button>
-        <a-button :loading="saving" @click="handleSave">保存</a-button>
-        <a-tooltip :title="hasSubmittedFullArrival ? '已提交全部到货申请，不可再次提交' : ''">
-          <a-popconfirm
-            title="确认提交到货申请？提交后将进入审核流程。"
-            ok-text="确认提交"
-            cancel-text="取消"
-            :disabled="hasSubmittedFullArrival"
-            @confirm="handleSubmit"
-          >
-            <a-button type="primary" :loading="submitting" :disabled="hasSubmittedFullArrival">提交到货申请</a-button>
-          </a-popconfirm>
-        </a-tooltip>
-      </a-space>
+
     </div>
 
     <div ref="detailBodyRef" class="detail-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
@@ -629,8 +615,8 @@
                     到货信息
                     <span style="flex:1"></span>
                     <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
-                    <a-tooltip v-if="canEdit" :title="!props.editId && allFullyArrived ? '已经全部到货，不可新增' : ''">
-                      <a-button type="primary" size="small" :disabled="!props.editId && allFullyArrived" @click="showStockDrawer = true">新增到货</a-button>
+                    <a-tooltip v-if="canEdit" :title="disableNewStock ? '已提交全部到货，不可再次新增' : ''">
+                      <a-button type="primary" size="small" :disabled="disableNewStock" @click="showStockDrawer = true">新增到货</a-button>
                     </a-tooltip>
                   </div>
                   <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
@@ -645,9 +631,9 @@
                         <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                           {{ record.orderNo }}
                           <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
-                          <a-tag v-if="props.editId && record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
+                          <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
                           <span
-                            v-if="props.editId && record.status === 'rejected'"
+                            v-if="record.status === 'rejected'"
                             style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
                             @click.stop="openRejectDetail(record)"
                           >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
@@ -859,7 +845,7 @@
     <template #footer>
       <a-space>
         <a-button @click="handleCloseStockDrawer">取消</a-button>
-        <a-button type="primary" @click="handleSubmitStock">{{ editingStockRecord ? '重新提交' : '确认新增' }}</a-button>
+        <a-button type="primary" @click="handleSubmitStock">{{ editingStockRecord ? '重新提交' : '提交新增到货' }}</a-button>
       </a-space>
     </template>
   </a-drawer>
@@ -1194,7 +1180,7 @@ async function handleSubmitStock() {
       }
       detail.value.filingStatus = 'reviewing_stock'
       const stationId = props.editId ?? props.initData?.id
-      if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+      if (stationId) stationStatusOverrides['b:' + stationId] = 'reviewing_stock'
       message.success('已重新提交，等待审核')
       handleCloseStockDrawer()
       return
@@ -1207,7 +1193,7 @@ async function handleSubmitStock() {
       orderNo,
       materialType: stockNewForm.materialType.join('、'),
       arrivalType:  computedArrivalType.value,
-      status:       null,
+      status:       'reviewing',
       creator:      '张三',
       createTime:   submitTime,
       receiver:      stockNewForm.receiver      || undefined,
@@ -1225,7 +1211,11 @@ async function handleSubmitStock() {
         arrivedQty: r.arrivedQty,
       })),
     })
-    message.success('到货记录已添加')
+    detail.value.filingStatus = 'reviewing_stock'
+    const stationId = props.editId ?? props.initData?.id
+    if (stationId) stationStatusOverrides["b:" + stationId] = "reviewing_stock"
+    hasUserSubmittedRecords.value = true
+    message.success('到货记录已经提交')
     handleCloseStockDrawer()
   } catch {}
 }
@@ -1290,10 +1280,8 @@ async function scrollToTabNav() {
 
 let _scrollHandler: (() => void) | null = null
 onMounted(() => {
-  // edit 模式：按当前状态预填 demo 记录（若从详情页跳转过来则已有数据，跳过）
-  if (props.editId) {
-    initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
-  }
+  // 按当前状态预填 demo 记录（sharedStockRecords 非空时跳过，避免重复注入）
+  initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
   _scrollHandler = () => {
     const body    = detailBodyRef.value
     const wrapper = tabsWrapperRef.value
@@ -1307,54 +1295,24 @@ onBeforeUnmount(() => {
   if (_scrollHandler) detailBodyRef.value?.removeEventListener('scroll', _scrollHandler)
 })
 
-const saving = ref(false)
-const submitting = ref(false)
-async function handleSave() {
-  saving.value = true
-  await new Promise(r => setTimeout(r, 600))
-  saving.value = false
-  message.success('保存成功')
-}
-async function handleSubmit() {
-  submitting.value = true
-  await new Promise(r => setTimeout(r, 600))
-  sharedStockRecords.forEach(rec => {
-    if (rec.status === null) rec.status = 'reviewing'
-  })
-  hasUserSubmittedRecords.value = true
-  const stationId = props.editId ?? props.initData?.id
-  if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
-  submitting.value = false
-  message.success('到货申请已提交')
-  emit('back')
-}
+
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
   waiting_stock: 'default',
-  reviewing_stock: 'processing', partial_stock: 'processing',
-  partial_stock_rejected: 'processing', full_stock_rejected: 'processing',
+  reviewing_stock: 'processing', partial_stock: 'cyan',
+  partial_stock_rejected: 'error', full_stock_rejected: 'error',
   full_stock: 'success', stocked: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
   waiting_stock: '待到货',
-  reviewing_stock: '到货中', partial_stock: '到货中',
-  partial_stock_rejected: '到货中', full_stock_rejected: '到货中',
-  full_stock: '已到货', stocked: '已到货',
+  reviewing_stock: '到货审核中', partial_stock: '部分已到货',
+  partial_stock_rejected: '部分到货审核不通过', full_stock_rejected: '全部到货审核不通过',
+  full_stock: '全部已到货', stocked: '已到货',
 }
-const SUB_STATUS_LABEL: Record<string, string> = {
-  reviewing_stock: '到货审核中',
-  partial_stock: '部分已到货',
-  partial_stock_rejected: '部分到货审核不通过',
-  full_stock_rejected: '全部到货审核不通过',
-}
-const SUB_STATUS_COLOR: Record<string, string> = {
-  reviewing_stock: 'processing',
-  partial_stock: 'processing',
-  partial_stock_rejected: 'error',
-  full_stock_rejected: 'error',
-}
+const SUB_STATUS_LABEL: Record<string, string> = {}
+const SUB_STATUS_COLOR: Record<string, string> = {}
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -1672,15 +1630,17 @@ const allFullyArrived = computed(() =>
     return total >= b.quantity
   })
 )
-const canVoid = computed(() =>
-  detail.value.filingStatus === 'waiting_stock'
-)
-// 已提交过全部到货（非驳回状态下不可再提交）
 const hasSubmittedFullArrival = computed(() => {
   const isRejected = ['partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
   if (isRejected) return false
   return sharedStockRecords.some(r => r.arrivalType === '全部到货' && r.status !== null)
 })
+const disableNewStock = computed(() => allFullyArrived.value || hasSubmittedFullArrival.value)
+const canVoid = computed(() =>
+  detail.value.filingStatus === 'waiting_stock'
+)
+// 已提交过全部到货（非驳回状态下不可再提交）
+
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 

@@ -6,17 +6,13 @@
         <a-button type="text" class="back-btn" @click="emit('back')">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}`">
-          <span class="detail-title">{{ props.editId ? `编辑到货申请-${detail.projectName}` : `到货申请-${detail.projectName}` }}</span>
+        <a-tooltip :title="`派工领料-${detail.projectName}`">
+          <span class="detail-title">{{ `派工领料-${detail.projectName}` }}</span>
         </a-tooltip>
-        <a-tag color="blue">到货</a-tag>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#eb2f96"></span>派工</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
-        <a-tag
-          v-if="SUB_STATUS_LABEL[detail.filingStatus]"
-          :color="SUB_STATUS_COLOR[detail.filingStatus]"
-        >{{ SUB_STATUS_LABEL[detail.filingStatus] }}</a-tag>
         <span class="detail-header-meta">
           <span class="detail-header-meta-item">{{ detail.stationType }}</span>
           <span class="detail-header-meta-divider" />
@@ -27,21 +23,7 @@
           <span class="detail-header-meta-item">{{ detail.stationNo }}<CopyOutlined class="copy-icon" @click="copyStationNo(detail.stationNo)" /></span>
         </span>
       </div>
-      <a-space>
-        <a-button @click="emit('back')">取消</a-button>
-        <a-button :loading="saving" @click="handleSave">保存</a-button>
-        <a-tooltip :title="hasSubmittedFullArrival ? '已提交全部到货申请，不可再次提交' : ''">
-          <a-popconfirm
-            title="确认提交到货申请？提交后将进入审核流程。"
-            ok-text="确认提交"
-            cancel-text="取消"
-            :disabled="hasSubmittedFullArrival"
-            @confirm="handleSubmit"
-          >
-            <a-button type="primary" :loading="submitting" :disabled="hasSubmittedFullArrival">提交到货申请</a-button>
-          </a-popconfirm>
-        </a-tooltip>
-      </a-space>
+<a-space></a-space>
     </div>
 
     <div ref="detailBodyRef" class="detail-body" :style="scrollPad > 0 ? { paddingBottom: scrollPad + 'px' } : {}">
@@ -625,15 +607,11 @@
             <a-tab-pane key="stock" tab="到货">
               <div class="tab-body">
                 <div class="info-section" style="margin-top:0">
-                  <div class="info-section-title">
-                    到货信息
-                    <span style="flex:1"></span>
-                    <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
-                    <a-tooltip v-if="canEdit" :title="!props.editId && allFullyArrived ? '已经全部到货，不可新增' : ''">
-                      <a-button type="primary" size="small" :disabled="!props.editId && allFullyArrived" @click="showStockDrawer = true">新增到货</a-button>
-                    </a-tooltip>
+                  <div class="info-section-title">到货信息</div>
+                  <div v-if="sharedStockRecords.length > 0" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.25);border-radius:6px;font-size:13px;color:#16a34a;">
+                    <CheckCircleFilled style="font-size:15px;flex-shrink:0" />
+                    全部物料已到货，共 {{ sharedStockRecords.length }} 张到货单
                   </div>
-                  <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
                   <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
                     <div
                       class="payment-contract-header"
@@ -645,85 +623,99 @@
                         <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                           {{ record.orderNo }}
                           <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
-                          <a-tag v-if="props.editId && record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
-                          <span
-                            v-if="props.editId && record.status === 'rejected'"
-                            style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
-                            @click.stop="openRejectDetail(record)"
-                          >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
+                          <a-tag color="success" style="margin:0">已确认</a-tag>
                         </div>
                         <div class="payment-contract-meta-row" style="margin-top:8px">
-                          <span class="payment-meta-item">
-                            <span class="payment-meta-label">物料类型</span>
-                            <span class="payment-meta-value">{{ record.materialType }}</span>
-                          </span>
-                          <span v-if="record.receiver" class="payment-meta-item">
-                            <span class="payment-meta-label">签收人</span>
-                            <span class="payment-meta-value">{{ record.receiver }}</span>
-                          </span>
-                          <span v-if="record.receiverPhone" class="payment-meta-item">
-                            <span class="payment-meta-label">签收人电话</span>
-                            <span class="payment-meta-value">{{ record.receiverPhone }}</span>
-                          </span>
-                          <span v-if="record.signStatus" class="payment-meta-item">
-                            <span class="payment-meta-label">签收状态</span>
-                            <span class="payment-meta-value">{{ SIGN_STATUS_LABEL[record.signStatus] }}</span>
-                          </span>
-                          <span v-if="record.signTime" class="payment-meta-item">
-                            <span class="payment-meta-label">签收时间</span>
-                            <span class="payment-meta-value">{{ record.signTime }}</span>
-                          </span>
-                          <span v-if="record.remark" class="payment-meta-item">
-                            <span class="payment-meta-label">备注</span>
-                            <span class="payment-meta-value">{{ record.remark }}</span>
-                          </span>
-                          <span class="payment-meta-item">
-                            <span class="payment-meta-label">创建人</span>
-                            <span class="payment-meta-value">{{ record.creator }}</span>
-                          </span>
-                          <span class="payment-meta-item">
-                            <span class="payment-meta-label">创建时间</span>
-                            <span class="payment-meta-value">{{ record.createTime }}</span>
-                          </span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">仓库</span><span class="payment-meta-value">{{ record.warehouse }}</span></span>
+                          <span v-if="record.status !== 'reviewing' && record.voucherNo" class="payment-meta-item"><span class="payment-meta-label">供应链凭证号</span><span class="payment-meta-value">{{ record.voucherNo }}</span></span>
+                          <span v-if="record.orderType === 'return'" class="payment-meta-item"><span class="payment-meta-label">关联领料单</span><span class="payment-meta-value">{{ record.relatedOrderNo }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
+                          <span v-if="record.remark" class="payment-meta-item"><span class="payment-meta-label">备注</span><span class="payment-meta-value">{{ record.remark }}</span></span>
+                        </div>
+                      </div>
+                      <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
+                    </div>
+                    <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table">
+                      <thead>
+                        <tr>
+                          <th style="width:48px">序号</th><th style="width:72px">类型</th><th style="width:90px">物料编号</th>
+                          <th style="width:160px">物料描述</th><th style="width:48px">单位</th><th style="width:72px">设计数量</th>
+                          <th style="width:90px">本次到货数量</th><th style="width:100px">剩余到货数量</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(item, idx) in record.items" :key="item.code">
+                          <td>{{ idx + 1 }}</td><td>{{ item.type }}</td><td>{{ item.code }}</td>
+                          <td>{{ item.name }}</td><td>{{ item.unit }}</td><td>{{ item.designQty }}</td>
+                          <td>{{ item.arrivedQty ?? item.designQty }}</td>
+                          <td style="color:#ff4d4f;font-weight:500">{{ Math.max(0, item.pendingQty - (item.arrivedQty ?? 0)) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </a-tab-pane>
+
+            <a-tab-pane key="dispatch" tab="派工">
+              <div class="tab-body">
+                <div class="info-section" style="margin-top:0">
+                  <div class="info-section-title">
+                    派工信息
+                    <span style="flex:1"></span>
+                    <a-button size="small" @click="showDispatchStatDrawer = true">派工统计</a-button>
+                    <a-tooltip :title="materialOrders.length === 0 ? '暂无领料单，请先新增领料' : ''">
+                      <a-button size="small" :disabled="materialOrders.length === 0" @click="showReturnDrawer = true">新增退料</a-button>
+                    </a-tooltip>
+                    <a-button type="primary" size="small" @click="showMaterialDrawer = true">新增领料</a-button>
+                  </div>
+                  <a-empty v-if="dispatchRecords.length === 0" description="暂无派工记录" style="padding:24px 0" />
+                  <div v-for="record in dispatchRecords" :key="record.id" class="payment-contract-card">
+                    <div
+                      class="payment-contract-header"
+                      style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
+                      :style="collapsedDispatchCards.has(record.id) ? { borderBottom: 'none' } : {}"
+                      @click="toggleDispatchCard(record.id)"
+                    >
+                      <div>
+                        <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
+                          {{ record.orderNo }}
+                          <a-tag :color="record.orderType === 'return' ? 'warning' : 'processing'" style="margin:0">{{ record.orderType === 'return' ? '退料单' : '领料单' }}</a-tag>
+                          <a-tag v-if="record.status === 'reviewing'" color="orange" style="margin:0">确认中</a-tag>
+                        </div>
+                        <div class="payment-contract-meta-row" style="margin-top:8px">
+                          <span class="payment-meta-item"><span class="payment-meta-label">仓库</span><span class="payment-meta-value">{{ record.warehouse }}</span></span>
+                          <span v-if="record.orderType === 'return'" class="payment-meta-item"><span class="payment-meta-label">关联领料单</span><span class="payment-meta-value">{{ record.relatedOrderNo }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
+                          <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
+                          <span v-if="record.remark" class="payment-meta-item"><span class="payment-meta-label">备注</span><span class="payment-meta-value">{{ record.remark }}</span></span>
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                        <span v-if="detail.filingStatus === 'waiting_stock'" @click.stop>
-                          <a-popconfirm title="确认作废该到货单？" ok-text="确认" cancel-text="取消" @confirm="sharedStockRecords.splice(sharedStockRecords.indexOf(record), 1)">
-                            <a-button type="link" size="small" danger>作废</a-button>
-                          </a-popconfirm>
-                        </span>
-                        <a-button
-                          v-if="record.status === 'rejected'"
-                          size="small"
-                          @click.stop="openEditDrawer(record)"
-                        >修改</a-button>
-                        <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
+                        <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedDispatchCards.has(record.id) }" />
                       </div>
                     </div>
-                    <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table" style="border-top:1px solid #f0f0f0">
+                    <table v-show="!collapsedDispatchCards.has(record.id)" class="payment-ratio-table" style="border-top:1px solid #f0f0f0">
                       <thead>
                         <tr>
-                          <th style="width:48px">序号</th>
-                          <th style="width:72px">类型</th>
-                          <th style="width:90px">物料编号</th>
-                          <th style="width:160px">物料描述</th>
-                          <th style="width:48px">单位</th>
-                          <th style="width:72px">设计数量</th>
-                          <th style="width:90px">本次到货数量</th>
-                          <th style="width:100px">剩余到货数量</th>
+                          <th style="width:44px">序号</th>
+                          <th style="width:72px">物料组</th>
+                          <th style="width:100px">物料编号</th>
+                          <th style="width:180px">物料描述</th>
+                          <th style="width:44px">单位</th>
+                          <th style="width:96px">{{ record.orderType === 'return' ? '本次退料数量' : '本次派工数量' }}</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="(item, idx) in record.items" :key="item.code">
                           <td>{{ idx + 1 }}</td>
-                          <td>{{ item.type }}</td>
+                          <td>{{ item.group }}</td>
                           <td>{{ item.code }}</td>
                           <td>{{ item.name }}</td>
                           <td>{{ item.unit }}</td>
-                          <td>{{ item.designQty }}</td>
-                          <td>{{ item.arrivedQty ?? '—' }}</td>
-                          <td style="color:#ff4d4f;font-weight:500">{{ Math.max(0, item.pendingQty - (item.arrivedQty ?? 0)) }}</td>
+                          <td>{{ item.qty }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -738,6 +730,144 @@
 
     </div>
   </div>
+
+
+
+  <!-- 新增领料 Drawer -->
+  <a-drawer
+    v-model:open="showMaterialDrawer"
+    title="新增领料"
+    :width="1000"
+    :destroy-on-close="true"
+    @close="handleCloseMaterialDrawer"
+  >
+    <a-form ref="materialFormRef" :model="materialForm" :colon="false" layout="vertical">
+
+      <div class="info-section-title" style="margin-top:0">基本信息</div>
+      <a-row :gutter="[24, 0]">
+        <a-col :span="8">
+          <a-form-item label="仓库">
+            <span style="color:#262626">浙江省区域仓库</span>
+          </a-form-item>
+        </a-col>
+        <a-col :span="16">
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="materialForm.remark" placeholder="200字符以内" :maxlength="200" :rows="1" :show-count="true" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+
+      <div class="info-section-title">选择物料</div>
+      <a-table
+        :data-source="materialItems"
+        :columns="materialColumns"
+        :pagination="false"
+        size="small"
+        row-key="code"
+        :locale="{ emptyText: '暂无物料' }"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'dispatchQty'">
+            <a-input-number
+              v-model:value="record.dispatchQty"
+              :min="0"
+              :max="record.stockQty"
+              :precision="0"
+              size="small"
+              style="width:90px"
+            />
+          </template>
+        </template>
+      </a-table>
+
+    </a-form>
+
+    <template #footer>
+      <a-space>
+        <a-button @click="handleCloseMaterialDrawer">取消</a-button>
+        <a-tooltip title="提交后将进入平台审批确认环节"><a-button type="primary" @click="handleSubmitMaterial">提交新增领料</a-button></a-tooltip>
+      </a-space>
+    </template>
+  </a-drawer>
+
+
+  <!-- 新增退料 Drawer -->
+  <a-drawer
+    v-model:open="showReturnDrawer"
+    title="新增退料"
+    :width="920"
+    :destroy-on-close="true"
+    @close="handleCloseReturnDrawer"
+  >
+    <a-form ref="returnFormRef" :model="returnForm" :colon="false" layout="vertical">
+      <div class="info-section-title" style="margin-top:0">基本信息</div>
+      <a-row :gutter="[24, 0]">
+        <a-col :span="8">
+          <a-form-item label="领料单号" name="materialOrderNo"
+            :rules="[{ required: true, message: '请选择领料单号' }]">
+            <a-select v-model:value="returnForm.materialOrderNo" placeholder="请选择领料单号" style="width:100%" @change="onMaterialOrderChange">
+              <a-select-option v-for="order in materialOrders" :key="order.orderNo" :value="order.orderNo">{{ order.orderNo }}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="仓库">
+            <span style="color:#262626">浙江省区域仓库</span>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="备注" name="remark">
+            <a-textarea v-model:value="returnForm.remark" placeholder="200字符以内" :maxlength="200" :rows="1" :show-count="true" />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <div class="info-section-title">选择退料</div>
+    </a-form>
+    <a-table
+      :data-source="returnItems"
+      :columns="returnColumns"
+      :pagination="false"
+      size="small"
+      row-key="code"
+      :locale="{ emptyText: '暂无物料' }"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'returnQty'">
+          <a-input-number
+            v-model:value="record.returnQty"
+            :min="0"
+            :max="record.dispatchedQty"
+            :precision="0"
+            size="small"
+            style="width:90px"
+          />
+        </template>
+      </template>
+    </a-table>
+
+    <template #footer>
+      <a-space>
+        <a-button @click="handleCloseReturnDrawer">取消</a-button>
+        <a-tooltip title="提交后将进入平台审批确认环节"><a-button type="primary" @click="handleSubmitReturn">提交新增退料</a-button></a-tooltip>
+      </a-space>
+    </template>
+  </a-drawer>
+
+  <!-- 派工统计 Drawer -->
+  <a-drawer v-model:open="showDispatchStatDrawer" title="派工统计" :width="960" :destroy-on-close="false">
+    <div class="stat-drawer-body">
+      <a-table
+        class="stat-table"
+        :data-source="dispatchStatRows"
+        :columns="dispatchStatColumns"
+        :pagination="false"
+        size="small"
+        row-key="code"
+        :scroll="{ y: 'calc(100vh - 120px)' }"
+        :locale="{ emptyText: '暂无派工数据' }"
+      />
+    </div>
+  </a-drawer>
 
   <!-- 到货统计 Drawer -->
   <a-drawer v-model:open="showStockStatDrawer" title="到货统计" :width="900" :destroy-on-close="false">
@@ -900,49 +1030,18 @@
     </div>
   </a-modal>
 
-  <!-- 审核不通过详情弹窗 -->
-  <a-modal
-    v-model:open="rejectDetailVisible"
-    title="审核不通过详情"
-    :footer="null"
-    width="520px"
-    destroy-on-close
-  >
-    <div v-if="rejectDetailEntry" style="padding:4px 0">
-      <div v-if="rejectDetailEntry.items?.length" style="margin-bottom:16px">
-        <div
-          v-for="r in rejectDetailEntry.items"
-          :key="r"
-          style="padding:4px 0;color:#262626;font-size:14px"
-        >· {{ r }}</div>
-      </div>
-      <div v-if="rejectDetailEntry.images?.length">
-        <div style="font-weight:600;margin-bottom:8px;color:#262626">图片</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <img
-            v-for="(src, i) in rejectDetailEntry.images"
-            :key="i"
-            :src="src"
-            style="width:152px;height:114px;object-fit:cover;border-radius:4px;border:1px solid #f0f0f0;cursor:pointer"
-          />
-        </div>
-      </div>
-    </div>
-  </a-modal>
-
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount, h } from 'vue'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
 import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import {
   LeftOutlined, CalendarOutlined, CopyOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
-  AuditOutlined, HolderOutlined, DownOutlined, QuestionCircleOutlined, RightOutlined,
+  CheckCircleFilled, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
+  AuditOutlined, HolderOutlined, DownOutlined, QuestionCircleOutlined,
 } from '@ant-design/icons-vue'
 
 const props = defineProps<{ editId?: string | null; initStatus?: string | null; initData?: Record<string, any> | null }>()
@@ -960,6 +1059,231 @@ function toggleStockCard(id: string) {
 function copyStationNo(no: string) {
   navigator.clipboard.writeText(no).then(() => message.success('已复制'))
 }
+
+
+
+
+// ── 新增退料 Drawer ──
+const DISPATCH_MATERIAL_GROUPS = [
+  { group: '支架',   items: [
+    { code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', designQty: 480 },
+    { code: 'SU-002', name: '斜撑杆 φ60×3.5', unit: '根', designQty: 240 },
+    { code: 'SU-003', name: '压块 M8 不锈钢', unit: '个', designQty: 1920 },
+  ]},
+  { group: '组件',   items: [
+    { code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', designQty: 320 },
+    { code: 'PV-002', name: '单晶硅光伏组件 540Wp', unit: '块', designQty: 80 },
+  ]},
+  { group: '逆变器', items: [
+    { code: 'IN-001', name: '组串式逆变器 50kW', unit: '台', designQty: 8 },
+    { code: 'IN-002', name: '汇流箱 16路', unit: '台', designQty: 4 },
+  ]},
+  { group: '电表箱', items: [
+    { code: 'EM-001', name: '并网计量箱 三相四线', unit: '台', designQty: 2 },
+    { code: 'EM-002', name: '防逆流装置', unit: '套', designQty: 2 },
+  ]},
+]
+
+// 领料单列表（只含 orderType === 'material' 的记录）
+const materialOrders = computed(() => dispatchRecords.filter(r => r.orderType === 'material'))
+
+function initReturnItems() {
+  return DISPATCH_MATERIAL_GROUPS.flatMap(({ group, items }) =>
+    items.map(item => ({
+      group,
+      code: item.code,
+      name: item.name,
+      unit: item.unit,
+      dispatchedQty: 0,
+      returnedQty: 0,
+      returnQty: null as number | null,
+    }))
+  )
+}
+const returnItems = reactive(initReturnItems())
+
+// 选择领料单号后，用该单的物料填充退料表格
+function onMaterialOrderChange(orderNo: string) {
+  const order = materialOrders.value.find(o => o.orderNo === orderNo)
+  if (!order) return
+  const rows = order.items.map((item: any) => ({
+    group: item.group,
+    code: item.code,
+    name: item.name,
+    unit: item.unit,
+    dispatchedQty: item.qty,
+    returnedQty: 0,
+    returnQty: null as number | null,
+  }))
+  returnItems.splice(0, returnItems.length, ...rows)
+}
+
+const returnColumns = [
+  { title: '序号',         key: 'index',          width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '物料组',       dataIndex: 'group',    key: 'group',        width: 90  },
+  { title: '物料编号',     dataIndex: 'code',     key: 'code',         width: 110 },
+  { title: '物料描述',     dataIndex: 'name',     key: 'name' },
+  { title: '单位',         dataIndex: 'unit',     key: 'unit',         width: 56  },
+  { title: '已派工数量',   dataIndex: 'dispatchedQty', key: 'dispatchedQty', width: 100 },
+  { title: '已退料数量',   dataIndex: 'returnedQty',   key: 'returnedQty',   width: 100 },
+  { title: '本次退料数量', key: 'returnQty',      width: 130 },
+]
+
+const returnFormRef = ref()
+const returnForm = reactive({
+  materialOrderNo: null as string | null,
+  warehouse: null as string | null,
+  remark: '',
+})
+
+function handleCloseReturnDrawer() {
+  showReturnDrawer.value = false
+  returnForm.materialOrderNo = null
+  returnForm.warehouse = null
+  returnForm.remark = ''
+  returnItems.splice(0, returnItems.length)
+}
+
+function handleSubmitReturn() {
+  returnFormRef.value?.validate().then(() => {
+    const filled = returnItems.filter(i => i.returnQty && i.returnQty > 0)
+    if (!filled.length) { message.warning('请至少填写一条退料数量'); return }
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const orderNo = `TL-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${String(Date.now()).slice(-4)}`
+    dispatchRecords.unshift({
+      id: orderNo,
+      orderNo,
+      orderType: 'return',
+      status: 'reviewing',
+      warehouse: returnForm.warehouse ?? '',
+      relatedOrderNo: returnForm.materialOrderNo ?? '',
+      remark: returnForm.remark ?? '',
+      creator: '张三（代理商）',
+      createTime: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      items: filled.map(i => ({ group: i.group, code: i.code, name: i.name, unit: i.unit, qty: i.returnQty })),
+    })
+    message.success('新增退料已提交')
+    handleCloseReturnDrawer()
+  })
+}
+
+// ── 新增领料 Drawer ──
+const materialFormRef = ref()
+const materialForm = reactive({
+  warehouse: 'wh02' as string | null,
+  remark: '',
+})
+
+function initMaterialItems() {
+  return DISPATCH_MATERIAL_GROUPS.flatMap(({ group, items }) =>
+    items.map(item => ({
+      group,
+      code: item.code,
+      name: item.name,
+      unit: item.unit,
+      designQty: item.designQty,
+      stockQty: Math.floor(item.designQty * 1.1),
+      dispatchedQty: 0,
+      dispatchQty: null as number | null,
+    }))
+  )
+}
+const materialItems = reactive(initMaterialItems())
+
+const materialColumns = [
+  { title: '序号',           key: 'index',        width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '物料组',         dataIndex: 'group',  key: 'group',        width: 90  },
+  { title: '物料编号',       dataIndex: 'code',   key: 'code',         width: 110 },
+  { title: '物料描述',       dataIndex: 'name',   key: 'name' },
+  { title: '单位',           dataIndex: 'unit',   key: 'unit',         width: 56  },
+  { title: '设计数量',       dataIndex: 'designQty',    key: 'designQty',    width: 90  },
+  { title: '齐套库存',       dataIndex: 'stockQty',     key: 'stockQty',     width: 90  },
+  { title: '已派工数量',     dataIndex: 'dispatchedQty', key: 'dispatchedQty', width: 100 },
+  { title: '本次派工数量',   key: 'dispatchQty',  width: 130 },
+]
+
+function handleCloseMaterialDrawer() {
+  showMaterialDrawer.value = false
+  materialForm.warehouse = 'wh02'
+  materialForm.remark = ''
+  const fresh = initMaterialItems()
+  materialItems.splice(0, materialItems.length, ...fresh)
+}
+
+function handleSubmitMaterial() {
+  materialFormRef.value?.validate().then(() => {
+    const filled = materialItems.filter(i => i.dispatchQty && i.dispatchQty > 0)
+    if (!filled.length) { message.warning('请至少填写一条本次派工数量'); return }
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const orderNo = `ML-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${String(Date.now()).slice(-4)}`
+    dispatchRecords.unshift({
+      id: orderNo,
+      orderNo,
+      orderType: 'material',
+      status: 'reviewing',
+      warehouse: materialForm.warehouse ?? '',
+      remark: materialForm.remark ?? '',
+      creator: '张三（代理商）',
+      createTime: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      items: filled.map(i => ({ group: i.group, code: i.code, name: i.name, unit: i.unit, qty: i.dispatchQty })),
+    })
+    message.success('新增领料已提交')
+    handleCloseMaterialDrawer()
+  })
+}
+
+// ── 派工统计 Drawer ──
+const dispatchStatRows = computed(() => {
+  const rows: any[] = []
+  DISPATCH_MATERIAL_GROUPS.forEach(({ group, items }) => {
+    items.forEach(item => {
+      const dispatched = dispatchRecords
+        .filter(r => r.orderType === 'material')
+        .reduce((sum: number, r: any) => {
+          const found = r.items?.find((i: any) => i.code === item.code)
+          return sum + (found?.qty ?? 0)
+        }, 0)
+      const returned = dispatchRecords
+        .filter(r => r.orderType === 'return')
+        .reduce((sum: number, r: any) => {
+          const found = r.items?.find((i: any) => i.code === item.code)
+          return sum + (found?.qty ?? 0)
+        }, 0)
+      rows.push({
+        group,
+        code: item.code,
+        name: item.name,
+        unit: item.unit,
+        designQty: item.designQty,
+        dispatchedQty: dispatched,
+        returnedQty:   returned,
+        actualQty:     Math.max(0, dispatched - returned),
+      })
+    })
+  })
+  return rows
+})
+
+const dispatchStatColumns = [
+  { title: '序号',           key: 'index',        width: 56,  customRender: ({ index }: any) => index + 1 },
+  { title: '物料组',         dataIndex: 'group',  key: 'group',        width: 90  },
+  { title: '物料编号',       dataIndex: 'code',   key: 'code',         width: 110 },
+  { title: '物料描述',       dataIndex: 'name',   key: 'name' },
+  { title: '单位',           dataIndex: 'unit',   key: 'unit',         width: 56  },
+  { title: '设计数量',       dataIndex: 'designQty',    key: 'designQty',    width: 90 },
+  { title: '已派工出库数量', dataIndex: 'dispatchedQty', key: 'dispatchedQty', width: 120 },
+  { title: '已退库数量',     dataIndex: 'returnedQty',  key: 'returnedQty',  width: 100 },
+  {
+    title: '实际派工出库数量', dataIndex: 'actualQty', key: 'actualQty', width: 130,
+    customRender: ({ record }: any) => {
+      const v = record.actualQty
+      const done = v >= record.designQty
+      return h('span', { style: done ? 'color:#52c41a;font-weight:500' : '' }, v)
+    },
+  },
+]
 
 // ── 到货统计 Drawer ──
 const showStockStatDrawer = ref(false)
@@ -1009,6 +1333,65 @@ const stockStatColumns = [
 // ── 新增/修改到货 Drawer ──
 const showStockDrawer     = ref(false)
 const editingStockRecord  = ref<StockRecord | null>(null)
+
+
+// ─── 派工单 ────────────────────────────────────────────────────────────────────
+const showDispatchDrawer = ref(false)
+const showDispatchStatDrawer = ref(false)
+const showReturnDrawer = ref(false)
+const showMaterialDrawer = ref(false)
+const collapsedDispatchCards = reactive(new Set<string>())
+const toggleDispatchCard = (id: string) => {
+  collapsedDispatchCards.has(id) ? collapsedDispatchCards.delete(id) : collapsedDispatchCards.add(id)
+}
+const MOCK_DISPATCH_RECORDS = [
+  {
+    id: 'dp001',
+    orderNo: 'ML-2026-0001',
+    orderType: 'material',
+    status: 'reviewing',
+    warehouse: '浙江省区域仓库',
+    remark: '首批领料，含支架、组件及逆变器',
+    creator: '张三（代理商）',
+    createTime: '2026-07-14 10:30',
+    items: [
+      { group: '支架',   code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 480 },
+      { group: '组件',   code: 'PV-001', name: '单晶硅光伏组件 550Wp',   unit: '块', qty: 320 },
+      { group: '逆变器', code: 'IN-001', name: '组串式逆变器 50kW',       unit: '台', qty: 8   },
+      { group: '电表箱', code: 'EM-001', name: '并网计量箱 三相四线',     unit: '台', qty: 2   },
+    ],
+  },
+  {
+    id: 'dp002',
+    orderNo: 'TL-2026-0001',
+    orderType: 'return',
+    status: 'reviewing',
+    warehouse: '浙江省区域仓库',
+    relatedOrderNo: 'ML-2026-0001',
+    remark: '支架及组件数量有误，部分退库',
+    creator: '张三（代理商）',
+    createTime: '2026-07-20 14:00',
+    items: [
+      { group: '支架',   code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 10 },
+      { group: '组件',   code: 'PV-001', name: '单晶硅光伏组件 550Wp',   unit: '块', qty: 5  },
+    ],
+  },
+]
+const dispatchRecords = reactive(
+  (props.initData?.filingStatus ?? props.initStatus ?? 'dispatching') === 'waiting_dispatch' ? [] : [...MOCK_DISPATCH_RECORDS]
+)
+
+// ─── 派工表单 ─────────────────────────────────────────────────────────────────
+const dispatchForm = reactive({
+  dispatchDate: null as any,
+  expectedFinishDate: null as any,
+  siteManager: '',
+  siteManagerPhone: '',
+  workerCount: null as number | null,
+  constructionUnit: '',
+  remark: '',
+})
+
 const stockNewFormRef     = ref()
 
 const stockNewForm = reactive({
@@ -1113,12 +1496,7 @@ function handleCloseStockDrawer() {
 function openEditDrawer(record: StockRecord) {
   editingStockRecord.value = record
   // 设置物料类型（watch 因 editingStockRecord 已设置而跳过）
-  stockNewForm.materialType  = record.materialType.split('、')
-  stockNewForm.receiver      = record.receiver      ?? ''
-  stockNewForm.receiverPhone = record.receiverPhone ?? ''
-  stockNewForm.signStatus    = record.signStatus    ?? null
-  stockNewForm.signTime      = record.signTime ? dayjs(record.signTime) : null
-  stockNewForm.remark        = record.remark        ?? ''
+  stockNewForm.materialType = record.materialType.split('、')
   // 直接从记录填充 items，不走 watch 重建
   stockNewItems.splice(0)
   record.items.forEach(item => {
@@ -1139,20 +1517,6 @@ function openEditDrawer(record: StockRecord) {
 }
 
 const SIGN_STATUS_LABEL: Record<string, string> = { signed: '已签收', unsigned: '未签收' }
-
-const rejectDetailVisible = ref(false)
-const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
-function openRejectDetail(record: StockRecord) {
-  const allLogs = groupedLogs.value.flatMap(g => g.logs)
-  const logEntry = allLogs.find(l => l.type === 'reject' && l.recordId === record.id)
-    ?? allLogs.find(l => l.type === 'reject')
-  const note = logEntry?.note ?? [...(record.rejectReasons ?? []), record.rejectComment].filter(Boolean).join('；')
-  rejectDetailEntry.value = {
-    items: note ? note.split('；').filter(Boolean) : [],
-    images: logEntry?.images ?? [],
-  }
-  rejectDetailVisible.value = true
-}
 
 const STOCK_STATUS_LABEL: Record<string, string> = {
   reviewing: '审核中',
@@ -1186,11 +1550,6 @@ async function handleSubmitStock() {
         rec.rejectReasons = []
         rec.rejectComment = ''
         rec.createTime    = submitTime
-        rec.receiver      = stockNewForm.receiver      || undefined
-        rec.receiverPhone = stockNewForm.receiverPhone || undefined
-        rec.signStatus    = stockNewForm.signStatus    || undefined
-        rec.signTime      = stockNewForm.signTime?.format?.('YYYY-MM-DD') || undefined
-        rec.remark        = stockNewForm.remark        || undefined
       }
       detail.value.filingStatus = 'reviewing_stock'
       const stationId = props.editId ?? props.initData?.id
@@ -1210,11 +1569,6 @@ async function handleSubmitStock() {
       status:       null,
       creator:      '张三',
       createTime:   submitTime,
-      receiver:      stockNewForm.receiver      || undefined,
-      receiverPhone: stockNewForm.receiverPhone || undefined,
-      signStatus:    stockNewForm.signStatus    || undefined,
-      signTime:      stockNewForm.signTime?.format?.('YYYY-MM-DD') || undefined,
-      remark:        stockNewForm.remark        || undefined,
       items: stockNewItems.filter(r => r.arrivedQty !== null && r.arrivedQty > 0).map(r => ({
         type:       r.type,
         code:       r.code,
@@ -1332,29 +1686,17 @@ async function handleSubmit() {
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  waiting_stock: 'default',
-  reviewing_stock: 'processing', partial_stock: 'processing',
-  partial_stock_rejected: 'processing', full_stock_rejected: 'processing',
-  full_stock: 'success', stocked: 'success',
+  waiting_dispatch: 'default',
+  dispatching: 'processing',
+  dispatched: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  waiting_stock: '待到货',
-  reviewing_stock: '到货中', partial_stock: '到货中',
-  partial_stock_rejected: '到货中', full_stock_rejected: '到货中',
-  full_stock: '已到货', stocked: '已到货',
+  waiting_dispatch: '待派工',
+  dispatching: '派工中',
+  dispatched: '已派工',
 }
-const SUB_STATUS_LABEL: Record<string, string> = {
-  reviewing_stock: '到货审核中',
-  partial_stock: '部分已到货',
-  partial_stock_rejected: '部分到货审核不通过',
-  full_stock_rejected: '全部到货审核不通过',
-}
-const SUB_STATUS_COLOR: Record<string, string> = {
-  reviewing_stock: 'processing',
-  partial_stock: 'processing',
-  partial_stock_rejected: 'error',
-  full_stock_rejected: 'error',
-}
+const SUB_STATUS_LABEL: Record<string, string> = {}
+const SUB_STATUS_COLOR: Record<string, string> = {}
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -1420,11 +1762,11 @@ const STANDARD_PAYMENT_NODES = [
 // ─── mock 数据（接入时替换为接口返回） ───────────────────────────────────────
 
 const detail = ref({
-  id: 'LNC-2026-0001',
-  filingStatus: (props.initData?.filingStatus ?? props.initStatus ?? 'waiting_stock') as string,
+  id: 'LNC-2026-0048a',
+  filingStatus: (props.initData?.filingStatus ?? props.initStatus ?? 'dispatching') as string,
   // 系统信息
   stationType: '工商业',
-  stationNo:   props.initData?.stationNo ?? 'LNC-2026-0001',
+  stationNo:   props.initData?.stationNo ?? 'LNC-2026-0048a',
   // 基本信息
   oaNo: 'A304202607100012',
   projectName: props.initData?.projectName ?? '杭州市滨江区某商业综合体光伏项目',
@@ -1562,7 +1904,7 @@ const detail = ref({
       { id: 'p2', name: '李明',   position: '电工',       phone: '13812340002' },
     ],
   },
-  logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null; images?: string[]; rejectReasons?: string[]; recordId?: string }[],
+  logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null }[],
 })
 
 watch(() => props.initStatus, (val) => {
@@ -1580,12 +1922,12 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建到货申请',  operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
   partial_stock_rejected: [
-    { id: 3, type: 'reject', event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '部分物料到货数量不足，请补充', rejectReasons: ['到货数量与计划不符'] },
+    { id: 3, type: 'reject', event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '部分物料到货数量不足，请补充' },
     { id: 2, type: 'submit', event: '提交到货申请',        operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
     { id: 1, type: 'create', event: '创建到货申请',        operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
   full_stock_rejected: [
-    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交', rejectReasons: ['到货数量与计划不符'], images: ['https://picsum.photos/seed/rej3/320/240', 'https://picsum.photos/seed/rej4/320/240'] },
+    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交' },
     { id: 2, type: 'submit', event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
     { id: 1, type: 'create', event: '创建到货申请',       operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
@@ -1634,9 +1976,6 @@ const groupedLogs = computed(() => {
           operator: '李四（审核员）',
           time: rec.reviewTime ?? rec.createTime,
           note: noteArr.join('；') || null,
-          rejectReasons: rec.rejectReasons ?? [],
-          images: rec.rejectImages ?? [],
-          recordId: rec.id,
         })
       }
     }
@@ -1684,7 +2023,7 @@ const hasSubmittedFullArrival = computed(() => {
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
-const activeTab = ref('stock')
+const activeTab = ref('dispatch')
 
 // ── 合同付款比例（非标详情只读展示）──────────────────────────
 const DETAIL_PAYMENT_NODES = ['开工', '并网', '竣工验收', '质保金']
@@ -1858,6 +2197,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 
 <style scoped>
 /* ── 整体布局 ── */
+.node-dot-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: rgba(0,0,0,0.65); background: #f5f5f5; border: 1px solid #d9d9d9; border-radius: 4px; padding: 0 7px; line-height: 20px; flex-shrink: 0; }
+.node-dot-tag__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .detail-page {
   height: calc(100vh - 81px); /* 减去 App 固定顶栏高度，detail-body.clientHeight 才与可见区一致 */
   overflow: hidden;
