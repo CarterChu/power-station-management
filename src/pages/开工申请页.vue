@@ -1044,10 +1044,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [],
   },
   jiagongBom: [

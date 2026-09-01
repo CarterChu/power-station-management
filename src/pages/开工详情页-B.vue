@@ -3,18 +3,13 @@
     <!-- 固定顶栏 -->
     <div class="detail-header">
       <div class="detail-header-left">
-        <a-button type="text" class="back-btn" @click="emit('back')"><template #icon><LeftOutlined /></template></a-button>
         <a-tooltip :title="detail.projectName">
           <span class="detail-title">{{ detail.projectName }}</span>
         </a-tooltip>
-        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#fa8c16"></span>到货</span>
+        <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#52c41a"></span>开工</span>
         <a-tag :color="STATUS_COLOR[detail.filingStatus]">
           {{ STATUS_LABEL[detail.filingStatus] }}
         </a-tag>
-        <a-tag
-          v-if="SUB_STATUS_LABEL[detail.filingStatus]"
-          :color="SUB_STATUS_COLOR[detail.filingStatus]"
-        >{{ SUB_STATUS_LABEL[detail.filingStatus] }}</a-tag>
         <span class="detail-header-meta">
           <span class="detail-header-meta-item">{{ detail.stationType }}</span>
           <span class="detail-header-meta-divider" />
@@ -27,10 +22,10 @@
       </div>
       <a-space>
         <a-button
-          v-if="['reviewing_stock','partial_stock','partial_stock_rejected','full_stock_rejected'].includes(detail.filingStatus)"
+          v-if="['start_rejected','start_biz_rejected','start_tech_rejected','start_eng_rejected','start_all_rejected','start_all_rejected_3'].includes(detail.filingStatus)"
           type="primary"
           @click="emit('edit', detail.id)"
-        >编辑</a-button>
+        >修改</a-button>
       </a-space>
     </div>
 
@@ -457,149 +452,6 @@
               </div>
             </a-tab-pane>
 
-            <!-- 到货 tab：三态不同内容 -->
-            <a-tab-pane key="stock" tab="到货">
-              <div class="tab-body">
-
-                <!-- ── 待到货：显示设计 BOM，引导发起申请 ── -->
-                <template v-if="detail.filingStatus === 'waiting_stock'">
-                  <div class="info-section" style="margin-top:0">
-                    <div class="info-section-title">到货信息</div>
-                    <div style="display:flex;align-items:center;gap:8px;padding:0 0 12px;color:#8c8c8c;font-size:13px;">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-                      尚未提交到货申请，以下为设计 BOM 参考
-                    </div>
-                    <a-table
-                      :columns="yigongReadonlyColumns"
-                      :data-source="detail.yigongBom"
-                      :pagination="false"
-                      size="small"
-                      :locale="{ emptyText: '暂无乙供物料' }"
-                    />
-                  </div>
-                </template>
-
-                <!-- ── 到货中：到货单列表 + 审核状态 ── -->
-                <template v-else-if="['reviewing_stock','partial_stock','partial_stock_rejected','full_stock_rejected'].includes(detail.filingStatus)">
-                  <div class="info-section" style="margin-top:0">
-                    <div class="info-section-title">
-                      到货信息
-                      <span style="flex:1"></span>
-                      <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
-                    </div>
-                    <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
-                      <div
-                        class="payment-contract-header"
-                        style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
-                        :style="collapsedStockCards.has(record.id) ? { borderBottom: 'none' } : {}"
-                        @click="toggleStockCard(record.id)"
-                      >
-                        <div>
-                          <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
-                            {{ record.orderNo }}
-                            <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
-                            <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
-                            <span
-                              v-if="record.status === 'rejected'"
-                              style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
-                              @click.stop="openRejectDetail(record)"
-                            >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
-                          </div>
-                          <div class="payment-contract-meta-row" style="margin-top:8px">
-                            <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
-                            <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
-                            <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
-                          </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                          <a-button
-                            v-if="record.status === 'reviewing'"
-                            size="small"
-                            type="primary"
-                            @click.stop="openReviewPanel(record.id)"
-                          >审核</a-button>
-                          <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
-                        </div>
-                      </div>
-                      <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table">
-                        <thead>
-                          <tr>
-                            <th style="width:48px">序号</th><th style="width:72px">类型</th><th style="width:90px">物料编号</th>
-                            <th style="width:160px">物料描述</th><th style="width:48px">单位</th><th style="width:72px">设计数量</th>
-                            <th style="width:90px">本次到货数量</th><th style="width:100px">剩余到货数量</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="(item, idx) in record.items" :key="item.code">
-                            <td>{{ idx + 1 }}</td><td>{{ item.type }}</td><td>{{ item.code }}</td>
-                            <td>{{ item.name }}</td><td>{{ item.unit }}</td><td>{{ item.designQty }}</td>
-                            <td>{{ item.arrivedQty ?? '—' }}</td>
-                            <td style="color:#ff4d4f;font-weight:500">{{ Math.max(0, item.pendingQty - (item.arrivedQty ?? 0)) }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </template>
-
-                <!-- ── 已到货：完成 banner + 到货单汇总 ── -->
-                <template v-else>
-                  <div class="info-section" style="margin-top:0">
-                    <div class="info-section-title">
-                      到货信息
-                      <span style="flex:1"></span>
-                      <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
-                    </div>
-                    <div v-if="sharedStockRecords.length > 0" style="display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:12px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.25);border-radius:6px;font-size:13px;color:#16a34a;">
-                      <CheckCircleFilled style="font-size:15px;flex-shrink:0" />
-                      全部物料已到货，共 {{ sharedStockRecords.length }} 张到货单
-                    </div>
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
-                      <div
-                        class="payment-contract-header"
-                        style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
-                        :style="collapsedStockCards.has(record.id) ? { borderBottom: 'none' } : {}"
-                        @click="toggleStockCard(record.id)"
-                      >
-                        <div>
-                          <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
-                            {{ record.orderNo }}
-                            <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
-                            <a-tag color="success" style="margin:0">审核通过</a-tag>
-                          </div>
-                          <div class="payment-contract-meta-row" style="margin-top:8px">
-                            <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
-                            <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
-                            <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
-                          </div>
-                        </div>
-                        <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
-                      </div>
-                      <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table">
-                        <thead>
-                          <tr>
-                            <th style="width:48px">序号</th><th style="width:72px">类型</th><th style="width:90px">物料编号</th>
-                            <th style="width:160px">物料描述</th><th style="width:48px">单位</th><th style="width:72px">设计数量</th>
-                            <th style="width:90px">本次到货数量</th><th style="width:100px">剩余到货数量</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="(item, idx) in record.items" :key="item.code">
-                            <td>{{ idx + 1 }}</td><td>{{ item.type }}</td><td>{{ item.code }}</td>
-                            <td>{{ item.name }}</td><td>{{ item.unit }}</td><td>{{ item.designQty }}</td>
-                            <td>{{ item.arrivedQty ?? item.designQty }}</td>
-                            <td style="color:#ff4d4f;font-weight:500">{{ Math.max(0, item.pendingQty - (item.arrivedQty ?? 0)) }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </template>
-
-              </div>
-            </a-tab-pane>
-
           </a-tabs>
         </div>
 
@@ -609,6 +461,12 @@
       <div class="detail-sidebar">
         <FlowLog :logs="currentLogs" />
       </div>
+    </div>
+
+    <!-- 审核 FAB -->
+    <div v-if="showReviewFab" class="review-fab" @click="reviewCollapsed = false">
+      <AuditOutlined style="font-size:16px;position:relative;top:-1px" />
+      <span style="font-size:13px">开工审核</span>
     </div>
 
     <!-- 可拖拽审核面板 -->
@@ -626,10 +484,10 @@
       <div class="review-corner-handle review-corner-handle--se" @mousedown.stop="onCornerResizeStart($event, 'se')" />
 
       <div class="review-panel-header" @mousedown.prevent="onReviewDragStart">
-        <span class="review-panel-title">到货审核</span>
+        <span class="review-panel-title">开工审核</span>
         <div style="display:flex;align-items:center;gap:16px">
           <HolderOutlined class="review-panel-drag-icon" />
-          <span class="review-panel-close" @click.stop="reviewingRecordId = null">×</span>
+          <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
         </div>
       </div>
       <div class="review-reject-reasons">
@@ -679,66 +537,16 @@
       </div>
     </div>
 
-    <!-- 到货统计 Drawer -->
-    <a-drawer v-model:open="showStockStatDrawer" title="到货统计" :width="900" :destroy-on-close="false">
-      <div class="stat-drawer-body">
-        <a-table
-          class="stat-table"
-          :data-source="stockStatRows"
-          :columns="stockStatColumns"
-          :pagination="false"
-          size="small"
-          row-key="code"
-          :scroll="{ y: 'calc(100vh - 120px)' }"
-          :locale="{ emptyText: '暂无到货数据' }"
-          :row-class-name="(record: any) => record.arrivedQty >= record.designQty ? 'stat-row-done' : ''"
-        />
-      </div>
-    </a-drawer>
-
   </div>
-
-  <a-modal
-    v-model:open="rejectDetailVisible"
-    title="审核不通过详情"
-    :footer="null"
-    width="520px"
-    destroy-on-close
-  >
-    <div v-if="rejectDetailEntry" style="padding:4px 0">
-      <div v-if="rejectDetailEntry.items?.length" style="margin-bottom:16px">
-        <div
-          v-for="r in rejectDetailEntry.items"
-          :key="r"
-          style="padding:4px 0;color:#262626;font-size:14px"
-        >· {{ r }}</div>
-      </div>
-      <div v-if="rejectDetailEntry.images?.length">
-        <div style="font-weight:600;margin-bottom:8px;color:#262626">图片</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <img
-            v-for="(src, i) in rejectDetailEntry.images"
-            :key="i"
-            :src="src"
-            style="width:152px;height:114px;object-fit:cover;border-radius:4px;border:1px solid #f0f0f0;cursor:pointer"
-          />
-        </div>
-      </div>
-    </div>
-  </a-modal>
-
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, h } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
-import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
 import {
-  LeftOutlined, DownOutlined, CopyOutlined, RightOutlined,
-  CheckCircleFilled,
+  LeftOutlined, DownOutlined, CopyOutlined,
   AuditOutlined, HolderOutlined,
 } from '@ant-design/icons-vue'
 
@@ -749,7 +557,7 @@ const props = defineProps<{
 const emit = defineEmits<{ back: []; edit: [id: string] }>()
 
 const projectInfoOpen = ref(false)
-const activeTab       = ref('stock')
+const activeTab       = ref('start')
 
 const detailBodyRef = ref<HTMLElement | null>(null)
 const tabsWrapperRef = ref<HTMLElement | null>(null)
@@ -770,40 +578,30 @@ async function scrollToTabNav() {
 
 let _scrollHandler: (() => void) | null = null
 
-const collapsedStockCards = reactive(new Set<string>())
-function toggleStockCard(id: string) {
-  if (collapsedStockCards.has(id)) collapsedStockCards.delete(id)
-  else collapsedStockCards.add(id)
-}
+onMounted(() => {
+  _scrollHandler = () => {
+    const body    = detailBodyRef.value
+    const wrapper = tabsWrapperRef.value
+    if (!body || !wrapper) return
+    tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
+  }
+  detailBodyRef.value?.addEventListener('scroll', _scrollHandler, { passive: true })
+})
 
-const STOCK_STATUS_LABEL: Record<string, string> = {
-  reviewing: '审核中',
-  approved:  '审核通过',
-  rejected:  '审核不通过',
-}
-const STOCK_STATUS_COLOR: Record<string, string> = {
-  reviewing: 'processing',
-  approved:  'success',
-  rejected:  'error',
-}
-
+onUnmounted(() => {
+  if (_scrollHandler) detailBodyRef.value?.removeEventListener('scroll', _scrollHandler)
+})
 
 // ─── 常量 ─────────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  waiting_stock: 'default',
-  reviewing_stock: 'processing', partial_stock: 'cyan',
-  partial_stock_rejected: 'error', full_stock_rejected: 'error',
-  full_stock: 'success', stocked: 'success',
+  waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
+  start_biz_rejected: 'error', start_tech_rejected: 'error', start_eng_rejected: 'error', start_all_rejected: 'error', start_all_rejected_3: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
-  waiting_stock: '待到货',
-  reviewing_stock: '到货审核中', partial_stock: '部分已到货',
-  partial_stock_rejected: '部分到货审核不通过', full_stock_rejected: '全部到货审核不通过',
-  full_stock: '全部已到货', stocked: '已到货',
+  waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
+  start_biz_rejected: '商务审核不通过', start_tech_rejected: '技术审核不通过', start_eng_rejected: '工程审核不通过', start_all_rejected: '审核不通过', start_all_rejected_3: '审核不通过',
 }
-const SUB_STATUS_LABEL: Record<string, string> = {}
-const SUB_STATUS_COLOR: Record<string, string> = {}
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -879,7 +677,7 @@ const yigongReadonlyColumns = [
 
 const detail = ref({
   id: props.initRow?.id ?? 'LNC-2026-0001',
-  filingStatus: (props.initRow?.filingStatus ?? 'reviewing_stock') as string,
+  filingStatus: (props.initRow?.filingStatus ?? 'applying_start') as string,
   stationType: '工商业',
   stationNo:   props.initRow?.stationNo   ?? 'LNC-2026-0001',
   oaNo: 'A304202607100012',
@@ -958,8 +756,8 @@ const detail = ref({
     attachmentName: '杭州滨江综合体光伏备案批复文件.pdf',
   },
   rejectInfo: {
-    stage: '到货审核', reviewer: '李四（审核员）', time: '2026-08-13 10:30',
-    reason: '到货数量与计划不符，请核实后重新提交。',
+    stage: '开工审核', reviewer: '李四（审核员）', time: '2026-08-11 15:30',
+    reason: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。',
   },
   // 开工申请信息（只读）
   startInfo: {
@@ -984,32 +782,6 @@ watch(() => props.initRow?.filingStatus, (val) => {
   if (val) detail.value.filingStatus = val
 })
 
-onMounted(() => {
-  if (hasUserSubmittedRecords.value) {
-    // 用户刚从申请页提交，直接展示真实数据，不覆盖
-    hasUserSubmittedRecords.value = false
-  } else {
-    initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
-  }
-
-  const container = detailBodyRef.value
-  if (container) {
-    _scrollHandler = () => {
-      const body    = detailBodyRef.value
-      const wrapper = tabsWrapperRef.value
-      if (!body || !wrapper) return
-      tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
-    }
-    container.addEventListener('scroll', _scrollHandler, { passive: true })
-  }
-})
-
-onUnmounted(() => {
-  if (_scrollHandler && detailBodyRef.value) {
-    detailBodyRef.value.removeEventListener('scroll', _scrollHandler)
-  }
-})
-
 // ─── 工具 ─────────────────────────────────────────────────────────────────────
 
 function copyStationNo(no: string) {
@@ -1020,120 +792,92 @@ function copyStationNo(no: string) {
 
 type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null }
 
-// 建档→开工的公共历史（所有到货状态共享）
-const BASE_LOGS: LogEntry[] = [
-  { id: 6, type: 'approve', event: '开工审核通过', operator: '李四（审核员）', time: '2026-08-12 10:00', note: null },
-  { id: 5, type: 'submit',  event: '提交开工申请', operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
-  { id: 4, type: 'approve', event: '建档审核通过', operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
-  { id: 3, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
-  { id: 2, type: 'create',  event: '保存草稿',     operator: '张三（代理商）', time: '2026-07-14 14:05', note: null },
-  { id: 1, type: 'create',  event: '创建建档',     operator: '张三（代理商）', time: '2026-07-14 09:32', note: null },
-]
-
 const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
-  waiting_stock: [
-    ...BASE_LOGS,
+  waiting_start: [
+    { id: 2, type: 'approve', event: '建档审核通过', operator: '李四（审核员）',  time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）',  time: '2026-07-14 17:20', note: null },
   ],
-  reviewing_stock: [
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  applying_start: [
+    { id: 3, type: 'submit',  event: '提交开工申请', operator: '张三（代理商）',  time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过', operator: '李四（审核员）',  time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）',  time: '2026-07-14 17:20', note: null },
   ],
-  partial_stock: [
-    { id: 8, type: 'approve', event: '部分到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请',     operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  start_rejected: [
+    { id: 4, type: 'reject',  event: '开工审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。', images: ['data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2I4YzhkOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YjhjOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YzhiOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+'] },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
   ],
-  partial_stock_rejected: [
-    { id: 8, type: 'reject',  event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-15 10:30', note: '部分物料到货数量不足，请补充' },
-    { id: 7, type: 'submit',  event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  start_biz_rejected: [
+    { id: 4, type: 'reject',  event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
   ],
-  full_stock_rejected: [
-    { id: 8, type: 'reject',  event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-15 10:30', note: '到货数量与计划不符，请核实后重新提交' },
-    { id: 7, type: 'submit',  event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  start_tech_rejected: [
+    { id: 4, type: 'reject',  event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-12 10:15', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
   ],
-  full_stock: [
-    { id: 8, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  start_eng_rejected: [
+    { id: 4, type: 'reject',  event: '工程审核不通过', operator: '工程审核员（安能）', time: '2026-08-13 14:30', note: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
   ],
-  stocked: [
-    { id: 8, type: 'approve', event: '到货审核通过', operator: '李四（审核员）', time: '2026-08-15 10:00', note: null },
-    { id: 7, type: 'submit',  event: '提交到货申请', operator: '张三（代理商）', time: '2026-08-14 09:00', note: null },
-    ...BASE_LOGS,
+  start_all_rejected: [
+    { id: 5, type: 'reject',  event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-13 16:00', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
+    { id: 4, type: 'reject',  event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-13 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
+  ],
+  start_all_rejected_3: [
+    { id: 6, type: 'reject',  event: '工程审核不通过', operator: '工程审核员（安能）', time: '2026-08-14 10:30', note: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
+    { id: 5, type: 'reject',  event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-14 10:15', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
+    { id: 4, type: 'reject',  event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-14 10:00', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-12 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
+  ],
+  started: [
+    { id: 4, type: 'approve', event: '开工审核通过', operator: '李四（审核员）', time: '2026-08-12 10:00', note: null },
+    { id: 3, type: 'submit',  event: '提交开工申请', operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
+    { id: 2, type: 'approve', event: '建档审核通过', operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
+    { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
   ],
 }
 
-const currentLogs = computed((): LogEntry[] => {
-  const submitted = sharedStockRecords.filter(r => r.status !== null)
-  if (submitted.length > 0) {
-    const recordLogs: LogEntry[] = []
-    let nextId = BASE_LOGS.length + 1
-    for (const rec of submitted) {
-      const noteArr: string[] = []
-      if (rec.rejectReasons?.length) noteArr.push(rec.rejectReasons.join('、'))
-      if (rec.rejectComment) noteArr.push(rec.rejectComment)
-      recordLogs.push({
-        id: nextId++,
-        type: 'submit',
-        event: `提交到货申请（${rec.orderNo}）`,
-        operator: `${rec.creator}（代理商）`,
-        time: rec.createTime,
-        note: null,
-      })
-      if (rec.status === 'approved') {
-        recordLogs.push({
-          id: nextId++,
-          type: 'approve',
-          event: rec.arrivalType === '全部到货' ? '全部到货审核通过' : '部分到货审核通过',
-          operator: '李四（审核员）',
-          time: rec.reviewTime ?? rec.createTime,
-          note: null,
-        })
-      } else if (rec.status === 'rejected') {
-        recordLogs.push({
-          id: nextId++,
-          type: 'reject',
-          event: rec.arrivalType === '全部到货' ? '全部到货审核不通过' : '部分到货审核不通过',
-          operator: '李四（审核员）',
-          time: rec.reviewTime ?? rec.createTime,
-          note: noteArr.join('；') || null,
-        })
-      }
-    }
-    recordLogs.sort((a, b) => b.id - a.id)
-    return [...recordLogs, ...BASE_LOGS]
-  }
-  return LOGS_BY_STATUS[detail.value.filingStatus] ?? BASE_LOGS
-})
+const currentLogs = computed(() => LOGS_BY_STATUS[detail.value.filingStatus] ?? [])
 
 
 // ─── 审核面板 ─────────────────────────────────────────────────────────────────
 
-const reviewingRecordId = ref<string | null>(null)
-const showReviewPanel   = computed(() => reviewingRecordId.value !== null)
+const reviewPanelVisible = ref(true)
+const reviewCollapsed    = ref(true)
+const showReviewFab   = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value &&  reviewCollapsed.value)
+const showReviewPanel = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value && !reviewCollapsed.value)
 
-async function openReviewPanel(id: string) {
-  reviewRejectReasons.value = []
-  reviewComment.value = ''
-  reviewImageList.value = []
-  reviewingRecordId.value = id
-  await nextTick()
-  if (reviewPanelEl.value) {
-    const h = reviewPanelEl.value.getBoundingClientRect().height
-    reviewPos.x = window.innerWidth - reviewSize.w - 32
-    reviewPos.y = window.innerHeight - h - 32
+watch(reviewCollapsed, async (collapsed) => {
+  if (!collapsed) {
+    await nextTick()
+    if (reviewPanelEl.value) {
+      const h = reviewPanelEl.value.getBoundingClientRect().height
+      reviewPos.x = window.innerWidth - reviewSize.w - 32
+      reviewPos.y = window.innerHeight - h - 32
+    }
   }
-}
+})
 
 const REJECT_REASONS = [
-  '到货数量与计划不符',
-  '到货单信息有误',
-  '签收单缺失或不清晰',
-  '物料型号不符',
-  '收货人信息错误',
-  '到货日期填写有误',
+  '施工方案不完整',
+  '施工队资质证明材料缺失',
+  '安全施工方案未提交',
+  '现场负责人信息有误',
+  '工程资料不完整或不清晰',
+  '技术资料缺失',
+  '开工日期填写有误',
   '其他原因',
 ]
 const reviewRejectReasons = ref<string[]>([])
@@ -1211,120 +955,10 @@ function onReviewClickUpload() {
   input.click()
 }
 function submitReview(action: 'pass' | 'reject' | 'skip') {
-  const rec = sharedStockRecords.find(r => r.id === reviewingRecordId.value)
-  if (action === 'pass') {
-    if (rec) { rec.status = 'approved'; rec.reviewTime = nowTimeStr() }
-    message.success('已审核通过')
-  } else if (action === 'reject') {
-    if (rec) {
-      rec.status = 'rejected'
-      rec.reviewTime = nowTimeStr()
-      rec.rejectReasons = [...reviewRejectReasons.value]
-      rec.rejectComment = reviewComment.value.trim()
-    }
-    message.warning('已标记审核不通过')
-  } else {
-    message.info('暂不审核')
-  }
-  reviewingRecordId.value = null
-  // 审核完成后重新推算电站状态，同步到列表
-  if (action !== 'skip') syncFilingStatus()
-}
-
-// 根据当前所有到货单状态推算电站 filingStatus，并更新详情页本地状态和列表覆盖表
-function syncFilingStatus() {
-  const records = sharedStockRecords
-  let next: string
-
-  const anyFullRejected  = records.some(r => r.status === 'rejected' && r.arrivalType === '全部到货')
-  const anyRejected      = records.some(r => r.status === 'rejected')
-  const anyReviewing     = records.some(r => r.status === 'reviewing')
-
-  if (anyFullRejected) {
-    next = 'full_stock_rejected'
-  } else if (anyRejected) {
-    next = 'partial_stock_rejected'
-  } else if (anyReviewing) {
-    next = 'reviewing_stock'
-  } else {
-    // 全部 approved，看 BOM 覆盖率
-    const bom = detail.value.yigongBom
-    const allCovered = bom.every(b => {
-      const total = records.reduce((sum, r) => {
-        const item = r.items.find(i => i.code === b.code)
-        return sum + (item?.arrivedQty ?? 0)
-      }, 0)
-      return total >= b.quantity
-    })
-    next = allCovered ? 'full_stock' : 'partial_stock'
-  }
-
-  detail.value.filingStatus = next
-
-  // 写入列表覆盖表（用电站 id 作 key，来自 initRow）
-  const stationId = props.initRow?.id
-  if (stationId) stationStatusOverrides['b:' + stationId] = next
-}
-
-function nowTimeStr(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-// ── 到货统计 Drawer ──
-const showStockStatDrawer = ref(false)
-
-const stockStatRows = computed(() => {
-  return detail.value.yigongBom.map((b: any) => {
-    const arrived = sharedStockRecords.reduce((sum, rec) => {
-      const matched = rec.items.find(i => i.code === b.code)
-      return sum + (matched?.arrivedQty ?? 0)
-    }, 0)
-    return {
-      code:       b.code,
-      name:       b.name,
-      type:       b.type,
-      unit:       b.unit,
-      designQty:  b.quantity,
-      arrivedQty: arrived,
-      pendingQty: Math.max(0, b.quantity - arrived),
-    }
-  })
-})
-
-const stockStatColumns = [
-  { title: '序号',       key: 'index',      width: 56,  customRender: ({ index }: any) => index + 1 },
-  { title: '到货类型',   dataIndex: 'type', key: 'type',       width: 90  },
-  { title: '物料编号',   dataIndex: 'code', key: 'code',       width: 110 },
-  { title: '物料描述',   dataIndex: 'name', key: 'name' },
-  { title: '单位',       dataIndex: 'unit', key: 'unit',       width: 56  },
-  { title: '设计数量',   dataIndex: 'designQty',  key: 'designQty',  width: 90 },
-  {
-    title: '未到货数量', dataIndex: 'pendingQty', key: 'pendingQty', width: 100,
-    customRender: ({ record }: any) => h('span', { style: 'color:#ff4d4f;font-weight:500' }, record.pendingQty),
-  },
-  {
-    title: '到货数量', dataIndex: 'arrivedQty', key: 'arrivedQty', width: 90,
-    customRender: ({ record }: any) => {
-      const done = record.arrivedQty >= record.designQty
-      return h('span', { style: done ? 'color:#52c41a;font-weight:500' : '' }, record.arrivedQty)
-    },
-  },
-]
-
-const rejectDetailVisible = ref(false)
-const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
-function openRejectDetail(record: StockRecord) {
-  const noteArr: string[] = []
-  if (record.rejectReasons?.length) noteArr.push(record.rejectReasons.join('、'))
-  if (record.rejectComment) noteArr.push(record.rejectComment)
-  const note = noteArr.join('；')
-  rejectDetailEntry.value = {
-    items: note ? note.split('；').filter(Boolean) : [],
-    images: record.rejectImages ?? [],
-  }
-  rejectDetailVisible.value = true
+  if (action === 'pass')        message.success('已审核通过')
+  else if (action === 'reject') message.warning('已标记审核不通过')
+  else                          message.info('暂不审核')
+  reviewPanelVisible.value = false
 }
 </script>
 
@@ -1503,19 +1137,4 @@ function openRejectDetail(record: StockRecord) {
 .review-corner-handle--sw { bottom: 0; left: 0; cursor: nesw-resize; }
 .review-corner-handle--se { bottom: 0; right: 0; cursor: nwse-resize; }
 
-/* ── 到货卡片 ── */
-.payment-contract-card { border: 1px solid #e8e8e8; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-.payment-contract-header { padding: 12px 16px; background: #fafafa; border-bottom: 1px solid #e8e8e8; }
-.payment-contract-type { font-size: 14px; font-weight: 600; color: #262626; margin-bottom: 10px; }
-.payment-contract-meta-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 24px; }
-.payment-meta-item { display: flex; align-items: center; gap: 4px; font-size: 13px; }
-.payment-meta-label { color: #8c8c8c; }
-.payment-meta-value { color: #262626; }
-.payment-ratio-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.payment-ratio-table th { padding: 10px 12px; text-align: left; background: #f5f5f5; color: #595959; font-weight: 500; border-bottom: 1px solid #e8e8e8; }
-.payment-ratio-table td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-.payment-ratio-table tbody tr:last-child td { border-bottom: none; }
-
-.info-section-title :deep(.ant-btn) { height: 28px; }
-:deep(.stat-drawer-body .ant-table-tbody > tr > td) { padding-top: 13px !important; padding-bottom: 13px !important; }
 </style>

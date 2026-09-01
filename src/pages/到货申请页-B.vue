@@ -674,9 +674,9 @@
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                        <span v-if="detail.filingStatus === 'waiting_stock'" @click.stop>
+                        <span v-if="['waiting_stock', 'reviewing_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.filingStatus)" @click.stop>
                           <a-popconfirm title="确认作废该到货单？" ok-text="确认" cancel-text="取消" @confirm="sharedStockRecords.splice(sharedStockRecords.indexOf(record), 1)">
-                            <a-button type="link" size="small" danger>作废</a-button>
+                            <a-button size="small" danger>作废</a-button>
                           </a-popconfirm>
                         </span>
                         <a-button
@@ -1460,10 +1460,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [],
   },
   jiagongBom: [
@@ -1543,7 +1543,7 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建到货申请',        operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
   full_stock_rejected: [
-    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交', rejectReasons: ['到货数量与计划不符'], images: ['https://picsum.photos/seed/rej3/320/240', 'https://picsum.photos/seed/rej4/320/240'] },
+    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交', rejectReasons: ['到货数量与计划不符'], images: ['data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2I4YzhkOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YjhjOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+'] },
     { id: 2, type: 'submit', event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
     { id: 1, type: 'create', event: '创建到货申请',       operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],

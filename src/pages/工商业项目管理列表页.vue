@@ -111,7 +111,7 @@
           >编辑</a-button>
 
           <a-button
-            v-if="['start_rejected', 'complete_rejected', ...FILING_REJECTED_STATUSES].includes(row.filingStatus)"
+            v-if="['start_rejected', 'start_biz_rejected', 'start_tech_rejected', 'start_eng_rejected', 'start_all_rejected', 'start_all_rejected_3', 'complete_rejected', ...FILING_REJECTED_STATUSES].includes(row.filingStatus)"
             type="link"
             size="small"
             @click="handleEdit(row)"
@@ -125,7 +125,14 @@
           >编辑</a-button>
 
           <a-button
-            v-if="row.filingStatus"
+            v-if="row.filingStatus && ['pending_review', 'applying_start', 'reviewing_complete'].includes(row.filingStatus)"
+            type="link"
+            size="small"
+            @click="handleDetail(row)"
+          >详情（审核）</a-button>
+
+          <a-button
+            v-else-if="row.filingStatus"
             type="link"
             size="small"
             @click="handleDetail(row)"
@@ -255,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, h, computed, onMounted, nextTick, watch } from 'vue'
 import { sharedStockRecords, hasUserSubmittedRecords } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 
@@ -300,16 +307,16 @@ const MODAL_REGION_OPTIONS = [
 
 // ─── 节点卡片 ─────────────────────────────────────────────────────────────────
 
-const nodeCards = [
-  { label: '全部', nodeKey: null,         count: 58 },
-  { label: '建档', nodeKey: 'filing',     count: 19 },
-  { label: '开工', nodeKey: 'start',      count: 10 },
-  { label: '到货', nodeKey: 'stock',      count: 10 },
-  { label: '派工', nodeKey: 'dispatch',   count: 7  },
-  { label: '完工', nodeKey: 'complete',   count: 12 },
-  { label: '并网', nodeKey: 'grid',       count: 4  },
-  { label: '竣工', nodeKey: 'done',       count: 3  },
-]
+const nodeCards = computed(() => [
+  { label: '全部', nodeKey: null,       count: 64 },
+  { label: '建档', nodeKey: 'filing',   count: 19 },
+  { label: '开工', nodeKey: 'start',    count: 9  },
+  { label: '到货', nodeKey: 'stock',    count: 10 },
+  { label: '派工', nodeKey: 'dispatch', count: 7  },
+  { label: '完工', nodeKey: 'complete', count: 12 },
+  { label: '并网', nodeKey: 'grid',     count: 4  },
+  { label: '竣工', nodeKey: 'done',     count: 3  },
+])
 
 const NODE_STATUS_COLOR: Record<string, string> = {
   filing: 'blue', start: 'green', stock: 'orange',
@@ -322,6 +329,7 @@ const NODE_STATUS_LABEL: Record<string, string> = {
 const FILING_STATUS_BADGE: Record<string, 'processing' | 'error' | 'default' | 'success'> = {
   filing: 'processing', pending_review: 'processing', rejected: 'error',
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
+  start_biz_rejected: 'error', start_tech_rejected: 'error', start_eng_rejected: 'error', start_all_rejected: 'error', start_all_rejected_3: 'error',
   waiting_stock: 'default', reviewing_stock: 'processing', partial_stock: 'processing', full_stock: 'success',
   partial_stock_rejected: 'error', full_stock_rejected: 'error',
   waiting_dispatch: 'default', dispatching: 'processing', dispatched: 'success',
@@ -332,6 +340,7 @@ const FILING_STATUS_LABEL: Record<string, string> = {
   biz_rejected: '商务审核不通过', tech_rejected: '技术审核不通过',
   all_self_rejected: '全部自审不通过', all_rejected: '全部审核不通过',
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
+  start_biz_rejected: '商务审核不通过', start_tech_rejected: '技术审核不通过', start_eng_rejected: '工程审核不通过', start_all_rejected: '审核不通过', start_all_rejected_3: '审核不通过',
   waiting_stock: '待到货', reviewing_stock: '到货审核中', partial_stock: '部分已到货', full_stock: '全部已到货',
   partial_stock_rejected: '部分到货审核不通过', full_stock_rejected: '全部到货审核不通过',
   waiting_complete: '待完工', reviewing_complete: '完工审核中', complete_rejected: '完工审核不通过', completed: '已完工',
@@ -362,6 +371,7 @@ const FILING_STATUS_TAG_COLOR: Record<string, string> = {
   biz_rejected: 'error', tech_rejected: 'error',
   all_self_rejected: 'error', all_rejected: 'error',
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
+  start_biz_rejected: 'error', start_tech_rejected: 'error', start_eng_rejected: 'error', start_all_rejected: 'error', start_all_rejected_3: 'error',
   waiting_stock: 'default', reviewing_stock: 'processing', partial_stock: 'cyan', full_stock: 'success',
   partial_stock_rejected: 'error', full_stock_rejected: 'error',
   waiting_complete: 'default', reviewing_complete: 'processing', complete_rejected: 'error', completed: 'success',
@@ -375,12 +385,15 @@ function stockSimplifiedKey(filingStatus: string): 'waiting' | 'in_progress' | '
 }
 
 const stockTarget = computed(() => props.variant === 'B' ? 'stock-apply-b' : 'stock-apply')
+const startTarget = computed(() => 'start-apply')
 
 // ─── 状态 ─────────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const tableRef           = ref<any>()
 const activeNodeCard     = ref<string | null>(null)
+
+watch(stationStatusOverrides, () => { tableRef.value?.onSearch() }, { deep: true })
 const nodeMultiSelect    = ref(false)
 const policyModalVisible = ref(false)
 
@@ -530,7 +543,23 @@ const columns = [
 
 // ─── 筛选项（key 非 field；日期用 rangePicker 组件，参考 repurchase-preview） ──
 
-const filters = [
+const START_STATUS_OPTIONS_A = [
+  { label: '待开工',       value: 'waiting_start' },
+  { label: '开工审核中',   value: 'applying_start' },
+  { label: '开工审核不通过', value: 'start_rejected' },
+  { label: '已开工',       value: 'started' },
+]
+const START_STATUS_OPTIONS_B = [
+  { label: '待开工',         value: 'waiting_start' },
+  { label: '开工审核中',     value: 'applying_start' },
+  { label: '商务审核不通过', value: 'start_biz_rejected' },
+  { label: '技术审核不通过', value: 'start_tech_rejected' },
+  { label: '工程审核不通过', value: 'start_eng_rejected' },
+  { label: '审核不通过',     value: 'start_all_rejected' },
+  { label: '已开工',         value: 'started' },
+]
+
+const filters = computed(() => [
   { label: '项目名称',   key: 'projectName',    component: 'input',  placeholder: '请输入项目名称' },
   { label: '电站编号',   key: 'stationNo',      component: 'input',  placeholder: '请输入电站编号' },
   { label: '代理商名称', key: 'agentName',      component: 'input',  placeholder: '请输入代理商名称' },
@@ -566,10 +595,7 @@ const filters = [
       { label: '技术审核不通过', value: 'tech_rejected' },
       { label: '全部自审不通过', value: 'all_self_rejected' },
       { label: '全部审核不通过', value: 'all_rejected' },
-      { label: '待开工',         value: 'waiting_start' },
-      { label: '开工审核中',     value: 'applying_start' },
-      { label: '开工审核不通过', value: 'start_rejected' },
-      { label: '已开工',         value: 'started' },
+      ...START_STATUS_OPTIONS_A,
       { label: '待到货',             value: 'waiting_stock' },
       { label: '到货审核中',         value: 'reviewing_stock' },
       { label: '部分已到货',         value: 'partial_stock' },
@@ -579,10 +605,14 @@ const filters = [
       { label: '待派工',             value: 'waiting_dispatch' },
       { label: '派工中',             value: 'dispatching' },
       { label: '已派工',             value: 'dispatched' },
+      { label: '待完工',             value: 'waiting_complete' },
+      { label: '完工审核中',         value: 'reviewing_complete' },
+      { label: '完工审核不通过',     value: 'complete_rejected' },
+      { label: '已完工',             value: 'completed' },
     ],
   },
   { label: '创建时间', key: 'createdAtRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
-]
+])
 
 // ─── 请求配置 ─────────────────────────────────────────────────────────────────
 
@@ -628,7 +658,7 @@ const handleEdit = (row: any) => {
   if (row.nodeStatus === 'filing') {
     emit('navigate', 'filing-standard', { editId: row.id, initStatus: row.filingStatus })
   } else if (row.nodeStatus === 'start') {
-    emit('navigate', 'start-apply', { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
+    emit('navigate', startTarget.value, { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
   } else if (row.nodeStatus === 'stock') {
     emit('navigate', stockTarget.value, { editId: row.id, initStatus: row.filingStatus, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
   } else if (row.nodeStatus === 'complete') {
@@ -637,7 +667,7 @@ const handleEdit = (row: any) => {
 }
 
 const handleApplyStart = (row: any) => {
-  emit('navigate', 'start-apply', { stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
+  emit('navigate', startTarget.value, { stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, policyType: row.policyType })
 }
 
 const handleApplyStock = (row: any) => {
@@ -656,7 +686,7 @@ const handleDetail = (row: any) => {
   if (row.nodeStatus === 'filing') {
     emit('navigate', 'detail', { filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
   } else if (row.nodeStatus === 'start') {
-    emit('navigate', 'start-detail', { filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
+    emit('navigate', 'start-detail', { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
   } else if (row.nodeStatus === 'stock') {
     const detailTarget = props.variant === 'B' ? 'stock-detail-b' : 'stock-detail'
     emit('navigate', detailTarget, { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName })
@@ -704,14 +734,18 @@ const MOCK_LIST = [
   // ── 开工节点 × 10 ── 前4条每状态各一，其余随机
   { id: 's01', stationNo: 'LNC-2026-0016', projectName: '上海市嘉定区汽车配件厂屋顶光伏',   projectCompany: '上海新能源发展有限公司',       agentName: '上海晴天能源科技有限公司',     address: '上海市嘉定区嘉松北路2000号',         nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'standard',    createdAt: '2026-07-25 08:30' },
   { id: 's04', stationNo: 'LNC-2026-0017', projectName: '芜湖市鸠江区装备制造厂屋顶光伏',   projectCompany: '芜湖清洁能源有限公司',         agentName: '芜湖联合能源技术有限公司',     address: '安徽省芜湖市鸠江区机械工业园',       nodeStatus: 'start', filingStatus: 'applying_start', policyType: 'standard',    createdAt: '2026-07-24 09:00' },
-  { id: 's07', stationNo: 'LNC-2026-0018', projectName: '徐州市铜山区钢铁加工厂屋顶光伏',   projectCompany: '徐州光伏管理有限公司',         agentName: '徐州绿能科技有限公司',         address: '江苏省徐州市铜山区工业新区',         nodeStatus: 'start', filingStatus: 'start_rejected', policyType: 'standard',    createdAt: '2026-07-22 08:45' },
+  { id: 's07', stationNo: 'LNC-2026-0018', projectName: '徐州市铜山区钢铁加工厂屋顶光伏',   projectCompany: '徐州光伏管理有限公司',         agentName: '徐州绿能科技有限公司',         address: '江苏省徐州市铜山区工业新区',         nodeStatus: 'start', filingStatus: 'start_biz_rejected',  policyType: 'standard',    createdAt: '2026-07-22 08:45' },
   { id: 's09', stationNo: 'LNC-2026-0019', projectName: '泰州市姜堰区电气制造企业光伏',     projectCompany: '泰州清洁能源科技有限公司',     agentName: '泰州蓝天能源有限公司',         address: '江苏省泰州市姜堰区工业集中区',       nodeStatus: 'start', filingStatus: 'started',        policyType: 'standard',    createdAt: '2026-07-21 10:30' },
   { id: 's02', stationNo: 'LNC-2026-0020', projectName: '上海市奉贤区化工仓储屋顶光伏',     projectCompany: '上海奉贤光伏资产有限公司',     agentName: '上海绿电能源科技有限公司',     address: '上海市奉贤区庄行工业区',             nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-20 14:00' },
   { id: 's03', stationNo: 'LNC-2026-0021', projectName: '合肥市肥东县物流园区屋顶光伏',     projectCompany: '合肥光伏资产运营有限公司',     agentName: '合肥蓝天新能源有限公司',       address: '安徽省合肥市肥东县经济开发区',       nodeStatus: 'start', filingStatus: 'applying_start', policyType: 'standard',    createdAt: '2026-07-18 10:15' },
   { id: 's05', stationNo: 'LNC-2026-0022', projectName: '南通市如皋市造纸厂屋顶光伏',       projectCompany: '南通绿源光伏投资有限公司',     agentName: '南通阳光能源科技有限公司',     address: '江苏省南通市如皋市长江工业园',       nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-15 15:30' },
-  { id: 's06', stationNo: 'LNC-2026-0023', projectName: '盐城市大丰区纺织工厂屋顶光伏',     projectCompany: '盐城新能源发展有限公司',       agentName: '盐城晴天能源有限公司',         address: '江苏省盐城市大丰区经济开发区',       nodeStatus: 'start', filingStatus: 'start_rejected', policyType: 'standard',    createdAt: '2026-07-12 11:20' },
-  { id: 's08', stationNo: 'LNC-2026-0024', projectName: '连云港市赣榆区冷冻食品厂光伏',     projectCompany: '连云港绿源能源有限公司',       agentName: '连云港新日能源科技有限公司',   address: '江苏省连云港市赣榆区海州工业区',     nodeStatus: 'start', filingStatus: 'applying_start', policyType: 'nonstandard', createdAt: '2026-07-10 13:00' },
-  { id: 's10', stationNo: 'LNC-2026-0025', projectName: '淮安市清江浦区食品加工园光伏',     projectCompany: '淮安光伏资产运营有限公司',     agentName: '淮安阳光能源技术有限公司',     address: '江苏省淮安市清江浦区工业北区',       nodeStatus: 'start', filingStatus: 'started',        policyType: 'standard',    createdAt: '2026-07-08 09:15' },
+  { id: 's06', stationNo: 'LNC-2026-0023', projectName: '盐城市大丰区纺织工厂屋顶光伏',     projectCompany: '盐城新能源发展有限公司',       agentName: '盐城晴天能源有限公司',         address: '江苏省盐城市大丰区经济开发区',       nodeStatus: 'start', filingStatus: 'start_tech_rejected', policyType: 'standard',    createdAt: '2026-07-12 11:20' },
+  { id: 's10', stationNo: 'LNC-2026-0025', projectName: '扬州市江都区机械制造企业屋顶光伏', projectCompany: '扬州光伏资产有限公司',         agentName: '扬州新能源联合有限公司',       address: '江苏省扬州市江都区仙女工业区',       nodeStatus: 'start', filingStatus: 'start_all_rejected',  policyType: 'standard',    createdAt: '2026-07-08 09:30' },
+  { id: 's08', stationNo: 'LNC-2026-0024', projectName: '连云港市赣榆区冷冻食品厂光伏',     projectCompany: '连云港绿源能源有限公司',       agentName: '连云港新日能源科技有限公司',   address: '江苏省连云港市赣榆区海州工业区',     nodeStatus: 'start', filingStatus: 'applying_start',  policyType: 'nonstandard', createdAt: '2026-07-10 13:00' },
+  { id: 's11', stationNo: 'LNC-2026-0029', projectName: '淮安市清江浦区食品加工园光伏',     projectCompany: '淮安光伏资产运营有限公司',     agentName: '淮安阳光能源技术有限公司',     address: '江苏省淮安市清江浦区工业北区',       nodeStatus: 'start', filingStatus: 'start_rejected',  policyType: 'standard',    createdAt: '2026-07-08 09:15' },
+  { id: 's13', stationNo: 'LNC-2026-0031', projectName: '镇江市丹阳市眼镜配件厂屋顶光伏',   projectCompany: '镇江丹阳光伏资产有限公司',     agentName: '镇江新能源科技有限公司',       address: '江苏省镇江市丹阳市工业园区',         nodeStatus: 'start', filingStatus: 'start_eng_rejected',  policyType: 'standard',   createdAt: '2026-07-06 14:00' },
+  { id: 's14', stationNo: 'LNC-2026-0032', projectName: '泰州市海陵区机电设备厂屋顶光伏',   projectCompany: '泰州海陵光伏资产有限公司',     agentName: '泰州新能源发展有限公司',       address: '江苏省泰州市海陵区工业园区',         nodeStatus: 'start', filingStatus: 'start_all_rejected_3', policyType: 'standard',   createdAt: '2026-07-05 09:00' },
+  { id: 's12', stationNo: 'LNC-2026-0030', projectName: '宿迁市宿城区纺织服装工厂屋顶光伏', projectCompany: '宿迁清洁能源发展有限公司',     agentName: '宿迁晴天能源有限公司',         address: '江苏省宿迁市宿城区经济开发区',       nodeStatus: 'start', filingStatus: 'started',         policyType: 'standard',    createdAt: '2026-07-07 10:00' },
 
   // ── 到货节点 × 6 ── 每条对应一个子状态，按流程顺序排列
   { id: 'g01', stationNo: 'LNC-2026-0026', projectName: '苏州市吴中区精密仪器厂屋顶光伏',       projectCompany: '苏州精密光伏有限公司',         agentName: '苏州绿岛能源科技有限公司',     address: '江苏省苏州市吴中区东吴工业园',             nodeStatus: 'stock', filingStatus: 'waiting_stock',          policyType: 'standard',    createdAt: '2026-07-05 14:20' },
@@ -763,12 +797,16 @@ const MOCK_LIST = [
 async function getProjectList(params: any): Promise<{ list: any[]; total: number }> {
   // 接入时替换：return http.post('/api/lnc/project/list', params)
   await new Promise(r => setTimeout(r, 200))
-  // 应用详情页操作后的状态覆盖（B方案用 'b:' 前缀隔离，避免与A方案互串）
-  const overrideKey = (id: string) => props.variant === 'B' ? 'b:' + id : id
+  // B方案：到货覆盖用 'b:' 前缀（由到货申请页-B写入），开工覆盖无前缀（共用A方案开工详情页）
+  const overrideKey = (id: string) => {
+    if (props.variant !== 'B') return id
+    return stationStatusOverrides['b:' + id] !== undefined ? 'b:' + id : id
+  }
+  const OBSOLETE_B_STATUSES = ['start_biz_rejected', 'start_tech_rejected', 'start_eng_rejected', 'start_all_rejected', 'start_all_rejected_3']
   let list = MOCK_LIST.map(r => {
     const ov = stationStatusOverrides[overrideKey(r.id)]
     return ov ? { ...r, filingStatus: ov } : r
-  })
+  }).filter(r => !OBSOLETE_B_STATUSES.includes(r.filingStatus))
 
   if (params.nodeStatus?.length)   list = list.filter(r => params.nodeStatus.includes(r.nodeStatus))
   if (params.filingStatus) {

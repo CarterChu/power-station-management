@@ -490,15 +490,39 @@
           <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
         </div>
       </div>
+
+      <!-- 审核角色选择列表 -->
+      <div class="review-role-list">
+        <div
+          v-for="item in SUB_REVIEW_ITEMS"
+          :key="item.key"
+          class="review-role-row"
+          :class="{ active: activeReviewRole === item.key }"
+          @click="activeReviewRole = item.key"
+        >
+          <div class="review-role-row-left">
+            <a-radio :checked="activeReviewRole === item.key" style="pointer-events:none;margin:0" />
+            <span class="review-role-name">{{ item.label }}</span>
+          </div>
+          <a-tag
+            v-if="subReviewResults[item.key]"
+            :color="subReviewResults[item.key] === 'pass' ? 'success' : 'error'"
+            style="margin:0;flex-shrink:0"
+          >{{ subReviewResults[item.key] === 'pass' ? '审核通过' : '审核不通过' }}</a-tag>
+          <span v-else style="font-size:12px;color:#bfbfbf;flex-shrink:0">待审核</span>
+        </div>
+      </div>
+
       <div class="review-reject-reasons">
         <div class="review-reject-label">不通过原因</div>
         <a-select
-          v-model:value="reviewRejectReasons"
+          v-model:value="currentForm.reasons"
           mode="multiple"
           :options="REJECT_REASONS.map(r => ({ label: r, value: r }))"
           placeholder="请选择不通过原因（可多选）"
           style="width:100%"
           :max-tag-count="2"
+          :disabled="!!currentResult"
         />
       </div>
       <div
@@ -507,33 +531,43 @@
         :style="reviewSize.h > 0 ? { flex: '1', minHeight: '0', overflow: 'hidden' } : {}"
       >
         <a-textarea
-          v-model:value="reviewComment"
+          v-model:value="currentForm.comment"
           placeholder="请输入审核意见..."
           :auto-size="false"
           :bordered="false"
+          :disabled="!!currentResult"
           :style="{ flex: reviewSize.h > 0 ? '1' : 'none', resize: 'none', padding: '8px 12px', fontSize: '14px', height: reviewSize.h > 0 ? '100%' : '120px' }"
         />
       </div>
       <div
         class="review-drop-zone"
         :class="{ 'drag-over': reviewDragOver }"
-        @dragover.prevent="reviewDragOver = true"
+        @dragover.prevent="!currentResult && (reviewDragOver = true)"
         @dragleave="reviewDragOver = false"
-        @drop="onReviewDropZoneDrop"
+        @drop="!currentResult && onReviewDropZoneDrop($event)"
       >
-        <div v-if="reviewImageList.length === 0" class="review-drop-hint" @click="onReviewClickUpload">
-          点击此处粘贴或拖拽图片上传
-        </div>
+        <div v-if="currentForm.images.length === 0" class="review-drop-hint"
+          :style="currentResult ? 'cursor:default;color:#d9d9d9' : ''"
+          @click="!currentResult && onReviewClickUpload()"
+        >点击此处粘贴或拖拽图片上传</div>
         <div v-else class="review-image-list">
-          <div v-for="img in reviewImageList" :key="img.uid" class="review-image-item">
+          <div v-for="img in currentForm.images" :key="img.uid" class="review-image-item">
             <img :src="img.url" :alt="img.name" />
-            <span class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
+            <span v-if="!currentResult" class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
           </div>
         </div>
       </div>
       <div class="review-panel-footer">
-        <a-button style="height:32px" danger type="primary" @click="submitReview('reject')">审核不通过</a-button>
-        <a-button style="height:32px" type="primary" @click="submitReview('pass')">审核通过</a-button>
+        <a-tooltip :title="allDone ? '已完成开工审核' : (currentResult ? '该类型审核已完成' : '')">
+          <span style="display:inline-block">
+            <a-button style="height:32px" danger type="primary" :disabled="!!currentResult" @click="submitReview('reject')">审核不通过</a-button>
+          </span>
+        </a-tooltip>
+        <a-tooltip :title="allDone ? '已完成开工审核' : (currentResult ? '该类型审核已完成' : '')">
+          <span style="display:inline-block">
+            <a-button style="height:32px" type="primary" :disabled="!!currentResult" @click="submitReview('pass')">审核通过</a-button>
+          </span>
+        </a-tooltip>
       </div>
     </div>
 
@@ -545,6 +579,7 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
+import { stationStatusOverrides } from '../stores/stationStatus'
 import {
   LeftOutlined, DownOutlined, CopyOutlined,
   AuditOutlined, HolderOutlined,
@@ -596,9 +631,11 @@ onUnmounted(() => {
 
 const STATUS_COLOR: Record<string, string> = {
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
+  dispatched: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
+  dispatched: '已派工',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -729,10 +766,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [] as string[],
   },
   jiagongBom: [
@@ -845,10 +882,25 @@ const REJECT_REASONS = [
   '开工日期填写有误',
   '其他原因',
 ]
-const reviewRejectReasons = ref<string[]>([])
-const reviewComment       = ref('')
-const reviewImageList     = ref<{ uid: string; name: string; url: string }[]>([])
-const reviewDragOver      = ref(false)
+
+const SUB_REVIEW_ITEMS = [
+  { key: 'biz'  as const, label: '商务审核' },
+  { key: 'tech' as const, label: '技术审核' },
+  { key: 'eng'  as const, label: '工程审核' },
+]
+type ReviewRole = 'biz' | 'tech' | 'eng'
+const activeReviewRole  = ref<ReviewRole>('biz')
+const subReviewResults  = reactive<Record<ReviewRole, 'pass' | 'reject' | null>>({ biz: null, tech: null, eng: null })
+const reviewForms       = reactive<Record<ReviewRole, { reasons: string[]; comment: string; images: { uid: string; name: string; url: string }[] }>>({
+  biz:  { reasons: [], comment: '', images: [] },
+  tech: { reasons: [], comment: '', images: [] },
+  eng:  { reasons: [], comment: '', images: [] },
+})
+const currentForm   = computed(() => reviewForms[activeReviewRole.value])
+const currentResult = computed(() => subReviewResults[activeReviewRole.value])
+const allDone       = computed(() => subReviewResults.biz !== null && subReviewResults.tech !== null && subReviewResults.eng !== null)
+
+const reviewDragOver = ref(false)
 const reviewPanelEl  = ref<HTMLElement | null>(null)
 const reviewSize     = reactive({ w: 420, h: 0 })
 const reviewPos      = reactive({ x: 0, y: 0 })
@@ -906,12 +958,14 @@ function onReviewDropZoneDrop(e: DragEvent) {
   if (e.dataTransfer?.files) addReviewFiles(Array.from(e.dataTransfer.files))
 }
 function addReviewFiles(files: File[]) {
+  const form = reviewForms[activeReviewRole.value]
   files.filter(f => f.type.startsWith('image/')).forEach(f => {
-    reviewImageList.value.push({ uid: Date.now() + '-' + f.name, name: f.name, url: URL.createObjectURL(f) })
+    form.images.push({ uid: Date.now() + '-' + f.name, name: f.name, url: URL.createObjectURL(f) })
   })
 }
 function removeReviewImage(uid: string) {
-  reviewImageList.value = reviewImageList.value.filter(img => img.uid !== uid)
+  const form = reviewForms[activeReviewRole.value]
+  form.images = form.images.filter(img => img.uid !== uid)
 }
 function onReviewClickUpload() {
   const input = document.createElement('input')
@@ -920,10 +974,21 @@ function onReviewClickUpload() {
   input.click()
 }
 function submitReview(action: 'pass' | 'reject' | 'skip') {
-  if (action === 'pass')        message.success('已审核通过')
-  else if (action === 'reject') message.warning('已标记审核不通过')
-  else                          message.info('暂不审核')
-  reviewPanelVisible.value = false
+  if (action === 'skip') { message.info('暂不审核'); reviewPanelVisible.value = false; return }
+  const role  = activeReviewRole.value
+  const label = SUB_REVIEW_ITEMS.find(i => i.key === role)!.label
+  subReviewResults[role] = action === 'pass' ? 'pass' : 'reject'
+  if (allDone.value) {
+    const anyReject = Object.values(subReviewResults).some(v => v === 'reject')
+    const newStatus = anyReject ? 'start_rejected' : 'dispatched'
+    stationStatusOverrides[detail.value.id] = newStatus
+    message.success('已完成开工审核')
+    nextTick(() => emit('back'))
+  } else if (action === 'pass') {
+    message.success(`${label}审核通过`)
+  } else {
+    message.warning(`${label}审核不通过`)
+  }
 }
 </script>
 
@@ -1092,7 +1157,17 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .review-image-delete { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; line-height: 18px; text-align: center; cursor: pointer; display: none; }
 .review-image-item:hover .review-image-delete { display: block; }
 .review-panel-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 20px; }
-.review-reject-reasons { padding: 20px 20px 12px; }
+.review-role-list { display: flex; flex-direction: column; padding: 12px 20px 4px; gap: 2px; }
+.review-role-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px; border-radius: 6px; cursor: pointer;
+  transition: background .15s;
+}
+.review-role-row:hover { background: #f5f7ff; }
+.review-role-row.active { background: #f0f4ff; }
+.review-role-row-left { display: flex; align-items: center; gap: 8px; }
+.review-role-name { font-size: 14px; color: rgba(0,0,0,0.88); }
+.review-reject-reasons { padding: 16px 20px 12px; }
 .review-reject-label { font-size: 14px; color: rgba(0,0,0,0.65); margin-bottom: 6px; }
 .review-corner-handle {
   position: absolute; width: 16px; height: 16px; z-index: 20;

@@ -145,6 +145,8 @@
             <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
             <StartApply v-else-if="activeTabKey === 'start-apply'" :edit-id="editingId" :init-status="startApplyInitStatus" :init-data="startApplyInitData" @back="handleBackFromStartApply" />
             <StartDetail v-else-if="activeTabKey === 'start-detail'" :init-row="startDetailRow" @back="handleBackFromStartDetail" @edit="handleEditFromStartDetail" />
+            <StartApplyB v-else-if="activeTabKey === 'start-apply-b'" :edit-id="editingId" :init-status="startApplyBInitStatus" :init-data="startApplyBInitData" @back="handleBackFromStartApplyB" />
+            <StartDetailB v-else-if="activeTabKey === 'start-detail-b'" :init-row="startDetailBRow" @back="handleBackFromStartDetailB" @edit="handleEditFromStartDetailB" />
             <StockApply v-else-if="activeTabKey === 'stock-apply'" :edit-id="editingId" :init-status="stockApplyInitStatus" :init-data="stockApplyInitData" @back="handleBackFromStockApply" />
             <StockDetail v-else-if="activeTabKey === 'stock-detail'" :init-row="stockDetailRow" @back="handleBackFromStockDetail" @edit="handleEditFromStockDetail" />
             <CompleteApply v-else-if="activeTabKey === 'complete-apply'" :edit-id="editingId" :init-status="completeApplyInitStatus" :init-data="completeApplyInitData" :policy-type="completePolicyType" @back="handleBackFromCompleteApply" />
@@ -178,8 +180,10 @@ import LncProjectList from './pages/工商业项目管理列表页.vue'
 import FilingStandard from './pages/建档申请页-标准政策.vue'
 import FilingNonStandard from './pages/建档申请页-非标政策.vue'
 import FilingDetail from './pages/建档详情页.vue'
-import StartApply from './pages/开工申请页.vue'
+import StartApply  from './pages/开工申请页.vue'
 import StartDetail from './pages/开工详情页.vue'
+import StartApplyB  from './pages/开工申请页-B.vue'
+import StartDetailB from './pages/开工详情页-B.vue'
 import StockApply from './pages/到货申请页.vue'
 import StockDetail from './pages/到货详情页.vue'
 import CompleteApply from './pages/完工申请页.vue'
@@ -193,9 +197,9 @@ import DispatchDetail from './pages/派工详情页.vue'
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list', label: '电站列表', closable: false },
+  { key: 'list-b', label: '电站列表', closable: false },
 ])
-const activeTabKey = ref('list')
+const activeTabKey = ref('list-b')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -204,7 +208,11 @@ const filingInitData   = ref<any>(null)
 const filingInitStatus = ref<string | null>(null)
 const startApplyInitData   = ref<any>(null)
 const startApplyInitStatus = ref<string | null>(null)
-const startDetailRow   = ref<Record<string, any>>({})
+const startDetailRow       = ref<Record<string, any>>({})
+const previousListTab      = ref<string>('list')
+const startApplyBInitData   = ref<any>(null)
+const startApplyBInitStatus = ref<string | null>(null)
+const startDetailBRow       = ref<Record<string, any>>({})
 const stockApplyInitData   = ref<any>(null)
 const stockApplyInitStatus = ref<string | null>(null)
 const stockDetailRow       = ref<Record<string, any>>({})
@@ -339,7 +347,6 @@ const menuGroups = [
     items: [
       { key: 'biz-dashboard', label: '电站工作台' },
       { key: 'biz-list',      label: '电站列表' },
-      { key: 'biz-list-b',    label: '电站列表（方案B）' },
     ],
   },
   {
@@ -406,8 +413,7 @@ function getMenuGroupDomain(key: string): string {
 }
 
 const activeMenuKey = computed(() => {
-  if (['list', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value)) return 'biz-list'
-  if (['list-b', 'stock-apply-b', 'stock-detail-b'].includes(page.value)) return 'biz-list-b'
+  if (['list-b', 'list', 'start-apply', 'start-detail', 'stock-apply-b', 'stock-detail-b', 'detail', 'filing-standard', 'filing-non-standard'].includes(page.value)) return 'biz-list'
   return ''
 })
 
@@ -434,9 +440,8 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list') openTab('list', '电站列表', false)
-  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
-  else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
+  if (key === 'biz-list') openTab('list-b', '电站列表', false)
+  else if (key === 'biz-dashboard') openTab('list-b', '电站列表', false)
   const domain = getMenuGroupDomain(key)
   if (domain && !menuOpenKeys.value.includes(domain)) {
     menuOpenKeys.value = [domain]
@@ -472,13 +477,23 @@ const handleNavigate = (target: string, payload?: any) => {
       openTab('filing-non-standard', payload?.tabLabel ?? '非标政策建档')
     }
   } else if (target === 'start-apply') {
+    previousListTab.value = activeTabKey.value
     editingId.value = payload?.editId ?? null
     startApplyInitStatus.value = payload?.initStatus ?? null
     startApplyInitData.value = payload ?? null
     openTab('start-apply', payload?.editId ? '编辑开工申请' : '开工申请')
   } else if (target === 'start-detail') {
+    previousListTab.value = activeTabKey.value
     startDetailRow.value = payload ?? {}
     openTab('start-detail', '开工详情')
+  } else if (target === 'start-apply-b') {
+    editingId.value = payload?.editId ?? null
+    startApplyBInitStatus.value = payload?.initStatus ?? null
+    startApplyBInitData.value = payload ?? null
+    openTab('start-apply-b', payload?.editId ? '编辑开工申请（B）' : '开工申请（B）')
+  } else if (target === 'start-detail-b') {
+    startDetailBRow.value = payload ?? {}
+    openTab('start-detail-b', '开工详情（B）')
   } else if (target === 'stock-apply') {
     editingId.value = payload?.editId ?? null
     stockApplyInitStatus.value = payload?.initStatus ?? null
@@ -553,10 +568,12 @@ const handleBackFromDetail = () => {
 const handleBackFromStartApply = () => {
   editingId.value = null
   closeTab('start-apply')
+  if (activeTabKey.value !== 'start-detail') activeTabKey.value = previousListTab.value
 }
 
 const handleBackFromStartDetail = () => {
   closeTab('start-detail')
+  activeTabKey.value = previousListTab.value
 }
 
 const handleEditFromStartDetail = (id: string) => {
@@ -564,6 +581,22 @@ const handleEditFromStartDetail = (id: string) => {
   startApplyInitStatus.value = startDetailRow.value.filingStatus ?? null
   startApplyInitData.value = { ...startDetailRow.value }
   openTab('start-apply', '编辑开工申请')
+}
+
+const handleBackFromStartApplyB = () => {
+  editingId.value = null
+  closeTab('start-apply-b')
+}
+
+const handleBackFromStartDetailB = () => {
+  closeTab('start-detail-b')
+}
+
+const handleEditFromStartDetailB = (id: string) => {
+  editingId.value = id
+  startApplyBInitStatus.value = startDetailBRow.value.filingStatus ?? null
+  startApplyBInitData.value = { ...startDetailBRow.value }
+  openTab('start-apply-b', '编辑开工申请（B）')
 }
 
 const handleBackFromStockApply = () => {
