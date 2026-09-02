@@ -480,7 +480,7 @@
                   <div class="info-section" style="margin-top:0">
                     <div class="info-section-title">到货信息</div>
                     <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                    <div v-for="record in sortedStockRecords" :key="record.id" class="payment-contract-card">
                       <div
                         class="payment-contract-header"
                         style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -549,7 +549,7 @@
                       <CheckCircleFilled style="font-size:15px;flex-shrink:0" />
                       全部物料已到货，共 {{ sharedStockRecords.length }} 张到货单
                     </div>
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                    <div v-for="record in sortedStockRecords" :key="record.id" class="payment-contract-card">
                       <div
                         class="payment-contract-header"
                         style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -605,7 +605,7 @@
                     <a-button size="small" @click="dispatchStatOpen = true">派工统计</a-button>
                   </div>
                   <a-empty v-if="dispatchRecords.length === 0" description="暂无派工记录" style="padding:24px 0" />
-                  <div v-for="record in dispatchRecords" :key="record.id" class="payment-contract-card">
+                  <div v-for="record in sortedDispatchRecords" :key="record.id" class="payment-contract-card">
                     <div
                       class="payment-contract-header"
                       style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -616,8 +616,9 @@
                         <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                           {{ record.orderNo }}
                           <a-tag :color="record.orderType === 'return' ? 'warning' : 'processing'" style="margin:0">{{ record.orderType === 'return' ? '退料单' : '领料单' }}</a-tag>
-                          <a-tag v-if="detail.filingStatus === 'dispatched'" color="success" style="margin:0">已确认</a-tag>
+                          <a-tag v-if="record.status === 'confirmed'" color="success" style="margin:0">已确认</a-tag>
                           <a-tag v-else-if="record.status === 'reviewing'" color="orange" style="margin:0">确认中</a-tag>
+                          <a-tag v-else-if="record.status === 'push_failed'" color="error" style="margin:0">推送失败</a-tag>
                         </div>
                         <div class="payment-contract-meta-row" style="margin-top:8px">
                           <span class="payment-meta-item"><span class="payment-meta-label">仓库</span><span class="payment-meta-value">{{ record.warehouse }}</span></span>
@@ -629,6 +630,12 @@
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <a-button
+                          v-if="record.status === 'push_failed'"
+                          size="small"
+                          type="primary"
+                          @click.stop="handleRepush(record)"
+                        >重新推送</a-button>
                         <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedDispatchCards.has(record.id) }" />
                       </div>
                     </div>
@@ -835,7 +842,7 @@ const DISPATCH_MATERIAL_GROUPS = [
 
 const MOCK_DISPATCH_RECORDS = [
   {
-    id: 'dp001', orderNo: 'ML-2026-0001', orderType: 'material', status: 'reviewing',
+    id: 'dp001', orderNo: 'ML-2026-0001', orderType: 'material', status: 'confirmed',
     warehouse: '浙江省区域仓库', voucherNo: 'SC-2026-00123', remark: '首批领料，含支架、组件及逆变器',
     creator: '张三（代理商）', createTime: '2026-07-14 10:30',
     items: [
@@ -854,10 +861,32 @@ const MOCK_DISPATCH_RECORDS = [
       { group: '组件', code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', qty: 5 },
     ],
   },
+  {
+    id: 'dp003', orderNo: 'ML-2026-0002', orderType: 'material', status: 'push_failed',
+    warehouse: '浙江省区域仓库', remark: '第二批领料',
+    creator: '张三（代理商）', createTime: '2026-08-01 09:15',
+    items: [
+      { group: '支架', code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 60 },
+      { group: '组件', code: 'PV-001', name: '单晶硅光伏组件 550Wp', unit: '块', qty: 40 },
+    ],
+  },
 ]
 const dispatchRecords = reactive(
   (props.initRow?.filingStatus ?? 'dispatching') === 'waiting_dispatch'
     ? [] : [...MOCK_DISPATCH_RECORDS]
+)
+
+function handleRepush(record: any) {
+  record.status = 'reviewing'
+  message.success('已推送至供应链系统')
+}
+
+const sortedDispatchRecords = computed(() =>
+  [...dispatchRecords].filter((r: any) => r.status !== 'push_failed').sort((a: any, b: any) => b.createTime.localeCompare(a.createTime))
+)
+
+const sortedStockRecords = computed(() =>
+  [...sharedStockRecords].sort((a, b) => b.createTime.localeCompare(a.createTime))
 )
 
 const dispatchStatRows = computed(() => {
@@ -867,7 +896,7 @@ const dispatchStatRows = computed(() => {
       map[item.code] = { group: g.group, code: item.code, name: item.name, unit: item.unit, designQty: item.designQty, dispatchedQty: 0, returnedQty: 0, actualQty: 0 }
     })
   })
-  dispatchRecords.forEach((rec: any) => {
+  dispatchRecords.filter((rec: any) => rec.status !== 'reviewing').forEach((rec: any) => {
     rec.items.forEach((item: any) => {
       if (map[item.code]) {
         if (rec.orderType === 'material') map[item.code].dispatchedQty += item.qty

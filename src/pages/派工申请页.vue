@@ -672,7 +672,7 @@
                     <a-button type="primary" size="small" @click="showMaterialDrawer = true">新增领料</a-button>
                   </div>
                   <a-empty v-if="dispatchRecords.length === 0" description="暂无派工记录" style="padding:24px 0" />
-                  <div v-for="record in dispatchRecords" :key="record.id" class="payment-contract-card">
+                  <div v-for="record in sortedDispatchRecords" :key="record.id" class="payment-contract-card">
                     <div
                       class="payment-contract-header"
                       style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -684,6 +684,8 @@
                           {{ record.orderNo }}
                           <a-tag :color="record.orderType === 'return' ? 'warning' : 'processing'" style="margin:0">{{ record.orderType === 'return' ? '退料单' : '领料单' }}</a-tag>
                           <a-tag v-if="record.status === 'reviewing'" color="orange" style="margin:0">确认中</a-tag>
+                          <a-tag v-else-if="record.status === 'confirmed'" color="success" style="margin:0">已确认</a-tag>
+                          <a-tag v-else-if="record.status === 'push_failed'" color="error" style="margin:0">推送失败</a-tag>
                         </div>
                         <div class="payment-contract-meta-row" style="margin-top:8px">
                           <span class="payment-meta-item"><span class="payment-meta-label">仓库</span><span class="payment-meta-value">{{ record.warehouse }}</span></span>
@@ -694,6 +696,12 @@
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <a-button
+                          v-if="record.status === 'push_failed'"
+                          size="small"
+                          type="primary"
+                          @click.stop="handleRepush(record)"
+                        >重新推送</a-button>
                         <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedDispatchCards.has(record.id) }" />
                       </div>
                     </div>
@@ -1234,19 +1242,28 @@ function handleSubmitMaterial() {
   })
 }
 
+function handleRepush(record: any) {
+  record.status = 'reviewing'
+  message.success('已推送至供应链系统')
+}
+
+const sortedDispatchRecords = computed(() =>
+  [...dispatchRecords].sort((a, b) => b.createTime.localeCompare(a.createTime))
+)
+
 // ── 派工统计 Drawer ──
 const dispatchStatRows = computed(() => {
   const rows: any[] = []
   DISPATCH_MATERIAL_GROUPS.forEach(({ group, items }) => {
     items.forEach(item => {
       const dispatched = dispatchRecords
-        .filter(r => r.orderType === 'material')
+        .filter(r => r.orderType === 'material' && r.status !== 'reviewing')
         .reduce((sum: number, r: any) => {
           const found = r.items?.find((i: any) => i.code === item.code)
           return sum + (found?.qty ?? 0)
         }, 0)
       const returned = dispatchRecords
-        .filter(r => r.orderType === 'return')
+        .filter(r => r.orderType === 'return' && r.status !== 'reviewing')
         .reduce((sum: number, r: any) => {
           const found = r.items?.find((i: any) => i.code === item.code)
           return sum + (found?.qty ?? 0)
@@ -1349,7 +1366,8 @@ const MOCK_DISPATCH_RECORDS = [
     id: 'dp001',
     orderNo: 'ML-2026-0001',
     orderType: 'material',
-    status: 'reviewing',
+    status: 'confirmed',
+    voucherNo: 'SC-2026-ML-0001',
     warehouse: '浙江省区域仓库',
     remark: '首批领料，含支架、组件及逆变器',
     creator: '张三（代理商）',
@@ -1374,6 +1392,20 @@ const MOCK_DISPATCH_RECORDS = [
     items: [
       { group: '支架',   code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 10 },
       { group: '组件',   code: 'PV-001', name: '单晶硅光伏组件 550Wp',   unit: '块', qty: 5  },
+    ],
+  },
+  {
+    id: 'dp003',
+    orderNo: 'ML-2026-0002',
+    orderType: 'material',
+    status: 'push_failed',
+    warehouse: '浙江省区域仓库',
+    remark: '第二批领料',
+    creator: '张三（代理商）',
+    createTime: '2026-08-01 09:15',
+    items: [
+      { group: '支架',   code: 'SU-001', name: '铝合金支架主梁 6063-T5', unit: '根', qty: 60  },
+      { group: '组件',   code: 'PV-001', name: '单晶硅光伏组件 550Wp',   unit: '块', qty: 40  },
     ],
   },
 ]

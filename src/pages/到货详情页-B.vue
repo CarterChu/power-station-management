@@ -484,11 +484,13 @@
                   <div class="info-section" style="margin-top:0">
                     <div class="info-section-title">
                       到货信息
+                      <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
+                      <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                       <span style="flex:1"></span>
                       <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     </div>
                     <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                    <div v-for="record in sortedStockRecords" :key="record.id" class="payment-contract-card">
                       <div
                         class="payment-contract-header"
                         style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -498,7 +500,6 @@
                         <div>
                           <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                             {{ record.orderNo }}
-                            <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                             <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
                             <span
                               v-if="record.status === 'rejected'"
@@ -548,6 +549,8 @@
                   <div class="info-section" style="margin-top:0">
                     <div class="info-section-title">
                       到货信息
+                      <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
+                      <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                       <span style="flex:1"></span>
                       <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     </div>
@@ -555,7 +558,7 @@
                       <CheckCircleFilled style="font-size:15px;flex-shrink:0" />
                       全部物料已到货，共 {{ sharedStockRecords.length }} 张到货单
                     </div>
-                    <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                    <div v-for="record in sortedStockRecords" :key="record.id" class="payment-contract-card">
                       <div
                         class="payment-contract-header"
                         style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -565,7 +568,6 @@
                         <div>
                           <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                             {{ record.orderNo }}
-                            <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                             <a-tag color="success" style="margin:0">审核通过</a-tag>
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
@@ -1272,12 +1274,31 @@ function nowTimeStr(): string {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
+const sortedStockRecords = computed(() =>
+  [...sharedStockRecords].sort((a, b) => b.createTime.localeCompare(a.createTime))
+)
+
+const approvedArrivalTag = computed(() => {
+  const approvedRecs = sharedStockRecords.filter(r => r.status === 'approved')
+  if (approvedRecs.length === 0) return null
+  const bom = detail.value.yigongBom
+  if (bom.length === 0) return null
+  const allCovered = bom.every(b => {
+    const total = approvedRecs.reduce((sum, r) => {
+      const item = r.items.find(i => i.code === b.code)
+      return sum + (item?.arrivedQty ?? 0)
+    }, 0)
+    return total >= b.quantity
+  })
+  return allCovered ? '全部到货' : '部分到货'
+})
+
 // ── 到货统计 Drawer ──
 const showStockStatDrawer = ref(false)
 
 const stockStatRows = computed(() => {
   return detail.value.yigongBom.map((b: any) => {
-    const arrived = sharedStockRecords.reduce((sum, rec) => {
+    const arrived = sharedStockRecords.filter(rec => rec.status === 'approved').reduce((sum, rec) => {
       const matched = rec.items.find(i => i.code === b.code)
       return sum + (matched?.arrivedQty ?? 0)
     }, 0)

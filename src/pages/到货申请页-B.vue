@@ -613,6 +613,8 @@
                 <div class="info-section" style="margin-top:0">
                   <div class="info-section-title">
                     到货信息
+                    <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
+                    <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                     <span style="flex:1"></span>
                     <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     <a-tooltip v-if="canEdit" :title="disableNewStock ? '已提交全部到货，不可再次新增' : ''">
@@ -620,7 +622,7 @@
                     </a-tooltip>
                   </div>
                   <a-empty v-if="sharedStockRecords.length === 0" description="暂无到货记录" style="padding:24px 0" />
-                  <div v-for="record in sharedStockRecords" :key="record.id" class="payment-contract-card">
+                  <div v-for="record in sortedStockRecords" :key="record.id" class="payment-contract-card">
                     <div
                       class="payment-contract-header"
                       style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer"
@@ -630,7 +632,6 @@
                       <div>
                         <div class="payment-contract-type" style="display:flex;align-items:center;gap:8px">
                           {{ record.orderNo }}
-                          <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                           <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
                           <span
                             v-if="record.status === 'rejected'"
@@ -674,8 +675,8 @@
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                        <span v-if="['waiting_stock', 'reviewing_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.filingStatus)" @click.stop>
-                          <a-popconfirm title="确认作废该到货单？" ok-text="确认" cancel-text="取消" @confirm="sharedStockRecords.splice(sharedStockRecords.indexOf(record), 1)">
+                        <span v-if="['waiting_stock', 'reviewing_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.filingStatus) && record.status !== 'voided'" @click.stop>
+                          <a-popconfirm title="确认作废该到货单？" ok-text="确认" cancel-text="取消" @confirm="record.status = 'voided'">
                             <a-button size="small" danger>作废</a-button>
                           </a-popconfirm>
                         </span>
@@ -753,8 +754,6 @@
       <span style="display:flex;align-items:center;gap:8px">
         {{ editingStockRecord ? '修改到货' : '新增到货' }}
         <span v-if="editingStockRecord" style="font-size:13px;color:#8c8c8c">{{ editingStockRecord.orderNo }}</span>
-        <a-tag v-if="computedArrivalType === '全部到货'" color="success" style="margin:0">全部到货</a-tag>
-        <a-tag v-else-if="computedArrivalType === '部分到货'" color="processing" style="margin:0">部分到货</a-tag>
       </span>
     </template>
     <a-form ref="stockNewFormRef" :model="stockNewForm" :colon="false" layout="vertical">
@@ -952,7 +951,7 @@ const showStockStatDrawer = ref(false)
 
 const stockStatRows = computed(() => {
   return detail.value.yigongBom.map(b => {
-    const arrived = sharedStockRecords.reduce((sum, rec) => {
+    const arrived = sharedStockRecords.filter(rec => rec.status === 'approved').reduce((sum, rec) => {
       const matched = rec.items.find(i => i.code === b.code)
       return sum + (matched?.arrivedQty ?? 0)
     }, 0)
@@ -1144,11 +1143,13 @@ const STOCK_STATUS_LABEL: Record<string, string> = {
   reviewing: '审核中',
   approved:  '审核通过',
   rejected:  '审核不通过',
+  voided:    '已作废',
 }
 const STOCK_STATUS_COLOR: Record<string, string> = {
   reviewing: 'processing',
   approved:  'success',
   rejected:  'error',
+  voided:    'default',
 }
 
 async function handleSubmitStock() {
@@ -1618,12 +1619,30 @@ const groupedLogs = computed(() => {
 
 // ─── 权限 ────────────────────────────────────────────────────────────────────
 
+const sortedStockRecords = computed(() =>
+  [...sharedStockRecords].sort((a, b) => b.createTime.localeCompare(a.createTime))
+)
+
 const canEdit = computed(() =>
   ['waiting_stock', 'reviewing_stock', 'partial_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
 )
+const approvedArrivalTag = computed(() => {
+  const approvedRecs = sharedStockRecords.filter(r => r.status === 'approved')
+  if (approvedRecs.length === 0) return null
+  const bom = detail.value.yigongBom
+  if (bom.length === 0) return null
+  const allCovered = bom.every(b => {
+    const total = approvedRecs.reduce((sum, r) => {
+      const item = r.items.find(i => i.code === b.code)
+      return sum + (item?.arrivedQty ?? 0)
+    }, 0)
+    return total >= b.quantity
+  })
+  return allCovered ? '全部到货' : '部分到货'
+})
 const allFullyArrived = computed(() =>
   detail.value.yigongBom.length > 0 && detail.value.yigongBom.every(b => {
-    const total = sharedStockRecords.reduce((sum, rec) => {
+    const total = sharedStockRecords.filter(r => r.status !== 'voided').reduce((sum, rec) => {
       const m = rec.items.find(i => i.code === b.code)
       return sum + (m?.arrivedQty ?? 0)
     }, 0)
@@ -1633,7 +1652,7 @@ const allFullyArrived = computed(() =>
 const hasSubmittedFullArrival = computed(() => {
   const isRejected = ['partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
   if (isRejected) return false
-  return sharedStockRecords.some(r => r.arrivalType === '全部到货' && r.status !== null)
+  return sharedStockRecords.some(r => r.arrivalType === '全部到货' && r.status !== null && r.status !== 'voided')
 })
 const disableNewStock = computed(() => allFullyArrived.value || hasSubmittedFullArrival.value)
 const canVoid = computed(() =>

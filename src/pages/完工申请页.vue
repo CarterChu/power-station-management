@@ -605,7 +605,13 @@
                 <div class="info-section-title">工程图片</div>
                 <a-row :gutter="[24, 0]">
                   <a-col v-for="n in 16" :key="n" :span="12">
-                    <a-form-item :label="`配置照片${n}`">
+                    <a-form-item>
+                      <template #label>
+                        <span style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" @click.stop="openReqDrawer('photo', n)">
+                          {{ `配置照片${n}` }}
+                          <span class="req-link">要求<RightOutlined style="font-size:10px;margin-left:1px" /></span>
+                        </span>
+                      </template>
                       <a-upload
                         v-model:file-list="completeForm.photos[`photo${n}`]"
                         list-type="picture-card"
@@ -627,7 +633,13 @@
                 <div class="info-section-title">表单资料</div>
                 <a-row :gutter="[24, 16]">
                   <a-col v-for="n in 5" :key="n" :span="12">
-                    <a-form-item :label="`配置附件${n}`">
+                    <a-form-item>
+                      <template #label>
+                        <span style="display:inline-flex;align-items:center;gap:6px;cursor:pointer" @click.stop="openReqDrawer('attach', n)">
+                          {{ `配置附件${n}` }}
+                          <span class="req-link">要求<RightOutlined style="font-size:10px;margin-left:1px" /></span>
+                        </span>
+                      </template>
                       <FileUploadField v-model:file-list="completeForm.attachments[`attach${n}`]" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
                         <a-button><template #icon><UploadOutlined /></template>点击上传</a-button>
                       </FileUploadField>
@@ -644,6 +656,77 @@
 
     </div>
   </div>
+
+  <!-- 拍摄 & 审核要求 Drawer（统一列表，点击自动定位） -->
+  <a-drawer
+    v-model:open="reqDrawerOpen"
+    :title="reqDrawerType === 'photo' ? '工程图片拍摄审核要求' : '表单资料提交审核要求'"
+    :width="500"
+    :destroy-on-close="false"
+  >
+    <div ref="reqDrawerBodyRef" class="req-drawer-body">
+      <!-- 工程图片：16 条 -->
+      <template v-if="reqDrawerType === 'photo'">
+        <div
+          v-for="n in 16"
+          :key="n"
+          :id="`req-photo-${n}`"
+          class="req-item"
+          :class="{ 'req-item--active': reqDrawerTarget === n }"
+        >
+          <div class="req-item-header">配置照片{{ n }}</div>
+          <div class="req-col">
+            <div class="req-col-label">拍摄要求</div>
+            <ul class="req-list">
+              <li v-for="(tip, i) in PHOTO_REQUIREMENTS[n].shootTips" :key="i">{{ tip }}</li>
+            </ul>
+          </div>
+          <div class="req-col" style="margin-top:20px">
+            <div class="req-col-label">审核要点</div>
+            <ul class="req-list">
+              <li v-for="(tip, i) in PHOTO_REQUIREMENTS[n].reviewTips" :key="i">{{ tip }}</li>
+            </ul>
+          </div>
+          <div v-if="PHOTO_REQUIREMENTS[n].images?.length" class="req-col" style="margin-top:20px">
+            <div class="req-col-label">示例图</div>
+            <div class="req-img-grid">
+              <a-image v-for="(src, i) in PHOTO_REQUIREMENTS[n].images" :key="i" :src="src" :width="152" :height="114" style="object-fit:cover" />
+            </div>
+          </div>
+        </div>
+      </template>
+      <!-- 表单资料：5 条 -->
+      <template v-else>
+        <div
+          v-for="n in 5"
+          :key="n"
+          :id="`req-attach-${n}`"
+          class="req-item"
+          :class="{ 'req-item--active': reqDrawerTarget === n }"
+        >
+          <div class="req-item-header">配置附件{{ n }}</div>
+          <div class="req-col">
+            <div class="req-col-label">提交要求</div>
+            <ul class="req-list">
+              <li v-for="(tip, i) in ATTACH_REQUIREMENTS[n].shootTips" :key="i">{{ tip }}</li>
+            </ul>
+          </div>
+          <div class="req-col" style="margin-top:20px">
+            <div class="req-col-label">审核要点</div>
+            <ul class="req-list">
+              <li v-for="(tip, i) in ATTACH_REQUIREMENTS[n].reviewTips" :key="i">{{ tip }}</li>
+            </ul>
+          </div>
+          <div v-if="ATTACH_REQUIREMENTS[n].images?.length" class="req-col" style="margin-top:20px">
+            <div class="req-col-label">示例图</div>
+            <div class="req-img-grid">
+              <a-image v-for="(src, i) in ATTACH_REQUIREMENTS[n].images" :key="i" :src="src" :width="152" :height="114" style="object-fit:cover" />
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </a-drawer>
 
   <!-- 佐证弹窗 -->
   <AttestationModal
@@ -664,7 +747,7 @@ import FileUploadField from '../components/FileUploadField.vue'
 import RejectCard from '../components/RejectCard.vue'
 import { sharedStockRecords } from '../stores/stockRecords'
 import {
-  LeftOutlined, CopyOutlined,
+  LeftOutlined, CopyOutlined, RightOutlined,
   CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
   DownOutlined, UploadOutlined, PlusOutlined, QuestionCircleOutlined, CheckCircleFilled,
 } from '@ant-design/icons-vue'
@@ -674,6 +757,56 @@ const emit = defineEmits<{ back: [] }>()
 
 const projectInfoOpen = ref(false)
 const activeTab = ref('complete')
+
+// ── 拍摄 & 审核要求 Drawer ──
+const reqDrawerOpen    = ref(false)
+const reqDrawerType    = ref<'photo' | 'attach'>('photo')
+const reqDrawerTarget  = ref(1)
+const reqDrawerBodyRef = ref<HTMLElement | null>(null)
+
+const IMG_OK     = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2U2ZjRlYSIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgyIiBmb250LXNpemU9IjEzIiBmaWxsPSIjMzg5ZTBkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+5q2j56Gu56S65L6LPC90ZXh0Pjwvc3ZnPg=='
+const IMG_ANGLE  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2U2ZjBmZiIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgyIiBmb250LXNpemU9IjEzIiBmaWxsPSIjMTY3N2ZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+5ouN5pGE6KeS5bqm56S65L6LPC90ZXh0Pjwvc3ZnPg=='
+const IMG_BAD    = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2ZmZjFmMCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgyIiBmb250LXNpemU9IjEzIiBmaWxsPSIjY2YxMzIyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+5LiN5ZCI5qC856S65L6LPC90ZXh0Pjwvc3ZnPg=='
+const IMG_SAMPLE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2Y1ZjVmNSIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgyIiBmb250LXNpemU9IjEzIiBmaWxsPSIjOGM4YzhjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiI+56S65L6L5Zu+PC90ZXh0Pjwvc3ZnPg=='
+
+const PHOTO_REQUIREMENTS: Record<number, { shootTips: string[]; reviewTips: string[]; images?: string[] }> = {
+  1:  { shootTips: ['站在屋顶最高处或借助无人机拍摄', '确保组件全部入镜，不遮挡', '光线充足，避免逆光'], reviewTips: ['组件排列整齐，无明显倾斜', '所有组件均已到位，无缺失'], images: [IMG_ANGLE, IMG_OK, IMG_BAD] },
+  2:  { shootTips: ['距铭牌 30–50cm 拍摄', '保持对焦清晰，文字可读'], reviewTips: ['型号与申报一致', '序列号清晰可见'], images: [IMG_OK, IMG_BAD] },
+  3:  { shootTips: ['正对逆变器拍摄，避免侧角', '显示屏显示运行状态'], reviewTips: ['品牌型号与申报一致', '运行状态正常'], images: [IMG_ANGLE, IMG_OK] },
+  4:  { shootTips: ['拍摄接线端子区域', '确保线缆标签清晰可见'], reviewTips: ['接线规范，无裸露线头', '线缆标识正确'] },
+  5:  { shootTips: ['正面拍摄，箱门打开', '确保电表读数可见'], reviewTips: ['计量箱型号与申报一致', '开关状态正常'], images: [IMG_OK, IMG_BAD] },
+  6:  { shootTips: ['拍摄支架根部与屋面接触处', '光线充足，细节清晰'], reviewTips: ['防水处理到位，无积水风险', '支架安装牢固'] },
+  7:  { shootTips: ['打开箱盖拍摄内部接线', '包含铭牌信息'], reviewTips: ['接线整齐，标签清晰', '铭牌信息与方案一致'], images: [IMG_SAMPLE] },
+  8:  { shootTips: ['柜门打开，正面拍摄', '清晰展示各断路器标识'], reviewTips: ['保护装置齐全', '断路器参数与设计一致'] },
+  9:  { shootTips: ['正面拍摄，指示灯清晰可见', '包含设备铭牌'], reviewTips: ['设备在线，指示灯正常', '型号与申报一致'], images: [IMG_OK] },
+  10: { shootTips: ['沿走线方向拍摄，展示整体路径', '线缆绑扎处也需拍摄'], reviewTips: ['走线整洁，绑扎规范', '线缆无磨损'] },
+  11: { shootTips: ['拍摄接地线与设备及接地极连接处', '标识清晰'], reviewTips: ['接地连接可靠，无松动', '接地阻值符合规范'], images: [IMG_ANGLE, IMG_OK] },
+  12: { shootTips: ['站在合适角度展示整体效果', '清洁度和施工规范体现明显'], reviewTips: ['现场整洁，无遗留施工垃圾', '设备布置符合方案'], images: [IMG_OK, IMG_BAD] },
+  13: { shootTips: ['抽取代表性组件拍摄背面', '接线盒区域对焦清晰'], reviewTips: ['接线盒无破损', '线缆出线规范'] },
+  14: { shootTips: ['拍摄引下线与组件边框及接地网连接点', '包含夹具细节'], reviewTips: ['连接牢固，无遗漏连接点', '夹具型号符合要求'], images: [IMG_SAMPLE] },
+  15: { shootTips: ['靠近拍摄，电表读数清晰', '包含互感器'], reviewTips: ['电表型号与并网申请一致', '计量接线正确'] },
+  16: { shootTips: ['正面拍摄，文字完整清晰', '周边环境也入镜'], reviewTips: ['铭牌信息完整', '安装位置醒目'] },
+}
+
+const ATTACH_REQUIREMENTS: Record<number, { shootTips: string[]; reviewTips: string[]; images?: string[] }> = {
+  1: { shootTips: ['PDF 格式，清晰度不低于 150dpi', '需加盖设计单位章'], reviewTips: ['图纸版本与实际施工一致', '设计章、签字齐全'], images: [IMG_SAMPLE] },
+  2: { shootTips: ['扫描版 PDF，完整页面，无裁剪', '需含各方签字页'], reviewTips: ['验收结论明确', '参与方签字完整'] },
+  3: { shootTips: ['原件扫描，清晰完整', '公章清晰可辨'], reviewTips: ['意见书结论为"同意并网"', '印章与电网公司一致'], images: [IMG_OK] },
+  4: { shootTips: ['按表格原格式提交，不合并页面', '签字栏完整填写'], reviewTips: ['隐蔽工程记录齐全', '检验项目无遗漏'] },
+  5: { shootTips: ['PDF 或常见文档格式均可', '文件命名清晰'], reviewTips: ['材料与实际情况一致', '无明显涂改'] },
+}
+
+function openReqDrawer(type: 'photo' | 'attach', n: number) {
+  reqDrawerType.value   = type
+  reqDrawerTarget.value = n
+  reqDrawerOpen.value   = true
+  nextTick(() => {
+    setTimeout(() => {
+      document.getElementById(`req-${type}-${n}`)?.scrollIntoView({ behavior: 'instant', block: 'start' })
+      setTimeout(() => { reqDrawerTarget.value = 0 }, 800)
+    }, 250)
+  })
+}
 
 // ── 完工 tab 表单 ──
 const completeRef = ref()
@@ -1352,4 +1485,35 @@ const rejectInfo = computed(() => ({
 
 .copy-icon { margin-left: 5px; font-size: 12px; color: rgba(0,0,0,0.35); cursor: pointer; vertical-align: middle; position: relative; top: -0.5px; }
 .copy-icon:hover { color: #1677ff; }
+
+.req-link {
+  font-size: 12px; color: #8c8c8c; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 1px;
+  white-space: nowrap;
+}
+.req-link:hover { color: #595959; }
+
+.req-drawer-body { display: flex; flex-direction: column; gap: 0; }
+:deep(.ant-form-item-label > label:has(.req-link)) { cursor: pointer; }
+
+.req-item {
+  padding: 24px 0;
+  border-bottom: 1px solid #f0f0f0;
+  scroll-margin-top: 8px;
+  transition: background .2s;
+}
+.req-item:last-child { border-bottom: none; }
+.req-item { transition: background 0.6s ease, padding 0.6s ease, margin 0.6s ease; }
+.req-item--active { background: #f5f9ff; border-radius: 6px; padding: 24px 12px; margin: 0 -12px; }
+
+.req-item-header {
+  font-size: 15px; font-weight: 600; color: #262626; margin-bottom: 12px;
+}
+
+.req-col-label { font-size: 14px; font-weight: 400; color: #8c8c8c; margin-bottom: 6px; }
+.req-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.req-list li { font-size: 14px; color: #595959; line-height: 1.6; }
+.req-img-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.req-img-grid .ant-image { border-radius: 4px; overflow: hidden; border: 1px solid #f0f0f0; }
+.req-img-grid .ant-image-mask { border-radius: 4px; }
 </style>
