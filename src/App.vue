@@ -142,7 +142,7 @@
             <LncProjectList v-else-if="activeTabKey === 'list-b'" variant="B" @navigate="handleNavigate" />
             <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
             <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
-            <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
+            <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" :self-review-role="detailRow?.selfReviewRole" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
             <StartApply v-else-if="activeTabKey === 'start-apply'" :edit-id="editingId" :init-status="startApplyInitStatus" :init-data="startApplyInitData" @back="handleBackFromStartApply" />
             <StartDetail v-else-if="activeTabKey === 'start-detail'" :init-row="startDetailRow" @back="handleBackFromStartDetail" @edit="handleEditFromStartDetail" />
             <StockApply v-else-if="activeTabKey === 'stock-apply'" :edit-id="editingId" :init-status="stockApplyInitStatus" :init-data="stockApplyInitData" @back="handleBackFromStockApply" />
@@ -151,6 +151,8 @@
             <CompleteDetail v-else-if="activeTabKey === 'complete-detail'" :init-row="completeDetailRow" :policy-type="completePolicyType" @back="handleBackFromCompleteDetail" @edit="handleEditFromCompleteDetail" />
             <StockApplyB v-else-if="activeTabKey === 'stock-apply-b'" :init-status="stockApplyBInitStatus" :init-data="stockApplyBInitData" @back="handleBackFromStockApplyB" />
             <StockDetailB v-else-if="activeTabKey === 'stock-detail-b'" :init-row="stockDetailBRow" @back="handleBackFromStockDetailB" @edit="handleEditFromStockDetailB" />
+            <StartApplyB v-else-if="activeTabKey === 'start-apply-b'" :init-status="startApplyBInitStatus" :init-data="startApplyBInitData" @back="handleBackFromStartApplyB" />
+            <StartDetailB v-else-if="activeTabKey === 'start-detail-b'" :init-row="startDetailBRow" :review-role="startDetailBRow?.reviewRole" @back="handleBackFromStartDetailB" @edit="handleEditFromStartDetailB" />
             <DispatchApply v-else-if="activeTabKey === 'dispatch-apply'" :init-status="dispatchApplyInitStatus" :init-data="dispatchApplyInitData" @back="handleBackFromDispatchApply" />
             <DispatchDetail v-else-if="activeTabKey === 'dispatch-detail'" :init-row="dispatchDetailRow" @back="handleBackFromDispatchDetail" @edit="handleEditFromDispatchDetail" />
           </div>
@@ -186,8 +188,11 @@ import CompleteApply from './pages/完工申请页.vue'
 import CompleteDetail from './pages/完工详情页.vue'
 import StockApplyB from './pages/到货申请页-B.vue'
 import StockDetailB from './pages/到货详情页-B.vue'
+import StartApplyB from './pages/开工申请页-B.vue'
+import StartDetailB from './pages/开工详情页-B.vue'
 import DispatchApply from './pages/派工申请页.vue'
 import DispatchDetail from './pages/派工详情页.vue'
+import { submitStartReview } from './stores/stationStatus'
 
 // ── Tab 路由状态 ──
 interface Tab { key: string; label: string; closable?: boolean }
@@ -216,6 +221,9 @@ const completePolicyType      = ref<string>('standard')
 const stockApplyBInitData    = ref<any>(null)
 const stockApplyBInitStatus  = ref<string | null>(null)
 const stockDetailBRow        = ref<Record<string, any>>({})
+const startApplyBInitData    = ref<any>(null)
+const startApplyBInitStatus  = ref<string | null>(null)
+const startDetailBRow        = ref<Record<string, any>>({})
 const dispatchApplyInitData   = ref<any>(null)
 const dispatchApplyInitStatus = ref<string | null>(null)
 const dispatchDetailRow       = ref<Record<string, any>>({})
@@ -408,7 +416,7 @@ function getMenuGroupDomain(key: string): string {
 
 const activeMenuKey = computed(() => {
   if (['list', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail'].includes(page.value)) return 'biz-list'
-  if (['list-b', 'stock-apply-b', 'stock-detail-b'].includes(page.value)) return 'biz-list-b'
+  if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
   return ''
 })
 
@@ -507,6 +515,13 @@ const handleNavigate = (target: string, payload?: any) => {
   } else if (target === 'stock-detail-b') {
     stockDetailBRow.value = payload ?? {}
     openTab('stock-detail-b', '到货详情（B）')
+  } else if (target === 'start-apply-b') {
+    startApplyBInitStatus.value = payload?.initStatus ?? payload?.filingStatus ?? null
+    startApplyBInitData.value = payload ?? null
+    openTab('start-apply-b', payload?.editId ? '编辑开工申请' : '开工申请')
+  } else if (target === 'start-detail-b') {
+    startDetailBRow.value = payload ?? {}
+    openTab('start-detail-b', '开工详情')
   } else if (target === 'dispatch-apply') {
     dispatchApplyInitStatus.value = payload?.initStatus ?? payload?.filingStatus ?? null
     dispatchApplyInitData.value = payload ?? null
@@ -518,6 +533,16 @@ const handleNavigate = (target: string, payload?: any) => {
 }
 
 const handleBackFromStockApplyB = () => closeTab('stock-apply-b')
+const handleBackFromStartApplyB = () => closeTab('start-apply-b')
+const handleBackFromStartDetailB = (role: string, action: 'pass' | 'reject') => {
+  if (role && action) submitStartReview(startDetailBRow.value?.id, role, action)
+  closeTab('start-detail-b')
+}
+const handleEditFromStartDetailB = (id: string) => {
+  startApplyBInitData.value = { ...startDetailBRow.value, id }
+  startApplyBInitStatus.value = startDetailBRow.value?.filingStatus ?? null
+  openTab('start-apply-b', '编辑开工申请')
+}
 const handleBackFromDispatchApply = () => closeTab('dispatch-apply')
 const handleBackFromDispatchDetail = () => closeTab('dispatch-detail')
 const handleEditFromDispatchDetail = (id: string) => {

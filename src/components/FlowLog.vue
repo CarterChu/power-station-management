@@ -33,7 +33,7 @@
                     <div v-if="log.note" class="approval-field approval-field--note">
                       <span class="field-label field-label--wide">备注</span>
                       <div class="field-note-wrap">
-                        <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']">{{ log.note }}</span>
+                        <span :class="['field-value', log.type === 'reject' ? 'field-value--red' : '']" style="white-space:pre-line">{{ log.note }}</span>
                         <div v-if="log.images?.length" class="field-note-images">
                           <a-image-preview-group>
                             <div v-for="(img, i) in log.images" :key="i" class="field-note-thumb">

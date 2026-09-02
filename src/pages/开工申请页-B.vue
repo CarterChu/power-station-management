@@ -42,7 +42,7 @@
       <div class="detail-main">
 
         <!-- 退回原因卡片（仅开工审核不通过时展示） -->
-        <RejectCard v-if="['start_rejected','start_biz_rejected','start_tech_rejected','start_eng_rejected','start_all_rejected','start_all_rejected_3'].includes(detail.filingStatus)" :info="rejectInfo" :title="STATUS_LABEL[detail.filingStatus]" />
+        <RejectCard v-if="detail.filingStatus === 'start_rejected'" :info="rejectInfo" :title="STATUS_LABEL[detail.filingStatus]" />
 
         <!-- ── 项目信息 ── -->
         <div class="detail-card detail-card--plain">
@@ -886,37 +886,15 @@ async function handleSubmit() {
 
 const STATUS_COLOR: Record<string, string> = {
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
-  start_biz_rejected: 'error', start_tech_rejected: 'error', start_eng_rejected: 'error', start_all_rejected: 'error', start_all_rejected_3: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
-  start_biz_rejected: '商务审核不通过', start_tech_rejected: '技术审核不通过', start_eng_rejected: '工程审核不通过', start_all_rejected: '审核不通过', start_all_rejected_3: '审核不通过',
 }
 const REJECT_INFO_MAP: Record<string, { stage: string; reviewer: string; time: string; reason?: string; images?: string[]; sections?: { title: string; reason: string; images?: string[] }[] }> = {
-  start_biz_rejected: {
-    stage: '开工审核', reviewer: '商务审核员（安能）', time: '2026-08-11 15:30',
-    reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。',
-  },
-  start_tech_rejected: {
-    stage: '开工审核', reviewer: '技术审核员（安能）', time: '2026-08-12 10:15',
-    reason: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。',
-  },
-  start_eng_rejected: {
-    stage: '开工审核', reviewer: '工程审核员（安能）', time: '2026-08-13 14:30',
-    reason: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。',
-  },
-  start_all_rejected: {
-    stage: '开工审核', reviewer: '审核组（安能）', time: '2026-08-13 16:00',
+  start_rejected: {
+    stage: '开工审核', reviewer: '审核组（安能）', time: '2026-08-13 16:30',
     sections: [
       { title: '商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-      { title: '技术审核不通过', reason: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
-    ],
-  },
-  start_all_rejected_3: {
-    stage: '开工审核', reviewer: '审核组（安能）', time: '2026-08-14 10:30',
-    sections: [
-      { title: '商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-      { title: '技术审核不通过', reason: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
       { title: '工程审核不通过', reason: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
     ],
   },
@@ -1135,48 +1113,10 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
   ],
   start_rejected: [
-    { id: 5, type: 'reject', event: '开工审核不通过', operator: '李四（安能审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
-    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
-  ],
-  start_biz_rejected: [
-    { id: 5, type: 'reject', event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
-    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
-  ],
-  start_tech_rejected: [
-    { id: 5, type: 'reject', event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-12 10:15', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
-    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
-  ],
-  start_eng_rejected: [
-    { id: 5, type: 'reject', event: '工程审核不通过', operator: '工程审核员（安能）', time: '2026-08-13 14:30', note: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
-    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
-  ],
-  start_all_rejected: [
-    { id: 6, type: 'reject', event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-13 16:00', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
-    { id: 5, type: 'reject', event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-13 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
-    { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
-  ],
-  start_all_rejected_3: [
-    { id: 7, type: 'reject', event: '工程审核不通过', operator: '工程审核员（安能）', time: '2026-08-14 10:30', note: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
-    { id: 6, type: 'reject', event: '技术审核不通过', operator: '技术审核员（安能）', time: '2026-08-14 10:15', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。' },
-    { id: 5, type: 'reject', event: '商务审核不通过', operator: '商务审核员（安能）', time: '2026-08-14 10:00', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-12 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-12 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-12 09:32', note: null },
+    { id: 5, type: 'reject', event: '开工审核不通过', operator: '审核组（安能）', time: '2026-08-13 16:30', note: '【商务】EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。\n【工程】施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
+    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',   time: '2026-08-10 17:20', note: null },
+    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',   time: '2026-08-10 14:05', note: null },
+    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',   time: '2026-08-10 09:32', note: null },
     { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
   ],
   approved: [
