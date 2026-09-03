@@ -155,12 +155,12 @@
               <div style="display:flex">
                 <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
                 <a-tooltip :title="row.selfReviewProgress?.biz === 'pass' ? '商务自审通过' : row.selfReviewProgress?.biz === 'reject' ? '商务自审不通过' : ''">
-                  <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.selfReviewProgress?.biz" @click="handleSelfReview(row, 'biz')">商务自审</a-button>
+                  <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px;pointer-events:none" :disabled="!!row.selfReviewProgress?.biz" @click="handleSelfReview(row, 'biz')">商务自审</a-button></span>
                 </a-tooltip>
               </div>
               <div style="display:flex">
                 <a-tooltip :title="row.selfReviewProgress?.tech === 'pass' ? '技术自审通过' : row.selfReviewProgress?.tech === 'reject' ? '技术自审不通过' : ''">
-                  <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.selfReviewProgress?.tech" @click="handleSelfReview(row, 'tech')">技术自审</a-button>
+                  <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px;pointer-events:none" :disabled="!!row.selfReviewProgress?.tech" @click="handleSelfReview(row, 'tech')">技术自审</a-button></span>
                 </a-tooltip>
                 <a-button v-if="row.selfReviewProgress?.biz === 'reject' || row.selfReviewProgress?.tech === 'reject'" type="link" size="small" style="padding:0 4px" @click="handleEdit(row)">修改</a-button>
               </div>
@@ -180,15 +180,15 @@
               <div style="display:flex">
                 <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
                 <a-tooltip :title="row.reviewProgress?.biz === 'pass' ? '商务审核通过' : row.reviewProgress?.biz === 'reject' ? '商务审核不通过' : ''">
-                  <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.biz" @click="handleReview(row, 'biz')">商务审核</a-button>
+                  <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px;pointer-events:none" :disabled="!!row.reviewProgress?.biz" @click="handleReview(row, 'biz')">商务审核</a-button></span>
                 </a-tooltip>
               </div>
               <div style="display:flex">
                 <a-tooltip :title="row.reviewProgress?.tech === 'pass' ? '技术审核通过' : row.reviewProgress?.tech === 'reject' ? '技术审核不通过' : ''">
-                  <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.tech" @click="handleReview(row, 'tech')">技术审核</a-button>
+                  <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px;pointer-events:none" :disabled="!!row.reviewProgress?.tech" @click="handleReview(row, 'tech')">技术审核</a-button></span>
                 </a-tooltip>
                 <a-tooltip :title="row.reviewProgress?.eng === 'pass' ? '工程审核通过' : row.reviewProgress?.eng === 'reject' ? '工程审核不通过' : ''">
-                  <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.eng" @click="handleReview(row, 'eng')">工程审核</a-button>
+                  <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px;pointer-events:none" :disabled="!!row.reviewProgress?.eng" @click="handleReview(row, 'eng')">工程审核</a-button></span>
                 </a-tooltip>
               </div>
             </div>
