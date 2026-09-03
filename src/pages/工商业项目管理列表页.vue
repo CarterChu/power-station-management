@@ -47,7 +47,7 @@
         </span>
       </template>
 
-      <!-- 建档状态列 -->
+      <!-- 建档状态列（含审核进度） -->
       <template #filingStatusSlot="{ row }">
         <template v-if="row.nodeStatus === 'stock' && props.variant !== 'B'">
           <a-tooltip v-if="row.filingStatus" :title="FILING_STATUS_LABEL[row.filingStatus]">
@@ -58,48 +58,43 @@
           <span v-else style="color: #bbb">--</span>
         </template>
         <template v-else>
-          <a-tag v-if="row.filingStatus" :color="FILING_STATUS_TAG_COLOR[row.filingStatus]">
-            {{ FILING_STATUS_LABEL[row.filingStatus] }}
-          </a-tag>
-          <span v-else style="color: #bbb">--</span>
-        </template>
-      </template>
-
-      <!-- 审核状态列 -->
-      <template #reviewStatusSlot="{ row }">
-        <template v-if="row.filingStatus === 'self_reviewing'">
-          <div style="display:flex;flex-direction:column;gap:3px;line-height:1">
-            <div style="display:flex;align-items:center;gap:4px;font-size:12px">
-              <span style="color:#8c8c8c">商务自审</span>
-              <a-tag v-if="row.selfReviewProgress?.biz === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
-              <a-tag v-else-if="row.selfReviewProgress?.biz === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
-              <span v-else style="color:#bbb;font-size:11px">待审核</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:4px;font-size:12px">
-              <span style="color:#8c8c8c">技术自审</span>
-              <a-tag v-if="row.selfReviewProgress?.tech === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
-              <a-tag v-else-if="row.selfReviewProgress?.tech === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
-              <span v-else style="color:#bbb;font-size:11px">待审核</span>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <a-tag v-if="row.filingStatus" :color="FILING_STATUS_TAG_COLOR[row.filingStatus]" style="margin:0">
+              {{ FILING_STATUS_LABEL[row.filingStatus] }}
+            </a-tag>
+            <span v-else style="color: #bbb">--</span>
+            <!-- 自审进度 -->
+            <template v-if="row.filingStatus === 'self_reviewing'">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;align-items:center;gap:4px;font-size:12px">
+                  <span style="color:#8c8c8c;flex-shrink:0">商务</span>
+                  <a-tag v-if="row.selfReviewProgress?.biz === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
+                  <a-tag v-else-if="row.selfReviewProgress?.biz === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
+                  <span v-else style="color:#bbb;font-size:11px">待审</span>
+                  <span style="color:#8c8c8c;flex-shrink:0">技术</span>
+                  <a-tag v-if="row.selfReviewProgress?.tech === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
+                  <a-tag v-else-if="row.selfReviewProgress?.tech === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
+                  <span v-else style="color:#bbb;font-size:11px">待审</span>
+                </div>
+              </div>
+            </template>
+            <!-- 平台审核进度 -->
+            <template v-if="row.filingStatus === 'pending_review'">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;align-items:center;gap:4px;font-size:12px">
+                  <span style="color:#8c8c8c;flex-shrink:0">商务</span>
+                  <a-tag v-if="row.platformReviewProgress?.biz === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
+                  <a-tag v-else-if="row.platformReviewProgress?.biz === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
+                  <span v-else style="color:#bbb;font-size:11px">待审</span>
+                  <span style="color:#8c8c8c;flex-shrink:0">技术</span>
+                  <a-tag v-if="row.platformReviewProgress?.tech === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
+                  <a-tag v-else-if="row.platformReviewProgress?.tech === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
+                  <span v-else style="color:#bbb;font-size:11px">待审</span>
+                </div>
+              </div>
+            </template>
           </div>
         </template>
-        <template v-else-if="row.filingStatus === 'pending_review'">
-          <div style="display:flex;flex-direction:column;gap:3px;line-height:1">
-            <div style="display:flex;align-items:center;gap:4px;font-size:12px">
-              <span style="color:#8c8c8c">商务审核</span>
-              <a-tag v-if="row.platformReviewProgress?.biz === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
-              <a-tag v-else-if="row.platformReviewProgress?.biz === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
-              <span v-else style="color:#bbb;font-size:11px">待审核</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:4px;font-size:12px">
-              <span style="color:#8c8c8c">技术审核</span>
-              <a-tag v-if="row.platformReviewProgress?.tech === 'pass'" color="success" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">通过</a-tag>
-              <a-tag v-else-if="row.platformReviewProgress?.tech === 'reject'" color="error" style="margin:0;font-size:11px;padding:0 4px;line-height:18px">不通过</a-tag>
-              <span v-else style="color:#bbb;font-size:11px">待审核</span>
-            </div>
-          </div>
-        </template>
-        <span v-else style="color:#bbb">--</span>
       </template>
 
       <!-- 行操作列 -->
@@ -159,12 +154,12 @@
             <div style="display:flex;flex-direction:column;gap:0;line-height:1">
               <div style="display:flex">
                 <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
-                <a-tooltip :title="row.selfReviewProgress?.biz ? '商务已自审' : ''">
+                <a-tooltip :title="row.selfReviewProgress?.biz === 'pass' ? '商务自审通过' : row.selfReviewProgress?.biz === 'reject' ? '商务自审不通过' : ''">
                   <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.selfReviewProgress?.biz" @click="handleSelfReview(row, 'biz')">商务自审</a-button>
                 </a-tooltip>
               </div>
               <div style="display:flex">
-                <a-tooltip :title="row.selfReviewProgress?.tech ? '技术已自审' : ''">
+                <a-tooltip :title="row.selfReviewProgress?.tech === 'pass' ? '技术自审通过' : row.selfReviewProgress?.tech === 'reject' ? '技术自审不通过' : ''">
                   <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.selfReviewProgress?.tech" @click="handleSelfReview(row, 'tech')">技术自审</a-button>
                 </a-tooltip>
                 <a-button v-if="row.selfReviewProgress?.biz === 'reject' || row.selfReviewProgress?.tech === 'reject'" type="link" size="small" style="padding:0 4px" @click="handleEdit(row)">修改</a-button>
@@ -184,15 +179,15 @@
             <div style="display:flex;flex-direction:column;gap:0;line-height:1">
               <div style="display:flex">
                 <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
-                <a-tooltip :title="row.reviewProgress?.biz ? '商务已审核' : ''">
+                <a-tooltip :title="row.reviewProgress?.biz === 'pass' ? '商务审核通过' : row.reviewProgress?.biz === 'reject' ? '商务审核不通过' : ''">
                   <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.biz" @click="handleReview(row, 'biz')">商务审核</a-button>
                 </a-tooltip>
               </div>
               <div style="display:flex">
-                <a-tooltip :title="row.reviewProgress?.tech ? '技术已审核' : ''">
+                <a-tooltip :title="row.reviewProgress?.tech === 'pass' ? '技术审核通过' : row.reviewProgress?.tech === 'reject' ? '技术审核不通过' : ''">
                   <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.tech" @click="handleReview(row, 'tech')">技术审核</a-button>
                 </a-tooltip>
-                <a-tooltip :title="row.reviewProgress?.eng ? '工程已审核' : ''">
+                <a-tooltip :title="row.reviewProgress?.eng === 'pass' ? '工程审核通过' : row.reviewProgress?.eng === 'reject' ? '工程审核不通过' : ''">
                   <a-button type="link" size="small" style="padding:0 4px" :disabled="!!row.reviewProgress?.eng" @click="handleReview(row, 'eng')">工程审核</a-button>
                 </a-tooltip>
               </div>
@@ -612,8 +607,7 @@ const columns = [
   { title: '代理商名称', dataIndex: 'agentName',      key: 'agentName',      width: 160, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '项目地址',   dataIndex: 'address',        key: 'address',        width: 200, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '电站节点',   dataIndex: 'nodeStatus',     key: 'nodeStatus',     width: 120, component: 'custom', slotName: 'nodeStatusSlot' },
-  { title: '电站状态',   dataIndex: 'filingStatus',   key: 'filingStatus',   width: 130, component: 'custom', slotName: 'filingStatusSlot' },
-  { title: '审核状态',   key: 'reviewStatus',         width: 160, component: 'custom', slotName: 'reviewStatusSlot' },
+  { title: '电站状态',   dataIndex: 'filingStatus',   key: 'filingStatus',   width: 170, component: 'custom', slotName: 'filingStatusSlot' },
   { title: '创建时间',   dataIndex: 'createdAt',      key: 'createdAt',      width: 180, customRender: ({ text }: any) => tipCell(text) },
   { title: '操作',       key: 'action',               fixed: 'right' as const, width: 150, component: 'custom', slotName: 'actionSlot' },
 ]
