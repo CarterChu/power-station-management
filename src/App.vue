@@ -142,7 +142,7 @@
             <LncProjectList v-else-if="activeTabKey === 'list-b'" variant="B" @navigate="handleNavigate" />
             <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
             <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
-            <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" :self-review-role="detailRow?.selfReviewRole" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
+            <FilingDetail v-else-if="activeTabKey === 'detail'" :init-status="detailStatus" :policy-type="detailPolicyType" :init-row="detailRow" :self-review-role="detailRow?.selfReviewRole" :platform-review-role="detailRow?.platformReviewRole" @back="handleBackFromDetail" @edit="handleEditFromDetail" />
             <StartApply v-else-if="activeTabKey === 'start-apply'" :edit-id="editingId" :init-status="startApplyInitStatus" :init-data="startApplyInitData" @back="handleBackFromStartApply" />
             <StartDetail v-else-if="activeTabKey === 'start-detail'" :init-row="startDetailRow" @back="handleBackFromStartDetail" @edit="handleEditFromStartDetail" />
             <StockApply v-else-if="activeTabKey === 'stock-apply'" :edit-id="editingId" :init-status="stockApplyInitStatus" :init-data="stockApplyInitData" @back="handleBackFromStockApply" />
@@ -198,9 +198,9 @@ import { submitStartReview } from './stores/stationStatus'
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list', label: '电站列表', closable: false },
+  { key: 'list-b', label: '电站列表（方案B）', closable: false },
 ])
-const activeTabKey = ref('list')
+const activeTabKey = ref('list-b')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')

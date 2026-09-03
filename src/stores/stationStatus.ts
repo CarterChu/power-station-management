@@ -43,6 +43,8 @@ export function submitFilingSelfReview(id: string, role: string, action: ReviewA
   if (s.biz === 'pass' && s.tech === 'pass') {
     stationStatusOverrides[id] = 'pending_review'
     filingReviewProgress[id].platform = { biz: null, tech: null }
+  } else if (s.biz === 'reject' && s.tech === 'reject') {
+    stationStatusOverrides[id] = 'filing_self_rejected'
   }
 }
 
@@ -63,7 +65,9 @@ export function submitFilingPlatformReview(id: string, role: string, action: Rev
   filingReviewProgress[id].platform[role as 'biz' | 'tech'] = action
   const p = filingReviewProgress[id].platform
   if (p.biz === 'pass' && p.tech === 'pass') {
-    stationStatusOverrides[id] = 'waiting_start'
+    stationStatusOverrides[id] = 'filing_approved'
+  } else if (p.biz === 'reject' && p.tech === 'reject') {
+    stationStatusOverrides[id] = 'filing_platform_rejected'
   }
 }
 
