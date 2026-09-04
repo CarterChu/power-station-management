@@ -706,7 +706,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
+import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, computeFilingStatusFromRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
@@ -973,7 +973,10 @@ onMounted(() => {
     // 用户刚从申请页提交，直接展示真实数据，不覆盖
     hasUserSubmittedRecords.value = false
   } else {
-    initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+    const initStatus = initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+    detail.value.filingStatus = initStatus
+    const sid = props.initRow?.id
+    if (sid) stationStatusOverrides[sid] = initStatus
   }
 
   const container = detailBodyRef.value
@@ -1217,35 +1220,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 
 // 根据当前所有到货单状态推算电站 filingStatus，并更新详情页本地状态和列表覆盖表
 function syncFilingStatus() {
-  const records = sharedStockRecords
-  let next: string
-
-  const anyFullRejected  = records.some(r => r.status === 'rejected' && r.arrivalType === '全部到货')
-  const anyRejected      = records.some(r => r.status === 'rejected')
-  const anyReviewing     = records.some(r => r.status === 'reviewing')
-
-  if (anyFullRejected) {
-    next = 'full_stock_rejected'
-  } else if (anyRejected) {
-    next = 'partial_stock_rejected'
-  } else if (anyReviewing) {
-    next = 'reviewing_stock'
-  } else {
-    // 全部 approved，看 BOM 覆盖率
-    const bom = detail.value.yigongBom
-    const allCovered = bom.every(b => {
-      const total = records.reduce((sum, r) => {
-        const item = r.items.find(i => i.code === b.code)
-        return sum + (item?.arrivedQty ?? 0)
-      }, 0)
-      return total >= b.quantity
-    })
-    next = allCovered ? 'full_stock' : 'partial_stock'
-  }
-
+  const next = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
   detail.value.filingStatus = next
-
-  // 写入列表覆盖表（用电站 id 作 key，来自 initRow）
   const stationId = props.initRow?.id
   if (stationId) stationStatusOverrides[stationId] = next
 }

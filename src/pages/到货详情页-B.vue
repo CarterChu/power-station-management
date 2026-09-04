@@ -484,8 +484,6 @@
                   <div class="info-section" style="margin-top:0">
                     <div class="info-section-title">
                       到货信息
-                      <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
-                      <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                       <span style="flex:1"></span>
                       <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     </div>
@@ -509,6 +507,11 @@
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
                             <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
+                            <span v-if="record.receiver" class="payment-meta-item"><span class="payment-meta-label">签收人</span><span class="payment-meta-value">{{ record.receiver }}</span></span>
+                            <span v-if="record.receiverPhone" class="payment-meta-item"><span class="payment-meta-label">签收人电话</span><span class="payment-meta-value">{{ record.receiverPhone }}</span></span>
+                            <span v-if="record.signStatus" class="payment-meta-item"><span class="payment-meta-label">签收状态</span><span class="payment-meta-value">{{ SIGN_STATUS_LABEL[record.signStatus] }}</span></span>
+                            <span v-if="record.signTime" class="payment-meta-item"><span class="payment-meta-label">签收时间</span><span class="payment-meta-value">{{ record.signTime }}</span></span>
+                            <span v-if="record.remark" class="payment-meta-item"><span class="payment-meta-label">备注</span><span class="payment-meta-value">{{ record.remark }}</span></span>
                             <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
                             <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
                           </div>
@@ -549,8 +552,6 @@
                   <div class="info-section" style="margin-top:0">
                     <div class="info-section-title">
                       到货信息
-                      <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
-                      <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                       <span style="flex:1"></span>
                       <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     </div>
@@ -572,6 +573,11 @@
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
                             <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
+                            <span v-if="record.receiver" class="payment-meta-item"><span class="payment-meta-label">签收人</span><span class="payment-meta-value">{{ record.receiver }}</span></span>
+                            <span v-if="record.receiverPhone" class="payment-meta-item"><span class="payment-meta-label">签收人电话</span><span class="payment-meta-value">{{ record.receiverPhone }}</span></span>
+                            <span v-if="record.signStatus" class="payment-meta-item"><span class="payment-meta-label">签收状态</span><span class="payment-meta-value">{{ SIGN_STATUS_LABEL[record.signStatus] }}</span></span>
+                            <span v-if="record.signTime" class="payment-meta-item"><span class="payment-meta-label">签收时间</span><span class="payment-meta-value">{{ record.signTime }}</span></span>
+                            <span v-if="record.remark" class="payment-meta-item"><span class="payment-meta-label">备注</span><span class="payment-meta-value">{{ record.remark }}</span></span>
                             <span class="payment-meta-item"><span class="payment-meta-label">创建人</span><span class="payment-meta-value">{{ record.creator }}</span></span>
                             <span class="payment-meta-item"><span class="payment-meta-label">创建时间</span><span class="payment-meta-value">{{ record.createTime }}</span></span>
                           </div>
@@ -778,6 +784,7 @@ function toggleStockCard(id: string) {
   else collapsedStockCards.add(id)
 }
 
+const SIGN_STATUS_LABEL: Record<string, string> = { signed: '已签收', unsigned: '未签收' }
 const STOCK_STATUS_LABEL: Record<string, string> = {
   reviewing: '审核中',
   approved:  '审核通过',
@@ -1278,20 +1285,6 @@ const sortedStockRecords = computed(() =>
   [...sharedStockRecords].sort((a, b) => b.createTime.localeCompare(a.createTime))
 )
 
-const approvedArrivalTag = computed(() => {
-  const approvedRecs = sharedStockRecords.filter(r => r.status === 'approved')
-  if (approvedRecs.length === 0) return null
-  const bom = detail.value.yigongBom
-  if (bom.length === 0) return null
-  const allCovered = bom.every(b => {
-    const total = approvedRecs.reduce((sum, r) => {
-      const item = r.items.find(i => i.code === b.code)
-      return sum + (item?.arrivedQty ?? 0)
-    }, 0)
-    return total >= b.quantity
-  })
-  return allCovered ? '全部到货' : '部分到货'
-})
 
 // ── 到货统计 Drawer ──
 const showStockStatDrawer = ref(false)

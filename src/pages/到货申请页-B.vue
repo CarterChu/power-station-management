@@ -613,8 +613,6 @@
                 <div class="info-section" style="margin-top:0">
                   <div class="info-section-title">
                     到货信息
-                    <a-tag v-if="approvedArrivalTag === '全部到货'" color="success" style="margin:0 0 0 8px">全部到货</a-tag>
-                    <a-tag v-else-if="approvedArrivalTag === '部分到货'" color="processing" style="margin:0 0 0 8px">部分到货</a-tag>
                     <span style="flex:1"></span>
                     <a-button size="small" @click="showStockStatDrawer = true">到货统计</a-button>
                     <a-tooltip v-if="canEdit" :title="disableNewStock ? '已提交全部到货，不可再次新增' : ''">
@@ -1626,20 +1624,6 @@ const sortedStockRecords = computed(() =>
 const canEdit = computed(() =>
   ['waiting_stock', 'reviewing_stock', 'partial_stock', 'partial_stock_rejected', 'full_stock_rejected'].includes(detail.value.filingStatus)
 )
-const approvedArrivalTag = computed(() => {
-  const approvedRecs = sharedStockRecords.filter(r => r.status === 'approved')
-  if (approvedRecs.length === 0) return null
-  const bom = detail.value.yigongBom
-  if (bom.length === 0) return null
-  const allCovered = bom.every(b => {
-    const total = approvedRecs.reduce((sum, r) => {
-      const item = r.items.find(i => i.code === b.code)
-      return sum + (item?.arrivedQty ?? 0)
-    }, 0)
-    return total >= b.quantity
-  })
-  return allCovered ? '全部到货' : '部分到货'
-})
 const allFullyArrived = computed(() =>
   detail.value.yigongBom.length > 0 && detail.value.yigongBom.every(b => {
     const total = sharedStockRecords.filter(r => r.status !== 'voided').reduce((sum, rec) => {

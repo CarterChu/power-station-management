@@ -936,7 +936,7 @@
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount, h } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
-import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
+import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, computeFilingStatusFromRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import {
@@ -1192,9 +1192,10 @@ async function handleSubmitStock() {
         rec.signTime      = stockNewForm.signTime?.format?.('YYYY-MM-DD') || undefined
         rec.remark        = stockNewForm.remark        || undefined
       }
-      detail.value.filingStatus = 'reviewing_stock'
+      const resubStatus = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
+      detail.value.filingStatus = resubStatus
       const stationId = props.editId ?? props.initData?.id
-      if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+      if (stationId) stationStatusOverrides[stationId] = resubStatus
       message.success('已重新提交，等待审核')
       handleCloseStockDrawer()
       return
@@ -1323,7 +1324,8 @@ async function handleSubmit() {
   })
   hasUserSubmittedRecords.value = true
   const stationId = props.editId ?? props.initData?.id
-  if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+  const submitStatus = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
+  if (stationId) stationStatusOverrides[stationId] = submitStatus
   submitting.value = false
   message.success('到货申请已提交')
   emit('back')
