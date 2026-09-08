@@ -1,3 +1,4 @@
 [build]
-  publish = "交互说明书"
+  base    = "交互说明书"
+  publish = "."
   command = ""
