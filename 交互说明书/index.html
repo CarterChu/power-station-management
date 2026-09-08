@@ -40,7 +40,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   border: 1px solid var(--border); border-radius: var(--radius-card);
   background: var(--card-bg); padding: 22px 24px 20px;
   transition: border-color .18s, box-shadow .18s, transform .12s;
-  cursor: pointer;
+  cursor: pointer; position: relative;
 }
 .doc-card:hover {
   border-color: var(--chart-2);
@@ -227,7 +227,7 @@ html.dark
     </div>
     <div class="doc-card-title">工商业电站管理平台</div>
     <div class="doc-card-desc">完整交互原型，含建档 / 开工 / 到货 / 派工 / 完工全节点流程</div>
-    <div class="doc-card-meta"><span class="doc-card-badge" style="background:rgba(77,73,252,.08);color:#4d49fc;border:1px solid rgba(77,73,252,.2);border-radius:4px;font-size:11px;font-weight:700;padding:1px 8px">Vercel</span><span class="doc-card-arrow">→</span></div>
+    <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px"><span style="background:rgba(77,73,252,.08);color:#4d49fc;border:1px solid rgba(77,73,252,.2);border-radius:4px;font-size:11px;font-weight:700;padding:1px 8px">Vercel</span><span style="color:var(--muted);font-size:15px">→</span></div>
   </a>
   <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);padding:8px 12px;background:rgba(247,96,64,.04);border:1px solid rgba(247,96,64,.15);border-radius:6px;margin-bottom:20px">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f76040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -247,10 +247,10 @@ html.dark
       <div>npm install</div>
       <div>npm run dev</div>
     </div>
-    <div class="doc-card-meta">
-      <span class="doc-card-badge" style="background:rgba(22,163,74,.08);color:#16a34a;border:1px solid rgba(22,163,74,.2);border-radius:4px;font-size:11px;font-weight:700;padding:1px 8px">本地</span>
+    <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px">
+      <span style="background:rgba(22,163,74,.08);color:#16a34a;border:1px solid rgba(22,163,74,.2);border-radius:4px;font-size:11px;font-weight:700;padding:1px 8px">本地</span>
       <a href="https://github.com/CarterChu/power-station-management" target="_blank" rel="noopener"
-         style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-decoration:none;margin-left:auto">
+         style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);text-decoration:none">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
         GitHub
       </a>
@@ -268,7 +268,7 @@ html.dark
       </div>
       <div class="doc-card-title">设计简报</div>
       <div class="doc-card-desc">核心问题、设计策略与多方案对比，供评审会快速建立判断</div>
-      <div class="doc-card-meta"><span class="doc-card-badge badge-html">HTML</span><span class="doc-card-arrow">→</span></div>
+      <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px"><span class="doc-card-badge badge-html">HTML</span><span style="color:var(--muted);font-size:15px">→</span></div>
     </a>
     <a class="doc-card" href="./建档域-交互说明书.html">
       <div class="doc-card-icon">
@@ -276,7 +276,7 @@ html.dark
       </div>
       <div class="doc-card-title">建档域交互说明书</div>
       <div class="doc-card-desc">建档申请页、建档详情页、两阶段审核流程、备案证 / 物料弹窗</div>
-      <div class="doc-card-meta"><span class="doc-card-badge badge-html">HTML</span><span class="doc-card-arrow">→</span></div>
+      <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px"><span class="doc-card-badge badge-html">HTML</span><span style="color:var(--muted);font-size:15px">→</span></div>
     </a>
     <a class="doc-card" href="./建设域-交互说明书.html">
       <div class="doc-card-icon">
@@ -284,7 +284,7 @@ html.dark
       </div>
       <div class="doc-card-title">建设域交互说明书</div>
       <div class="doc-card-desc">开工 / 到货 / 派工 / 完工四个节点的申请页、详情页、状态流转与审核逻辑</div>
-      <div class="doc-card-meta"><span class="doc-card-badge badge-html">HTML</span><span class="doc-card-arrow">→</span></div>
+      <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px"><span class="doc-card-badge badge-html">HTML</span><span style="color:var(--muted);font-size:15px">→</span></div>
     </a>
     <a class="doc-card" href="./电站节点审核方式总结.html">
       <div class="doc-card-icon">
@@ -292,7 +292,7 @@ html.dark
       </div>
       <div class="doc-card-title">电站节点审核方式总结</div>
       <div class="doc-card-desc">梳理建设全流程各节点的审核角色与审核方式，快速对比 7 个节点差异</div>
-      <div class="doc-card-meta"><span class="doc-card-badge badge-html">HTML</span><span class="doc-card-arrow">→</span></div>
+      <div style="position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:6px"><span class="doc-card-badge badge-html">HTML</span><span style="color:var(--muted);font-size:15px">→</span></div>
     </a>
     <a class="doc-card figma-card" href="https://www.figma.com/design/XMTpxJsGLiizDZAiJkY6a1/LTC%E7%AE%A1%E7%90%86%E5%B9%B3%E5%8F%B0?node-id=17327-19249&t=SAV1MVmCnM9gfoP8-1" target="_blank" rel="noopener">
       <div class="doc-card-icon">
