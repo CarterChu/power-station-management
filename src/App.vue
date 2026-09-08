@@ -210,7 +210,7 @@ const filingInitStatus = ref<string | null>(null)
 const startApplyInitData   = ref<any>(null)
 const startApplyInitStatus = ref<string | null>(null)
 const startDetailRow       = ref<Record<string, any>>({})
-const previousListTab      = ref<string>('list-b')
+const previousListTab      = ref<string>('list')
 const stockApplyInitData   = ref<any>(null)
 const stockApplyInitStatus = ref<string | null>(null)
 const stockDetailRow       = ref<Record<string, any>>({})
@@ -307,7 +307,7 @@ function closeTab(key: string) {
   tabs.value.splice(idx, 1)
   if (activeTabKey.value === key) {
     const fallback = tabs.value[idx] ?? tabs.value[idx - 1]
-    activeTabKey.value = fallback?.key ?? 'list-b'
+    activeTabKey.value = fallback?.key ?? 'list'
   }
 }
 
@@ -415,7 +415,8 @@ function getMenuGroupDomain(key: string): string {
 }
 
 const activeMenuKey = computed(() => {
-  if (['list', 'list-b', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b', 'dispatch-apply', 'dispatch-detail', 'complete-apply', 'complete-detail'].includes(page.value)) return 'biz-list'
+  if (['list', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail'].includes(page.value)) return 'biz-list'
+  if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
   return ''
 })
 
@@ -442,8 +443,8 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list') openTab('list-b', '电站列表', false)
-  else if (key === 'biz-dashboard') openTab('list-b', '电站列表', false)
+  if (key === 'biz-list') openTab('list', '电站列表', false)
+  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
   else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
   const domain = getMenuGroupDomain(key)
   if (domain && !menuOpenKeys.value.includes(domain)) {
