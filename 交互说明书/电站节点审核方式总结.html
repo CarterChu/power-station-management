@@ -1039,11 +1039,20 @@ document.addEventListener('fullscreenchange', () => {
 <script>
 (function(){
   function rm(){
-    document.querySelectorAll(
-      '[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"],a[href*="netlify.com"]>svg'
-    ).forEach(function(el){
-      var p=el.closest('[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"]')||el.parentElement;
-      if(p&&p!==document.body)p.remove();
+    // Remove any fixed-position element that contains a link to netlify.com
+    document.querySelectorAll('a[href*="netlify.com"]').forEach(function(a){
+      var el=a;
+      while(el&&el!==document.body){
+        if(getComputedStyle(el).position==='fixed'){el.remove();return;}
+        el=el.parentElement;
+      }
+      a.remove();
+    });
+    // Also catch by common attribute patterns
+    ['[data-netlify-badge]','#netlify-badge','.netlify-badge',
+     'iframe[src*="netlify"]','script[src*="netlify"][src*="badge"]'
+    ].forEach(function(sel){
+      document.querySelectorAll(sel).forEach(function(el){el.remove();});
     });
   }
   rm();
