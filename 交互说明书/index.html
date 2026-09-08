@@ -181,7 +181,6 @@ html.dark
 50%{transform:translate(-4px,-9px) rotate(6deg)}}50%{transform:translate(3px,-7px) rotate(-4deg)}}50%{transform:translate(-5px,-11px) rotate(5deg)}}50%{transform:translate(4px,-8px) rotate(-6deg)}}50%{transform:translate(-3px,-6px) rotate(9deg)}}
 
 
-  [data-netlify-badge] { display: none !important; }
 </style>
 <script>
 (function() {
@@ -479,6 +478,20 @@ function toggleTheme() {
   updateIcon();
 }
 updateIcon();
+</script>
+<script>
+(function(){
+  function rm(){
+    document.querySelectorAll(
+      '[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"],a[href*="netlify.com"]>svg'
+    ).forEach(function(el){
+      var p=el.closest('[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"]')||el.parentElement;
+      if(p&&p!==document.body)p.remove();
+    });
+  }
+  rm();
+  new MutationObserver(rm).observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>

@@ -169,7 +169,6 @@ li { font-size: 15px; color: var(--muted); line-height: 1.75; margin-bottom: 3px
 .doc-footer-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px; position: relative; top: -1px; }
 
 
-  [data-netlify-badge] { display: none !important; }
 </style>
 </head>
 <body>
@@ -791,6 +790,20 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { rootMargin: '0px 0px -60% 0px', threshold: 0 });
 document.querySelectorAll('.chapter-header').forEach(s => observer.observe(s));
+</script>
+<script>
+(function(){
+  function rm(){
+    document.querySelectorAll(
+      '[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"],a[href*="netlify.com"]>svg'
+    ).forEach(function(el){
+      var p=el.closest('[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"]')||el.parentElement;
+      if(p&&p!==document.body)p.remove();
+    });
+  }
+  rm();
+  new MutationObserver(rm).observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>

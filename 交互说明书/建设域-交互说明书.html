@@ -183,7 +183,6 @@ body.comment-mode #cmt-overlay { pointer-events: auto; }
 .doc-footer-left strong { color: var(--text); font-weight: 600; }
 .doc-footer-right { font-size: 12px; color: var(--muted); }
 
-  [data-netlify-badge] { display: none !important; }
 </style>
 </head>
 <body>
@@ -1249,6 +1248,20 @@ const sectionObs = new IntersectionObserver((entries) => {
   });
 }, { rootMargin: '-10% 0px -70% 0px' });
 document.querySelectorAll('.section').forEach(s => sectionObs.observe(s));
+</script>
+<script>
+(function(){
+  function rm(){
+    document.querySelectorAll(
+      '[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"],a[href*="netlify.com"]>svg'
+    ).forEach(function(el){
+      var p=el.closest('[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"]')||el.parentElement;
+      if(p&&p!==document.body)p.remove();
+    });
+  }
+  rm();
+  new MutationObserver(rm).observe(document.documentElement,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>

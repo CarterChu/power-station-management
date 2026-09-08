@@ -221,7 +221,6 @@ html.dark .d-node.cyan   { background: #112123; border-color: #144848; color: #1
 .doc-footer-right { font-size: 12px; color: var(--muted); }
 .doc-footer-avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 6px; position: relative; top: -1px; }
 
-  [data-netlify-badge] { display: none !important; }
 </style>
 </head>
 <body>
@@ -1035,6 +1034,20 @@ document.addEventListener('fullscreenchange', () => {
   load();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderAll);
   else renderAll();
+})();
+</script>
+<script>
+(function(){
+  function rm(){
+    document.querySelectorAll(
+      '[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"],a[href*="netlify.com"]>svg'
+    ).forEach(function(el){
+      var p=el.closest('[data-netlify-badge],[id*="netlify"],[class*="netlify"],iframe[src*="netlify"]')||el.parentElement;
+      if(p&&p!==document.body)p.remove();
+    });
+  }
+  rm();
+  new MutationObserver(rm).observe(document.documentElement,{childList:true,subtree:true});
 })();
 </script>
 </body>
