@@ -509,7 +509,6 @@ const MOCK_DATA = [
 .slist-main-card {
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
-  min-height: calc(100% - 0px);
+  min-height: 100%;
 }
 </style>
