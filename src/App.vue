@@ -155,6 +155,7 @@
             <StartDetailB v-else-if="activeTabKey === 'start-detail-b'" :init-row="startDetailBRow" :review-role="startDetailBRow?.reviewRole" @back="handleBackFromStartDetailB" @edit="handleEditFromStartDetailB" />
             <DispatchApply v-else-if="activeTabKey === 'dispatch-apply'" :init-status="dispatchApplyInitStatus" :init-data="dispatchApplyInitData" @back="handleBackFromDispatchApply" />
             <DispatchDetail v-else-if="activeTabKey === 'dispatch-detail'" :init-row="dispatchDetailRow" @back="handleBackFromDispatchDetail" @edit="handleEditFromDispatchDetail" />
+            <BillQuery v-else-if="activeTabKey === 'bill-query'" />
           </div>
         </div>
 
@@ -192,15 +193,16 @@ import StartApplyB from './pages/开工申请页-B.vue'
 import StartDetailB from './pages/开工详情页-B.vue'
 import DispatchApply from './pages/派工申请页.vue'
 import DispatchDetail from './pages/派工详情页.vue'
+import BillQuery from './pages/电站账单查询页.vue'
 import { submitStartReview } from './stores/stationStatus'
 
 // ── Tab 路由状态 ──
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list-b', label: '电站列表（方案B）', closable: false },
+  { key: 'list', label: '电站列表', closable: false },
 ])
-const activeTabKey = ref('list-b')
+const activeTabKey = ref('list')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -399,6 +401,7 @@ const menuGroups = [
       { key: 'nav-电站销售回款', label: '电站销售回款' },
       { key: 'nav-供应链金融管理', label: '供应链金融管理' },
       { key: 'nav-综合服务办理', label: '综合服务办理' },
+      { key: 'fin-bill-query', label: '电站账单查询' },
     ],
   },
   {
@@ -417,6 +420,7 @@ function getMenuGroupDomain(key: string): string {
 const activeMenuKey = computed(() => {
   if (['list', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail'].includes(page.value)) return 'biz-list'
   if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
+  if (page.value === 'bill-query') return 'fin-bill-query'
   return ''
 })
 
@@ -446,6 +450,7 @@ function handleMenuClick({ key }: { key: string }) {
   if (key === 'biz-list') openTab('list', '电站列表', false)
   else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
   else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
+  else if (key === 'fin-bill-query') openTab('bill-query', '电站账单查询', false)
   const domain = getMenuGroupDomain(key)
   if (domain && !menuOpenKeys.value.includes(domain)) {
     menuOpenKeys.value = [domain]
