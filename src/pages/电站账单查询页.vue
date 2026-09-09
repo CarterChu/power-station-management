@@ -16,6 +16,16 @@
           </a-space>
         </template>
 
+        <!-- 电站编号：跳转 + 复制 -->
+        <template #stationNoSlot="{ row }">
+          <span class="station-no-cell">
+            <a class="station-no-link" @click="handleViewStation(row.stationNo)">{{ row.stationNo }}</a>
+            <a-tooltip title="复制电站编号">
+              <CopyOutlined class="copy-icon" @click.stop="handleCopy(row.stationNo)" />
+            </a-tooltip>
+          </span>
+        </template>
+
         <!-- 结算状态 -->
         <template #settlementStatusSlot="{ row }">
           <a-tag v-if="row.settlementStatus" :color="SETTLEMENT_STATUS_COLOR[row.settlementStatus]" style="margin:0">
@@ -51,6 +61,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
+import { CopyOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const tableRef = ref<any>(null)
@@ -353,7 +364,7 @@ const filters = [
 
 const columns = [
   { title: '账单号',       dataIndex: 'billNo',               key: 'billNo',               width: 180, fixed: 'left' as const, ellipsis: true },
-  { title: '电站编号',     dataIndex: 'stationNo',            key: 'stationNo',            width: 160, ellipsis: true },
+  { title: '电站编号',     dataIndex: 'stationNo',            key: 'stationNo',            width: 180, component: 'custom', slotName: 'stationNoSlot' },
   { title: '电站名称',     dataIndex: 'stationName',          key: 'stationName',          width: 200, ellipsis: true },
   { title: '结算对象类型', dataIndex: 'settlementObjectType', key: 'settlementObjectType', width: 130 },
   { title: '结算对象',     dataIndex: 'settlementObject',     key: 'settlementObject',     width: 160, ellipsis: true },
@@ -392,6 +403,16 @@ const tableConfig = {
       count: MOCK_DATA.length,
     }
   },
+}
+
+function handleViewStation(stationNo: string) {
+  message.info(`电站详情：${stationNo}（功能待接入）`)
+}
+
+function handleCopy(text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    message.success('已复制')
+  })
 }
 
 function handleViewDetail(_row: any) {
@@ -510,5 +531,43 @@ const MOCK_DATA = [
   background: #fff;
   border-radius: 8px;
   min-height: 100%;
+}
+
+.station-no-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.station-no-link {
+  color: #1677ff;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.station-no-link:hover {
+  text-decoration: underline;
+}
+
+.copy-icon {
+  color: #bbb;
+  font-size: 12px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  cursor: pointer;
+}
+
+.station-no-cell:hover .copy-icon {
+  opacity: 1;
+}
+
+.copy-icon:hover {
+  color: #1677ff;
 }
 </style>
