@@ -55,16 +55,160 @@
         </template>
       </AnfeProTable>
     </div>
+
+    <!-- 账单详情 Drawer -->
+    <a-drawer
+      v-model:open="drawerVisible"
+      title="账单详情"
+      width="760"
+      :body-style="{ padding: '0', overflowY: 'auto' }"
+      destroy-on-close
+    >
+      <template v-if="currentRow">
+        <!-- 上部分：核心信息 -->
+        <div class="detail-section">
+          <div class="detail-section-title">核心信息</div>
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item label="账单号">{{ currentRow.billNo }}</a-descriptions-item>
+            <a-descriptions-item label="电站编号">{{ currentRow.stationNo }}</a-descriptions-item>
+            <a-descriptions-item label="电站名称" :span="2">{{ currentRow.stationName }}</a-descriptions-item>
+            <a-descriptions-item label="结算对象类型">{{ currentRow.settlementObjectType }}</a-descriptions-item>
+            <a-descriptions-item label="结算对象">{{ currentRow.settlementObject }}</a-descriptions-item>
+            <a-descriptions-item label="账单类型" :span="2">{{ currentRow.billType }}</a-descriptions-item>
+            <a-descriptions-item label="应用场景">{{ currentRow.scenario || '--' }}</a-descriptions-item>
+            <a-descriptions-item label="结算单编号">{{ currentRow.settlementNo || '--' }}</a-descriptions-item>
+            <a-descriptions-item label="结算状态">
+              <a-tag :color="SETTLEMENT_STATUS_COLOR[currentRow.settlementStatus]" style="margin:0">
+                {{ SETTLEMENT_STATUS_LABEL[currentRow.settlementStatus] ?? currentRow.settlementStatus }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="是否可结算">
+              <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
+                {{ currentRow.isSettleable ? '可结算' : '不可结算' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="推送NC状态">
+              <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
+                {{ NC_STATUS_LABEL[currentRow.ncPushStatus] ?? currentRow.ncPushStatus }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="账单创建时间">{{ currentRow.billCreateTime }}</a-descriptions-item>
+          </a-descriptions>
+        </div>
+
+        <!-- 下部分：账单明细 -->
+        <div class="detail-section">
+          <div class="detail-section-title">账单明细</div>
+          <a-tabs>
+            <a-tab-pane key="start" tab="开工">
+              <a-table
+                :columns="detailColumns"
+                :data-source="detailData.start"
+                :pagination="false"
+                size="small"
+                row-key="code"
+              />
+            </a-tab-pane>
+            <a-tab-pane key="grid" tab="并网">
+              <a-table
+                :columns="detailColumns"
+                :data-source="detailData.grid"
+                :pagination="false"
+                size="small"
+                row-key="code"
+              />
+            </a-tab-pane>
+            <a-tab-pane key="complete" tab="竣工">
+              <a-table
+                :columns="detailColumns"
+                :data-source="detailData.complete"
+                :pagination="false"
+                size="small"
+                row-key="code"
+              />
+            </a-tab-pane>
+          </a-tabs>
+        </div>
+      </template>
+    </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, h } from 'vue'
+import { ref, h, computed } from 'vue'
 import { message, Tooltip } from 'ant-design-vue'
 import { CopyOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const tableRef = ref<any>(null)
+const drawerVisible = ref(false)
+const currentRow = ref<any>(null)
+
+// ── 账单明细列定义 ──
+
+const DETAIL_STATUS_ITEMS = ['待生成', '待确认', '已确认', '已作废']
+
+const detailColumns = [
+  { title: '费用名称', dataIndex: 'name',     key: 'name',     width: 180 },
+  { title: '费用编码', dataIndex: 'code',     key: 'code',     width: 130 },
+  { title: '合同金额(元)', dataIndex: 'contractAmt', key: 'contractAmt', width: 130, align: 'right' as const },
+  { title: '实付金额(元)', dataIndex: 'actualAmt',   key: 'actualAmt',   width: 130, align: 'right' as const },
+  { title: '状态',     dataIndex: 'status',   key: 'status',   width: 90 },
+]
+
+const START_ITEMS = [
+  { name: '开发商开工费', code: 'KFSKGF01' },
+  { name: '施工方开工费', code: 'SGFKGF01' },
+  { name: '监理方开工费', code: 'JLFKGF01' },
+  { name: '设计院开工费', code: 'SJYKGF01' },
+  { name: '设备采购方开工费', code: 'CGFKGF01' },
+]
+
+const GRID_ITEMS = [
+  { name: '开发商并网费', code: 'KFSBWF01' },
+  { name: '施工方并网费', code: 'SGFBWF01' },
+  { name: '监理方并网费', code: 'JLFBWF01' },
+  { name: '设计院并网费', code: 'SJYBWF01' },
+  { name: '设备采购方并网费', code: 'CGFBWF01' },
+]
+
+const COMPLETE_ITEMS = [
+  { name: '开发商竣工费',   code: 'KFSJGF01' },
+  { name: '开发商质保金',   code: 'KFSZBJ01' },
+  { name: '施工方竣工费',   code: 'SGFJGF01' },
+  { name: '施工方质保金',   code: 'SGFZBJ01' },
+  { name: '监理方竣工费',   code: 'JLFJGF01' },
+  { name: '监理方质保金',   code: 'JLFZBJ01' },
+  { name: '设计院竣工费',   code: 'SJYJGF01' },
+  { name: '设计院质保金',   code: 'SJYZBJ01' },
+  { name: '设备采购方竣工费', code: 'CGFJGF01' },
+  { name: '设备采购方质保金', code: 'CGFZBJ01' },
+]
+
+function mockAmt(seed: string, base: number) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff
+  return ((base + (h % 50000)) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+function buildDetailRows(items: { name: string; code: string }[], rowId: string) {
+  return items.map((item, idx) => {
+    const contract = mockAmt(item.code + rowId, 800000 + idx * 12000)
+    const actual   = mockAmt(item.code + rowId + 'a', 750000 + idx * 11000)
+    const status   = DETAIL_STATUS_ITEMS[(item.code.charCodeAt(0) + +rowId + idx) % DETAIL_STATUS_ITEMS.length]
+    return { ...item, contractAmt: contract, actualAmt: actual, status }
+  })
+}
+
+const detailData = computed(() => {
+  if (!currentRow.value) return { start: [], grid: [], complete: [] }
+  const id = currentRow.value.id
+  return {
+    start:    buildDetailRows(START_ITEMS,    id),
+    grid:     buildDetailRows(GRID_ITEMS,     id),
+    complete: buildDetailRows(COMPLETE_ITEMS, id),
+  }
+})
 
 // ── 枚举映射 ──
 
@@ -418,8 +562,9 @@ function handleCopy(text: string) {
   })
 }
 
-function handleViewDetail(_row: any) {
-  message.info('账单详情功能待接入')
+function handleViewDetail(row: any) {
+  currentRow.value = row
+  drawerVisible.value = true
 }
 
 function handleExport() {
@@ -729,5 +874,25 @@ const MOCK_DATA = [
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.detail-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+}
+
+.detail-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2129;
+  margin-bottom: 14px;
+}
+
+.detail-section :deep(.ant-tabs-nav) {
+  margin-bottom: 12px;
 }
 </style>
