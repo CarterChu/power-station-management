@@ -204,9 +204,11 @@ async function handleOk() {
 
 // 照片上传前校验（限制 5MB）
 const beforeUpload: UploadProps['beforeUpload'] = (file) => {
-  const isLt5M = file.size / 1024 / 1024 < 5
-  if (!isLt5M) message.error('照片不超过 5MB')
-  return isLt5M ? false : false  // 返回 false 阻止自动上传，手动管理
+  if (file.size / 1024 / 1024 >= 5) {
+    message.error('照片不超过 5MB')
+    return Upload.LIST_IGNORE
+  }
+  return false
 }
 
 // 状态颜色

@@ -16,7 +16,7 @@
             <a-divider v-if="i > 0" style="margin: 0" />
             <div class="reject-section">
               <p class="reject-section-title">{{ section.title }}</p>
-              <p class="reject-reason">{{ section.reason }}</p>
+              <p class="reject-reason" style="white-space:pre-line">{{ section.reason }}</p>
               <a-image-preview-group v-if="section.images?.length">
                 <div class="reject-images">
                   <div v-for="(src, j) in section.images" :key="j" class="reject-thumb">
@@ -29,7 +29,7 @@
         </template>
         <!-- 单段模式 -->
         <template v-else>
-          <p class="reject-reason">{{ info.reason }}</p>
+          <p class="reject-reason" style="white-space:pre-line">{{ info.reason }}</p>
           <a-image-preview-group v-if="info.images?.length">
             <div class="reject-images">
               <div v-for="(src, i) in info.images" :key="i" class="reject-thumb">
@@ -59,7 +59,7 @@ export interface RejectInfo {
   sections?: RejectSection[]
 }
 
-defineProps<{ info: RejectInfo; title?: string }>()
+withDefaults(defineProps<{ info: RejectInfo; title?: string }>(), { info: () => ({}) })
 
 const expanded = ref(true)
 </script>
@@ -175,8 +175,16 @@ const expanded = ref(true)
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0 !important;
 }
 .reject-img-mask .ant-image-mask-info .anticon {
-  font-size: 16px;
+  font-size: 16px !important;
+}
+.reject-thumb .ant-image,
+.reject-thumb .ant-image-img {
+  width: 44px !important;
+  height: 44px !important;
+  object-fit: cover;
+  display: block;
 }
 </style>

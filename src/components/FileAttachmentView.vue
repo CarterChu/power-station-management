@@ -18,10 +18,10 @@
 import { EyeOutlined, DownloadOutlined } from '@ant-design/icons-vue'
 import FileTypeIcon from './FileTypeIcon.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   files: string[]
   uploadInfo?: string
-}>()
+}>(), { files: () => [] })
 
 const emit = defineEmits<{
   preview: [name: string]

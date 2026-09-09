@@ -52,7 +52,7 @@ const emit = defineEmits<{
   (e: 'update:fileList', list: UploadFile[]): void
 }>()
 
-function handleBeforeUpload(file: any) {
+function handleBeforeUpload(file: File) {
   const newFile: UploadFile = {
     uid: file.uid,
     name: file.name,

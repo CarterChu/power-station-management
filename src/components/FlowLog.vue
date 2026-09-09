@@ -14,7 +14,7 @@
             <div v-for="(log, idx) in group.logs" :key="log.id" class="approval-item">
               <div class="approval-connector">
                 <div class="connector-line connector-line--top" />
-                <component :is="LOG_ICON[log.type]" class="connector-icon" :class="`connector-icon--${log.type}`" />
+                <component :is="LOG_ICON[log.type] ?? LOG_ICON._fallback" class="connector-icon" :class="`connector-icon--${log.type}`" />
                 <div v-if="!(group === groupedLogs[groupedLogs.length-1] && idx === group.logs.length-1)" class="connector-line connector-line--bottom" />
               </div>
               <div class="approval-card-wrap">
@@ -66,11 +66,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CalendarOutlined, FileAddOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { CalendarOutlined, FileAddOutlined, CheckCircleOutlined, CloseCircleOutlined, StopOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
+
+export type LogEntryType = 'create' | 'submit' | 'reject' | 'approve' | 'void'
 
 export interface LogEntry {
-  id: number
-  type: string
+  id: number | string
+  type: LogEntryType
   event: string
   operator: string
   time: string
@@ -78,17 +80,18 @@ export interface LogEntry {
   images?: string[]
 }
 
-const props = defineProps<{ logs: LogEntry[] }>()
+const props = withDefaults(defineProps<{ logs: LogEntry[] }>(), { logs: () => [] })
 
-const LOG_ICON: Record<string, any> = {
-  create:  FileAddOutlined,
-  submit:  CheckCircleOutlined,
-  reject:  CloseCircleOutlined,
-  approve: CheckCircleOutlined,
-  void:    EditOutlined,
+const LOG_ICON: Record<LogEntryType | '_fallback', any> = {
+  create:    FileAddOutlined,
+  submit:    CheckCircleOutlined,
+  reject:    CloseCircleOutlined,
+  approve:   CheckCircleOutlined,
+  void:      StopOutlined,
+  _fallback: QuestionCircleOutlined,
 }
 
-const LOG_TAG_LABEL: Record<string, string> = {
+const LOG_TAG_LABEL: Record<LogEntryType, string> = {
   create:  '创建',
   submit:  '已提交',
   reject:  '不通过',
@@ -172,7 +175,7 @@ const groupedLogs = computed(() => {
 .field-value           { color: #1f1f1f; flex: 1 0 0; min-width: 1px; }
 .field-value--truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .field-value--muted    { color: rgba(0,0,0,.45); }
-.field-value--red      { color: #1a1a1a; }
+.field-value--red      { color: #f5222d; }
 
 .field-note-wrap   { flex: 1 0 0; min-width: 1px; display: flex; flex-direction: column; gap: 4px; }
 .field-note-images { display: flex; flex-wrap: wrap; gap: 4px; }
