@@ -23,6 +23,7 @@
 
       <AnfeProTable
       ref="tableRef"
+      table-key="lnc-project-list"
       :columns="columns"
       :filters="filters"
       :config="tableConfig"
