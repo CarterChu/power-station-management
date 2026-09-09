@@ -890,13 +890,16 @@ const STATUS_COLOR: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
 }
-const rejectInfo = computed(() => ({
-  stage: detail.value.rejectInfo.stage,
-  reviewer: detail.value.rejectInfo.reviewer,
-  time: detail.value.rejectInfo.time,
-  reason: detail.value.rejectInfo.reason,
-  images: detail.value.rejectInfo.images,
-}))
+const REJECT_INFO_MAP: Record<string, { stage: string; reviewer: string; time: string; reason?: string; images?: string[]; sections?: { title: string; reason: string; images?: string[] }[] }> = {
+  start_rejected: {
+    stage: '开工审核', reviewer: '审核组（安能）', time: '2026-08-13 16:30',
+    sections: [
+      { title: '商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+      { title: '工程审核不通过', reason: '施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
+    ],
+  },
+}
+const rejectInfo = computed(() => REJECT_INFO_MAP[detail.value.filingStatus] ?? detail.value.rejectInfo)
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
 const PUBLIC_BUILD_TYPE_LABEL: Record<string, string> = {
@@ -1110,10 +1113,10 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
   ],
   start_rejected: [
-    { id: 5, type: 'reject', event: '开工审核不通过', operator: '李四（安能审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',    time: '2026-08-10 17:20', note: null },
-    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',    time: '2026-08-10 14:05', note: null },
-    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',    time: '2026-08-10 09:32', note: null },
+    { id: 5, type: 'reject', event: '开工审核不通过', operator: '审核组（安能）', time: '2026-08-13 16:30', note: '【商务】EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。\n【工程】施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
+    { id: 4, type: 'submit', event: '提交开工申请',   operator: '张三（代理商）',   time: '2026-08-10 17:20', note: null },
+    { id: 3, type: 'create', event: '保存草稿',       operator: '张三（代理商）',   time: '2026-08-10 14:05', note: null },
+    { id: 2, type: 'create', event: '创建开工申请',   operator: '张三（代理商）',   time: '2026-08-10 09:32', note: null },
     { id: 1, type: 'approve', event: '建档审核通过',  operator: '李四（安能审核员）', time: '2026-08-09 11:00', note: null },
   ],
   approved: [

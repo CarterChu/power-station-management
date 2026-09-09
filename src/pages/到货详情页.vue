@@ -495,6 +495,11 @@
                             {{ record.orderNo }}
                             <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                             <a-tag v-if="record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
+                            <span
+                              v-if="record.status === 'rejected'"
+                              style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
+                              @click.stop="openRejectDetail(record)"
+                            >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
                           </div>
                           <div class="payment-contract-meta-row" style="margin-top:8px">
                             <span class="payment-meta-item"><span class="payment-meta-label">物料类型</span><span class="payment-meta-value">{{ record.materialType }}</span></span>
@@ -510,17 +515,6 @@
                             @click.stop="openReviewPanel(record.id)"
                           >审核</a-button>
                           <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
-                        </div>
-                      </div>
-                      <div
-                        v-if="record.status === 'rejected' && (record.rejectReasons?.length || record.rejectComment)"
-                        style="padding:8px 16px;background:rgba(220,38,38,.04);border-bottom:1px solid #fee2e2;font-size:13px;color:#dc2626"
-                      >
-                        <div v-if="record.rejectReasons?.length" style="margin-bottom:2px">
-                          <span style="font-weight:600">不通过原因：</span>{{ record.rejectReasons.join('、') }}
-                        </div>
-                        <div v-if="record.rejectComment">
-                          <span style="font-weight:600">审核意见：</span>{{ record.rejectComment }}
                         </div>
                       </div>
                       <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table">
@@ -677,17 +671,47 @@
     </div>
 
   </div>
+
+  <a-modal
+    v-model:open="rejectDetailVisible"
+    title="审核不通过详情"
+    :footer="null"
+    width="520px"
+    destroy-on-close
+  >
+    <div v-if="rejectDetailEntry" style="padding:4px 0">
+      <div v-if="rejectDetailEntry.items?.length" style="margin-bottom:16px">
+        <div
+          v-for="r in rejectDetailEntry.items"
+          :key="r"
+          style="padding:4px 0;color:#262626;font-size:14px"
+        >· {{ r }}</div>
+      </div>
+      <div v-if="rejectDetailEntry.images?.length">
+        <div style="font-weight:600;margin-bottom:8px;color:#262626">图片</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <img
+            v-for="(src, i) in rejectDetailEntry.images"
+            :key="i"
+            :src="src"
+            style="width:152px;height:114px;object-fit:cover;border-radius:4px;border:1px solid #f0f0f0;cursor:pointer"
+          />
+        </div>
+      </div>
+    </div>
+  </a-modal>
+
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
+import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, computeFilingStatusFromRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
 import {
-  LeftOutlined, DownOutlined, CopyOutlined,
+  LeftOutlined, DownOutlined, CopyOutlined, RightOutlined,
   CheckCircleFilled,
   AuditOutlined, HolderOutlined,
 } from '@ant-design/icons-vue'
@@ -893,10 +917,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [] as string[],
   },
   jiagongBom: [
@@ -949,7 +973,10 @@ onMounted(() => {
     // 用户刚从申请页提交，直接展示真实数据，不覆盖
     hasUserSubmittedRecords.value = false
   } else {
-    initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+    const initStatus = initDemoStockRecords(detail.value.filingStatus, detail.value.yigongBom)
+    detail.value.filingStatus = initStatus
+    const sid = props.initRow?.id
+    if (sid) stationStatusOverrides[sid] = initStatus
   }
 
   const container = detailBodyRef.value
@@ -1193,35 +1220,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 
 // 根据当前所有到货单状态推算电站 filingStatus，并更新详情页本地状态和列表覆盖表
 function syncFilingStatus() {
-  const records = sharedStockRecords
-  let next: string
-
-  const anyFullRejected  = records.some(r => r.status === 'rejected' && r.arrivalType === '全部到货')
-  const anyRejected      = records.some(r => r.status === 'rejected')
-  const anyReviewing     = records.some(r => r.status === 'reviewing')
-
-  if (anyFullRejected) {
-    next = 'full_stock_rejected'
-  } else if (anyRejected) {
-    next = 'partial_stock_rejected'
-  } else if (anyReviewing) {
-    next = 'reviewing_stock'
-  } else {
-    // 全部 approved，看 BOM 覆盖率
-    const bom = detail.value.yigongBom
-    const allCovered = bom.every(b => {
-      const total = records.reduce((sum, r) => {
-        const item = r.items.find(i => i.code === b.code)
-        return sum + (item?.arrivedQty ?? 0)
-      }, 0)
-      return total >= b.quantity
-    })
-    next = allCovered ? 'full_stock' : 'partial_stock'
-  }
-
+  const next = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
   detail.value.filingStatus = next
-
-  // 写入列表覆盖表（用电站 id 作 key，来自 initRow）
   const stationId = props.initRow?.id
   if (stationId) stationStatusOverrides[stationId] = next
 }
@@ -1230,6 +1230,20 @@ function nowTimeStr(): string {
   const d = new Date()
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+const rejectDetailVisible = ref(false)
+const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
+function openRejectDetail(record: StockRecord) {
+  const noteArr: string[] = []
+  if (record.rejectReasons?.length) noteArr.push(record.rejectReasons.join('、'))
+  if (record.rejectComment) noteArr.push(record.rejectComment)
+  const note = noteArr.join('；')
+  rejectDetailEntry.value = {
+    items: note ? note.split('；').filter(Boolean) : [],
+    images: record.rejectImages ?? [],
+  }
+  rejectDetailVisible.value = true
 }
 </script>
 

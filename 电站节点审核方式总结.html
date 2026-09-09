@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电站节点审核方式总结</title>
+<script>
+(function() {
+  var key = document.title.replace(/\s/g, '-').toLowerCase() + '-theme';
+  if (localStorage.getItem(key) === 'dark') document.documentElement.classList.add('dark');
+  window.__themeKey = key;
+})();
+</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff;
+  --card-bg: #ffffff;
+  --text: #000000;
+  --border: #e5e7eb;
+  --surface-soft: #f2f2f2;
+  --muted: #666666;
+  --accent-primary: #4d49fc;
+  --accent-error: #dc2626;
+  --accent-green: #16a34a;
+  --chart-1: #4d49fc;
+  --chart-2: #f76040;
+  --chart-3: #13c5be;
+  --chart-4: #a35cfb;
+  --font: 'PingFang SC', -apple-system, system-ui, sans-serif;
+  --radius-card: 8px;
+  --radius-pill: 9999px;
+}
+html.dark {
+  --bg: #171715;
+  --card-bg: #272725;
+  --text: #f5f5f4;
+  --border: #434342;
+  --surface-soft: #2d2d2b;
+  --muted: #9c9c9b;
+  --accent-primary: #7a77fd;
+  --accent-error: #ef4444;
+  --accent-green: #22c55e;
+  --chart-1: #7a77fd;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.75; font-size: 15px; }
+
+/* ── 布局 ── */
+#sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; overflow-y: auto; background: var(--bg); border-right: 1px solid var(--border); padding: 20px 0; z-index: 100; transition: transform .25s cubic-bezier(.4,0,.2,1); }
+#sidebar .sidebar-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 0 18px 12px; }
+#sidebar a { display: flex; align-items: center; gap: 10px; padding: 7px 18px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 3px solid transparent; }
+#sidebar a:hover { color: var(--chart-2); background: rgba(247,96,64,.06); }
+#sidebar a.active { color: var(--chart-2); font-weight: 600; border-left-color: var(--chart-2); background: rgba(247,96,64,.06); }
+.sidebar-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.main { margin-left: 220px; transition: margin-left .25s cubic-bezier(.4,0,.2,1); }
+.content-wrap { max-width: 1000px; padding: 48px 52px 80px; margin: 0 auto; }
+html.sidebar-collapsed #sidebar { transform: translateX(-220px); }
+html.sidebar-collapsed .main    { margin-left: 0; }
+
+/* ── 章节 ── */
+.section { }
+.chapter-header { background: rgba(247,96,64,.06); padding: 20px 24px; border-radius: 10px; display: flex; align-items: center; gap: 14px; margin-top: 80px; }
+#s0 .chapter-header { margin-top: 0; }
+.chapter-num { background: var(--chart-2); color: #fff; font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; }
+.chapter-title { color: var(--chart-2); font-size: 20px; font-weight: 700; }
+.chapter-tag { background: rgba(247,96,64,.12); color: var(--chart-2); font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: var(--radius-pill); margin-left: auto; white-space: nowrap; }
+
+/* ── 表格 ── */
+.tbl-wrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--border); border-radius: var(--radius-card); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { background: var(--surface-soft); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; line-height: 1.6; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: var(--surface-soft); }
+tbody tr:hover td { background: rgba(247,96,64,.04); }
+
+/* ── 状态 Tag ── */
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
+.tag-success { background: #f6ffed; color: #389e0d; border: 1px solid #b7eb8f; }
+.tag-error   { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+.tag-warning { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+.tag-default { background: #f5f5f5; color: #595959; border: 1px solid #d9d9d9; }
+.tag-info    { background: #e6f4ff; color: #0958d9; border: 1px solid #91caff; }
+.tag-purple  { background: #f9f0ff; color: #531dab; border: 1px solid #d3adf7; }
+.tag-cyan    { background: #e6fffb; color: #007070; border: 1px solid #87e8de; }
+.tag-pink    { background: #fff0f6; color: #c41d7f; border: 1px solid #ffadd2; }
+html.dark .tag-success { background: #162312; color: #49aa19; border-color: #274916; }
+html.dark .tag-error   { background: #2c1618; color: #e84749; border-color: #58181c; }
+html.dark .tag-warning { background: #2b2111; color: #d89614; border-color: #594214; }
+html.dark .tag-default { background: #1f1f1f; color: #8c8c8c; border-color: #434343; }
+html.dark .tag-info    { background: #111d2c; color: #1677ff; border-color: #15395b; }
+
+/* 审核模式 tag（色带样式） */
+.mode-tag { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+
+/* ── 流程步骤 ── */
+.flow { margin: 16px 0; }
+.flow-step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px; position: relative; }
+.flow-step:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 28px; width: 1px; height: calc(100% + 2px); background: var(--border); }
+.flow-num { width: 26px; height: 26px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 1; }
+.flow-num.alt { background: var(--surface-soft); color: var(--muted); border: 1px solid var(--border); }
+.flow-body { padding-top: 3px; padding-bottom: 16px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.flow-body strong { color: var(--text); }
+.flow-branch { margin-top: 6px; padding: 8px 12px; background: var(--surface-soft); border-radius: var(--radius-card); border: 1px solid var(--border); font-size: 13px; }
+.flow-branch-row { display: flex; gap: 8px; margin-bottom: 4px; align-items: flex-start; }
+.flow-branch-row:last-child { margin-bottom: 0; }
+.flow-arrow { color: var(--chart-2); font-weight: 700; flex-shrink: 0; }
+
+/* ── 双列并行块 ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+.info-card { background: var(--surface-soft); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 16px; }
+.info-card h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.info-card p  { font-size: 13px; color: var(--muted); line-height: 1.65; }
+.info-card p + p { margin-top: 6px; }
+
+/* ── 角色 chip ── */
+.roles { display: flex; gap: 6px; flex-wrap: wrap; }
+.role-chip { font-size: 12px; color: var(--muted); background: var(--surface-soft); border: 1px solid var(--border); border-radius: 4px; padding: 1px 8px; }
+
+/* ── 状态格网 ── */
+.status-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+
+/* ── 提示块 ── */
+.callout { display: flex; gap: 10px; padding: 10px 14px; border-radius: var(--radius-card); font-size: 13px; margin: 10px 0; }
+.callout-warn { background: #fffbe6; border: 1px solid #ffe58f; color: #7c5e0a; }
+.callout-info { background: rgba(247,96,64,.06); border: 1px solid rgba(247,96,64,.2); color: var(--muted); }
+html.dark .callout-warn { background: #2b2111; border-color: #594214; color: #d89614; }
+html.dark .callout-info { background: rgba(247,96,64,.08); border-color: rgba(247,96,64,.25); }
+.callout-icon { flex-shrink: 0; font-style: normal; }
+
+/* ── 主题切换 ── */
+.theme-toggle { position: fixed; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 200; color: var(--text); }
+
+/* ── 工具栏 ── */
+.pres-bar { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 300; }
+.pres-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s, border-color .15s, transform .1s; box-shadow: 0 2px 8px rgba(0,0,0,.12); position: relative; }
+.pres-btn:hover { transform: scale(1.1); }
+.pres-btn:hover .pres-tip { opacity: 1; transform: translateX(0); }
+.pres-btn.active-laser,
+.pres-btn.active-sidebar { background: var(--surface-soft); border-color: var(--chart-2); color: var(--chart-2); }
+.pres-btn.active-comment { background: var(--chart-2); color: #fff; border-color: var(--chart-2); box-shadow: 0 0 0 4px rgba(247,96,64,.2); }
+.pres-tip { position: absolute; right: calc(100% + 10px); top: 50%; transform: translateX(6px) translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 600; background: var(--card-bg); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; }
+
+/* ── Comment 批注 ── */
+body.comment-mode * { cursor: crosshair !important; }
+body.comment-mode .cmt-pin, body.comment-mode .cmt-pin * { cursor: pointer !important; }
+body.comment-mode #cmt-popup, body.comment-mode #cmt-popup * { cursor: default !important; }
+#cmt-overlay { position: fixed; inset: 0; z-index: 400; pointer-events: none; overflow: hidden; }
+body.comment-mode #cmt-overlay { pointer-events: auto; }
+.cmt-pin { position: absolute; pointer-events: auto; cursor: grab; user-select: none; transform: translate(-12px, -28px); }
+.cmt-pin.is-dragging { cursor: grabbing; z-index: 10; transition: none !important; }
+.cmt-pin.is-dragging .cmt-pin__dot { transform: rotate(-45deg) scale(1.1); }
+.cmt-pin__dot { width: 28px; height: 28px; border-radius: 50% 50% 50% 0; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,.28); border: 2px solid #fff; transform: rotate(-45deg); transition: transform .12s; }
+.cmt-pin__dot span { transform: rotate(45deg); display: block; }
+.cmt-pin:hover .cmt-pin__dot { transform: rotate(-45deg) scale(1.15); }
+.cmt-pin.is-resolved .cmt-pin__dot { background: #3dbe6e; }
+.cmt-pin.is-active .cmt-pin__dot { background: var(--chart-2); }
+@keyframes cmt-pop { 0% { transform: translate(-12px,-28px) scale(0); } 65% { transform: translate(-12px,-28px) scale(1.2); } 100% { transform: translate(-12px,-28px) scale(1); } }
+.cmt-pin.is-new { animation: cmt-pop .28s cubic-bezier(.34,1.56,.64,1); }
+#cmt-popup { position: fixed; z-index: 500; width: 268px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.18); display: none; flex-direction: column; overflow: hidden; }
+#cmt-popup.open { display: flex; }
+#cmt-popup.is-empty .cmt-popup-hd { display: none; }
+#cmt-popup.is-empty .cmt-popup-body { display: none; }
+#cmt-popup.is-empty .cmt-popup-footer { padding: 12px; }
+.cmt-popup-hd { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; }
+.cmt-popup-num { font-size: 11px; font-weight: 700; color: var(--muted); background: var(--surface-soft); border-radius: var(--radius-pill); padding: 2px 8px; flex-shrink: 0; }
+.cmt-popup-actions { margin-left: auto; display: flex; gap: 5px; }
+.cmt-act-btn { font-size: 11px; font-weight: 600; padding: 3px 7px; line-height: 1.4; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; white-space: nowrap; transition: background .1s; }
+.cmt-act-btn:hover { background: var(--surface-soft); }
+.cmt-popup-body { max-height: 200px; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+.cmt-thread { display: flex; gap: 8px; align-items: flex-start; }
+.cmt-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cmt-thread-body { flex: 1; min-width: 0; }
+.cmt-thread-text { font-size: 13px; color: var(--text); line-height: 1.55; word-break: break-all; }
+.cmt-thread-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.cmt-popup-footer { padding: 4px 12px 10px; display: flex; flex-direction: column; gap: 6px; }
+.cmt-textarea { width: 100%; resize: none; border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; font-size: 13px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; line-height: 1.5; min-height: 60px; max-height: 120px; transition: border-color .15s; }
+.cmt-textarea::placeholder { color: var(--border); }
+.cmt-badge { position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--bg); pointer-events: none; }
+
+p { margin-top: 10px; color: var(--muted); font-size: 14px; }
+p:first-child { margin-top: 0; }
+h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 28px 0 10px; }
+
+/* ── 审核模式示意图 ── */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0 0; }
+.mode-diagram-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; }
+.mdc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.mdc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mdc-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.mdc-node-tag { font-size: 11px; color: var(--muted); margin-left: auto; background: var(--surface-soft); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 1px 8px; white-space: nowrap; }
+.d-flow { display: flex; align-items: center; gap: 6px; }
+.d-node { background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--text); white-space: nowrap; text-align: center; }
+.d-node.review  { background: #e6f0ff; border-color: #91b8ff; color: #0958d9; }
+.d-node.pass    { background: #f6ffed; border-color: #b7eb8f; color: #389e0d; }
+.d-node.warn    { background: #fff7e6; border-color: #ffd591; color: #d46b08; }
+.d-node.cyan    { background: #e6fffb; border-color: #87e8de; color: #007070; }
+.d-node.muted   { background: var(--surface-soft); border-color: var(--border); color: var(--muted); }
+.d-node.op      { background: rgba(247,96,64,.06); border-color: rgba(247,96,64,.25); color: var(--chart-2); }
+html.dark .d-node.review { background: #111d2c; border-color: #15395b; color: #4096ff; }
+html.dark .d-node.pass   { background: #162312; border-color: #274916; color: #49aa19; }
+html.dark .d-node.warn   { background: #2b2111; border-color: #594214; color: #d89614; }
+html.dark .d-node.cyan   { background: #112123; border-color: #144848; color: #13c5be; }
+.d-parallel { display: flex; flex-direction: column; gap: 4px; }
+.d-arr { font-size: 13px; color: var(--muted); flex-shrink: 0; line-height: 1; padding: 0 2px; }
+.d-stage { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+.d-stage-label { font-size: 10px; color: var(--muted); text-align: center; margin-bottom: 1px; letter-spacing: .02em; }
+.d-loop-note { font-size: 10px; color: var(--muted); margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+.d-loop-arrow { color: var(--chart-2); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></symbol>
+  <symbol id="ic-sun"  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+</svg>
+
+<!-- 批注层 -->
+<div id="cmt-overlay"></div>
+<div id="cmt-popup">
+  <div class="cmt-popup-hd">
+    <div class="cmt-popup-actions">
+      <button class="cmt-act-btn resolve" id="cmt-resolve-btn" onclick="cmtResolve()">标记解决</button>
+      <button class="cmt-act-btn del" onclick="cmtDelete()">删除</button>
+    </div>
+  </div>
+  <div class="cmt-popup-body" id="cmt-threads"></div>
+  <div class="cmt-popup-footer">
+    <textarea class="cmt-textarea" id="cmt-input" placeholder="添加备注… (Enter 发送)" autocomplete="off"></textarea>
+  </div>
+</div>
+
+<!-- 主题切换 -->
+<button class="theme-toggle" onclick="toggleTheme()" aria-label="切换主题">
+  <svg width="16" height="16"><use id="themeIcon" href="#ic-moon"/></svg>
+</button>
+
+<!-- 工具栏 -->
+<div class="pres-bar">
+  <button class="pres-btn" id="btnSidebar" onclick="toggleSidebar()" aria-label="收起侧边栏">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+    <span class="pres-tip">侧边栏 (S)</span>
+  </button>
+  <button class="pres-btn" id="btnFullscreen" onclick="toggleFullscreen()" aria-label="全屏">
+    <svg id="fsIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+    <span class="pres-tip">全屏 (F)</span>
+  </button>
+  <button class="pres-btn" id="btnLaser" onclick="toggleLaser()" aria-label="激光笔">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
+    <span class="pres-tip">激光笔 (L)</span>
+  </button>
+  <button class="pres-btn" id="btnComment" onclick="toggleCommentMode()" aria-label="添加标注">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span class="pres-tip">标注 (C)</span>
+  </button>
+</div>
+
+<!-- 侧边栏 -->
+<nav id="sidebar">
+  <div class="sidebar-title">电站节点</div>
+  <a href="#s0"><span class="sidebar-dot" style="background:#f76040"></span>快速对比</a>
+  <a href="#s1"><span class="sidebar-dot" style="background:#722ed1"></span>建档</a>
+  <a href="#s2"><span class="sidebar-dot" style="background:#3060ff"></span>开工</a>
+  <a href="#s3"><span class="sidebar-dot" style="background:#fa8c16"></span>到货</a>
+  <a href="#s4"><span class="sidebar-dot" style="background:#08979c"></span>派工</a>
+  <a href="#s5"><span class="sidebar-dot" style="background:#13c2c2"></span>完工</a>
+  <a href="#s6"><span class="sidebar-dot" style="background:#eb2f96"></span>并网</a>
+  <a href="#s7"><span class="sidebar-dot" style="background:#f5222d"></span>竣工</a>
+</nav>
+
+<div class="main">
+<div class="content-wrap">
+
+<!-- ══ 0 快速对比 ══ -->
+<div class="section" id="s0">
+  <div class="chapter-header">
+    <span class="chapter-num">总览</span>
+    <span class="chapter-title">电站节点审核方式</span>
+    <span class="chapter-tag">共 7 个节点</span>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>节点</th>
+          <th>审核模式</th>
+          <th>审核角色</th>
+          <th>不通过类型</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>建档</strong></td>
+          <td><span class="tag tag-purple">两阶段串行</span></td>
+          <td><div class="roles"><span class="role-chip">技术自审员</span><span class="role-chip">商务自审员</span><span class="role-chip">平台技术审核员</span><span class="role-chip">平台商务审核员</span></div></td>
+          <td>自审不通过 / 平台审核不通过</td>
+        </tr>
+        <tr>
+          <td><strong>开工</strong></td>
+          <td><span class="tag tag-info">单阶段三角色</span></td>
+          <td><div class="roles"><span class="role-chip">商务审核员</span><span class="role-chip">技术审核员</span><span class="role-chip">工程审核员</span></div></td>
+          <td>开工审核不通过（任一角色不通过即整体不通过）</td>
+        </tr>
+        <tr>
+          <td><strong>到货</strong></td>
+          <td><span class="tag tag-warning">按批次单审核</span></td>
+          <td><div class="roles"><span class="role-chip">到货审核员</span></div></td>
+          <td>部分到货审核不通过 / 全部到货审核不通过</td>
+        </tr>
+        <tr>
+          <td><strong>派工</strong></td>
+          <td><span class="tag tag-default">无审核环节</span></td>
+          <td>—</td>
+          <td>无驳回状态</td>
+        </tr>
+        <tr>
+          <td><strong>完工</strong></td>
+          <td><span class="tag tag-cyan">单阶段单审核</span></td>
+          <td><div class="roles"><span class="role-chip">完工审核员</span></div></td>
+          <td>完工审核不通过</td>
+        </tr>
+        <tr>
+          <td><strong>并网</strong></td>
+          <td><span class="tag tag-pink">双路并行审核</span></td>
+          <td><div class="roles"><span class="role-chip">商务审核员</span><span class="role-chip">质量审核员</span></div></td>
+          <td>商务审核不通过 / 质量审核不通过 / 全部不通过</td>
+        </tr>
+        <tr>
+          <td><strong>竣工</strong></td>
+          <td><span class="tag tag-warning" style="background:#fff7e6;color:#d46b08">多阶段顺序流转</span></td>
+          <td><div class="roles"><span class="role-chip">竣工验收员</span></div></td>
+          <td>验收不通过 → 进入整改阶段</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:28px">审核模式示意</h3>
+  <div class="mode-grid">
+
+    <!-- 建档：两阶段串行 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#722ed1"></span>
+        <span class="mdc-title">两阶段串行</span>
+        <span class="mdc-node-tag">建档</span>
+      </div>
+      <div class="d-flow">
+        <div class="d-node">申请人</div>
+        <div class="d-arr">→</div>
+        <div class="d-stage">
+          <div class="d-stage-label">阶段一·内部自审</div>
+          <div class="d-parallel">
+            <div class="d-node review">技术审核员</div>
+            <div class="d-node review">商务审核员</div>
+          </div>
+        </div>
+        <div class="d-arr">→</div>
+        <div class="d-stage">
+          <div class="d-stage-label">阶段二·平台审核</div>
+          <div class="d-parallel">
+            <div class="d-node review">平台技术审核员</div>
+            <div class="d-node review">平台商务审核员</div>
+          </div>
+        </div>
+        <div class="d-arr">→</div>
+        <div class="d-node pass">完成</div>
+      </div>
+    </div>
+
+    <!-- 开工：单阶段三角色 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#3060ff"></span>
+        <span class="mdc-title">单阶段三角色并行</span>
+        <span class="mdc-node-tag">开工</span>
+      </div>
+      <div class="d-flow">
+        <div class="d-node">申请人</div>
+        <div class="d-arr">→</div>
+        <div class="d-parallel">
+          <div class="d-node review">商务审核员</div>
+          <div class="d-node review">技术审核员</div>
+          <div class="d-node review">工程审核员</div>
+        </div>
+        <div class="d-arr">→</div>
+        <div class="d-stage">
+          <div class="d-stage-label">三者均完成后汇总</div>
+          <div class="d-node pass">通过 / 不通过</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 到货：按批次单审核 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#fa8c16"></span>
+        <span class="mdc-title">按批次逐条审核</span>
+        <span class="mdc-node-tag">到货</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:5px">
+        <div class="d-flow">
+          <div class="d-node muted" style="min-width:48px;text-align:center">批次 1</div>
+          <div class="d-arr">→</div>
+          <div class="d-node review">审核员</div>
+          <div class="d-arr">→</div>
+          <div class="d-node pass">通过 / 驳回</div>
+        </div>
+        <div class="d-flow">
+          <div class="d-node muted" style="min-width:48px;text-align:center">批次 2</div>
+          <div class="d-arr">→</div>
+          <div class="d-node review">审核员</div>
+          <div class="d-arr">→</div>
+          <div class="d-node pass">通过 / 驳回</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;padding-left:2px">累计通过量是否覆盖 BOM → 决定电站到货状态</div>
+      </div>
+    </div>
+
+    <!-- 派工：操作驱动 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#08979c"></span>
+        <span class="mdc-title">操作驱动，无审核环节</span>
+        <span class="mdc-node-tag">派工</span>
+      </div>
+      <div class="d-flow" style="flex-wrap:wrap; row-gap:6px">
+        <div class="d-node op">提交领料申请</div>
+        <div class="d-arr">→</div>
+        <div class="d-node muted" style="font-size:10px">平台自动确认</div>
+        <div class="d-arr">→</div>
+        <div class="d-node op">退料处理（按需）</div>
+        <div class="d-arr">→</div>
+        <div class="d-node pass">已派工</div>
+      </div>
+    </div>
+
+    <!-- 完工：单阶段单审核 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#13c2c2"></span>
+        <span class="mdc-title">单阶段单审核</span>
+        <span class="mdc-node-tag">完工</span>
+      </div>
+      <div class="d-flow">
+        <div class="d-node">申请人</div>
+        <div class="d-arr">→</div>
+        <div class="d-node review">审核员</div>
+        <div class="d-arr">→</div>
+        <div class="d-node pass">通过 / 不通过</div>
+      </div>
+    </div>
+
+    <!-- 并网：双路并行 -->
+    <div class="mode-diagram-card">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#eb2f96"></span>
+        <span class="mdc-title">双路并行审核</span>
+        <span class="mdc-node-tag">并网</span>
+      </div>
+      <div class="d-flow">
+        <div class="d-node">申请人</div>
+        <div class="d-arr">→</div>
+        <div class="d-parallel">
+          <div class="d-node review">商务审核员</div>
+          <div class="d-node review">质量审核员</div>
+        </div>
+        <div class="d-arr">→</div>
+        <div class="d-stage">
+          <div class="d-stage-label">两者均通过</div>
+          <div class="d-node pass">并网完成</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 竣工：多阶段顺序 -->
+    <div class="mode-diagram-card" style="grid-column: 1 / -1">
+      <div class="mdc-header">
+        <span class="mdc-dot" style="background:#f5222d"></span>
+        <span class="mdc-title">多阶段顺序流转</span>
+        <span class="mdc-node-tag">竣工</span>
+      </div>
+      <div class="d-flow" style="flex-wrap:wrap; row-gap:6px">
+        <div class="d-node review">验收中</div>
+        <div class="d-arr">→</div>
+        <div class="d-node warn">整改中</div>
+        <div class="d-arr">→</div>
+        <div class="d-node cyan">复验中</div>
+        <div class="d-arr">→</div>
+        <div class="d-node pass">验收通过</div>
+      </div>
+      <div class="d-loop-note"><span class="d-loop-arrow">↺</span>复验不通过可再次进入整改循环</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ 1 建档 ══ -->
+<div class="section" id="s1">
+  <div class="chapter-header">
+    <span class="chapter-num">01</span>
+    <span class="chapter-title">建档</span>
+    <span class="chapter-tag">两阶段串行审核</span>
+  </div>
+
+  <p>建档是最复杂的审核节点，分为<strong>内部自审</strong>和<strong>平台审核</strong>两个阶段，每个阶段内部有技术和商务两个角色并行完成。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body">
+        <strong>申请人提交建档</strong><br>
+        填写项目信息、上传资质文件、合同等资料后提交。
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>阶段一：内部自审</strong>（技术审核员 + 商务审核员，并行）<br>
+        两类审核员各自独立打开详情页，查看对应标签页内容，填写审核意见后提交。两人均完成后，阶段一结束。
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>任意一人不通过：退回申请人修改</div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>两人均通过：进入阶段二平台审核</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-body">
+        <strong>阶段二：平台审核</strong>（平台技术审核员 + 平台商务审核员，并行）<br>
+        平台侧两类审核员对修正后的内容再次复核，逻辑与阶段一完全相同。
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>任意一人不通过：退回申请人修改</div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>两人均通过：<span class="tag tag-success" style="margin-left:4px">建档完成</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ</span>
+    审核员从列表页直接进入详情页，页面根据传入的角色参数（自审 / 平台审核）自动显示对应审核面板。审核面板可拖动、可调整大小，不遮挡内容区域。
+  </div>
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠</span>
+    同一阶段的技术审核和商务审核是并行的——各审各的，不是某个角色审完再传给下一个角色。
+  </div>
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">建档中</span>
+    <span class="tag tag-info">建档自审中</span>
+    <span class="tag tag-error">建档自审不通过</span>
+    <span class="tag tag-info">建档审核中</span>
+    <span class="tag tag-error">建档平台审核不通过</span>
+    <span class="tag tag-success">建档完成</span>
+  </div>
+</div>
+
+<!-- ══ 2 开工 ══ -->
+<div class="section" id="s2">
+  <div class="chapter-header">
+    <span class="chapter-num">02</span>
+    <span class="chapter-title">开工</span>
+    <span class="chapter-tag">单阶段三角色并行审核</span>
+  </div>
+
+  <p>开工审核在同一面板内完成，三类角色（商务 / 技术 / 工程）各自独立提交结果，全部完成后系统自动汇总。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交开工申请</strong><br>上传施工方案、资质证明、技术资料等。</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>三类审核员各自独立进入详情页审核</strong><br>
+        商务、技术、工程三类审核员分别从列表页进入开工详情页，进入时角色已确定。审核面板自动展开，标题显示对应角色名称（如"开工商务审核"），只能提交自己角色的结果。填写不通过原因、意见文字和附件图片后提交，提交后直接返回列表。
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num alt">∑</div>
+      <div class="flow-body">
+        <strong>系统自动汇总</strong>
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>三类全部通过：<span class="tag tag-success" style="margin-left:4px">已开工</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>任意一类不通过：<span class="tag tag-error" style="margin-left:4px">开工审核不通过</span>，退回申请人修改后重新提交</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ</span>
+    三类审核员相互独立，每人只看到并提交自己角色的审核结果，无法看到或修改其他角色的内容。
+  </div>
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待开工</span>
+    <span class="tag tag-info">开工审核中</span>
+    <span class="tag tag-error">开工审核不通过</span>
+    <span class="tag tag-success">已开工</span>
+  </div>
+</div>
+
+<!-- ══ 3 到货 ══ -->
+<div class="section" id="s3">
+  <div class="chapter-header">
+    <span class="chapter-num">03</span>
+    <span class="chapter-title">到货</span>
+    <span class="chapter-tag">按批次逐条单审核</span>
+  </div>
+
+  <p>到货可分多批次提交，每批次对应一张独立的到货单，审核员逐条审核。电站整体到货状态由所有<strong>审核通过</strong>批次的累计到货量是否覆盖 BOM 全量决定。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交到货单</strong><br>填写本批次到货物料和数量，签收人信息，上传相关附件后提交。可多次提交，每次生成一张新单据。</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>审核员审核该批次</strong><br>
+        在到货详情页，审核员点击到货卡片右上角的"审核"按钮，弹出浮动审核面板，仅针对这一张单据生效。
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>通过：该批次状态变为已通过，计入到货量统计</div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>不通过：该批次标记为已驳回，到货量不计入；申请人可重新提交一张新单</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num alt">∑</div>
+      <div class="flow-body">
+        <strong>系统根据累计通过量判断电站状态</strong>
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>通过批次合计覆盖 BOM 全量：<span class="tag tag-success" style="margin-left:4px">全部已到货</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>通过批次合计未覆盖 BOM 全量：<span class="tag tag-warning" style="margin-left:4px">部分已到货</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>存在已驳回批次 + 覆盖全量：<span class="tag tag-error" style="margin-left:4px">全部到货审核不通过</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>存在已驳回批次 + 未覆盖全量：<span class="tag tag-error" style="margin-left:4px">部分到货审核不通过</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ</span>
+    "部分 / 全部"描述的是 BOM 物料的<strong>数量覆盖情况</strong>，而非到货单数量。一张单驳回不影响其他已通过单据的覆盖量。
+  </div>
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待到货</span>
+    <span class="tag tag-info">到货审核中</span>
+    <span class="tag tag-warning">部分已到货</span>
+    <span class="tag tag-success">全部已到货</span>
+    <span class="tag tag-error">部分到货审核不通过</span>
+    <span class="tag tag-error">全部到货审核不通过</span>
+  </div>
+</div>
+
+<!-- ══ 4 派工 ══ -->
+<div class="section" id="s4">
+  <div class="chapter-header">
+    <span class="chapter-num">04</span>
+    <span class="chapter-title">派工</span>
+    <span class="chapter-tag">无审核环节</span>
+  </div>
+
+  <p>派工节点没有独立的人工审核步骤，由申请人的操作（领料、退料、确认完成）直接驱动状态流转。</p>
+
+  <h3>操作流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交领料申请</strong><br>填写本次领取的物料和数量，提交后平台后台自动审批确认（无需人工介入），电站状态变为<span class="tag tag-info" style="margin-left:4px">派工中</span></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body"><strong>按需提交退料申请</strong>（可选）<br>施工完成后如有剩余物料，申请人提交退料，平台同样自动处理。</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-body"><strong>确认派工完成</strong><br>申请人完成全部操作后确认，状态流转为<span class="tag tag-success" style="margin-left:4px">已派工</span></div>
+    </div>
+  </div>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠</span>
+    当前实现中派工节点无"驳回"或"不通过"状态。
+  </div>
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待派工</span>
+    <span class="tag tag-info">派工中</span>
+    <span class="tag tag-success">已派工</span>
+  </div>
+</div>
+
+<!-- ══ 5 完工 ══ -->
+<div class="section" id="s5">
+  <div class="chapter-header">
+    <span class="chapter-num">05</span>
+    <span class="chapter-title">完工</span>
+    <span class="chapter-tag">单阶段单审核</span>
+  </div>
+
+  <p>完工是结构最简单的审核节点——单人、单阶段，整体通过或驳回，与建档、开工的多角色机制不同。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交完工申请</strong><br>上传施工完工图片、相关资料后提交。</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>审核员整体审核</strong><br>
+        右下角浮现完工审核面板，审核员查看资料后填写审核意见，选择通过或不通过。
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>通过：<span class="tag tag-success" style="margin-left:4px">已完工</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>不通过：<span class="tag tag-error" style="margin-left:4px">完工审核不通过</span>，申请人修改后可重新提交</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-info">
+    <span class="callout-icon">ℹ</span>
+    与开工审核不同，完工只有一个审核员，无角色分类，一次性整体判定。
+  </div>
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待完工</span>
+    <span class="tag tag-info">完工审核中</span>
+    <span class="tag tag-error">完工审核不通过</span>
+    <span class="tag tag-success">已完工</span>
+  </div>
+</div>
+
+<!-- ══ 6 并网 ══ -->
+<div class="section" id="s6">
+  <div class="chapter-header">
+    <span class="chapter-num">06</span>
+    <span class="chapter-title">并网</span>
+    <span class="chapter-tag">双路并行审核</span>
+  </div>
+
+  <p>并网需要<strong>商务审核员</strong>和<strong>质量审核员</strong>两路独立审核，两者可以各自单独不通过，互不干扰。两者均通过才标记为并网完成。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交并网申请</strong><br>上传并网所需资料后提交，电站状态变为<span class="tag tag-info" style="margin-left:4px">并网审核中</span></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>商务审核员 + 质量审核员并行审核</strong><br>
+        两类审核员各自独立完成审核，结果互不影响。
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>仅商务不通过：<span class="tag tag-error" style="margin-left:4px">并网商务审核不通过</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>仅质量不通过：<span class="tag tag-error" style="margin-left:4px">并网质量审核不通过</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>两者均不通过：<span class="tag tag-error" style="margin-left:4px">并网全部审核不通过</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>两者均通过：<span class="tag tag-success" style="margin-left:4px">并网完成</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待并网</span>
+    <span class="tag tag-info">并网审核中</span>
+    <span class="tag tag-error">并网商务审核不通过</span>
+    <span class="tag tag-error">并网质量审核不通过</span>
+    <span class="tag tag-error">并网全部审核不通过</span>
+    <span class="tag tag-success">并网完成</span>
+  </div>
+</div>
+
+<!-- ══ 7 竣工 ══ -->
+<div class="section" id="s7">
+  <div class="chapter-header">
+    <span class="chapter-num">07</span>
+    <span class="chapter-title">竣工</span>
+    <span class="chapter-tag">多阶段顺序流转</span>
+  </div>
+
+  <p>竣工是项目的最终节点，采用"验收 → 整改 → 复验"的循环机制，直到验收通过后项目才最终归档。</p>
+
+  <h3>审核流程</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div class="flow-body"><strong>申请人提交竣工申请</strong><br>上传竣工验收资料，状态变为<span class="tag tag-info" style="margin-left:4px">竣工验收中</span></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div class="flow-body">
+        <strong>验收员初次验收</strong>
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>验收通过：<span class="tag tag-success" style="margin-left:4px">竣工验收通过</span>，项目归档</div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>验收不通过：状态变为<span class="tag tag-warning" style="margin-left:4px">竣工整改中</span>，申请人按反馈修改</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div class="flow-body"><strong>申请人整改完成后重新提交</strong><br>状态变为<span class="tag tag-cyan" style="margin-left:4px">竣工复验中</span></div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div class="flow-body">
+        <strong>验收员复验</strong>
+        <div class="flow-branch">
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>复验通过：<span class="tag tag-success" style="margin-left:4px">竣工验收通过</span></div>
+          <div class="flow-branch-row"><span class="flow-arrow">→</span>复验仍不通过：重新进入整改阶段，循环直至通过</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <h3>对应电站状态</h3>
+  <div class="status-row">
+    <span class="tag tag-default">待竣工</span>
+    <span class="tag tag-info">竣工验收中</span>
+    <span class="tag tag-warning">竣工整改中</span>
+    <span class="tag tag-cyan">竣工复验中</span>
+    <span class="tag tag-success">竣工验收通过</span>
+  </div>
+</div>
+
+</div><!-- /content-wrap -->
+</div><!-- /main -->
+
+<script>
+/* ── 主题 ── */
+function updateIcon() {
+  var u = document.getElementById('themeIcon');
+  if (u) u.setAttribute('href', document.documentElement.classList.contains('dark') ? '#ic-sun' : '#ic-moon');
+}
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem(window.__themeKey, document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  updateIcon();
+}
+updateIcon();
+
+/* ── 侧边栏收起 ── */
+(function () {
+  const KEY = document.title.replace(/\s/g,'-').toLowerCase() + '-sidebar';
+  if (localStorage.getItem(KEY) === 'collapsed')
+    document.documentElement.classList.add('sidebar-collapsed');
+  window.toggleSidebar = function () {
+    const c = document.documentElement.classList.toggle('sidebar-collapsed');
+    localStorage.setItem(KEY, c ? 'collapsed' : 'open');
+    document.getElementById('btnSidebar')?.classList.toggle('active-sidebar', c);
+  };
+})();
+
+/* ── 侧边栏高亮 ── */
+const navLinks = document.querySelectorAll('#sidebar a[href^="#"]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting)
+      navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+  });
+}, { rootMargin: '-10% 0px -70% 0px' });
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+/* ── 全屏 ── */
+function toggleFullscreen() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen().catch(()=>{});
+}
+document.addEventListener('fullscreenchange', () => {
+  const inFs = !!document.fullscreenElement;
+  const icon = document.getElementById('fsIcon');
+  if (icon) icon.innerHTML = inFs
+    ? '<path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/>'
+    : '<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>';
+});
+
+/* ── 激光笔 ── */
+(function () {
+  let active = false;
+  const DECAY = 1100, MAX_PTS = 800;
+  let pts = [], raf, canvas, ctx;
+  function init() {
+    canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9998';
+    document.body.appendChild(canvas);
+    resize(); window.addEventListener('resize', resize);
+  }
+  function resize() { if (!canvas) return; canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  function draw() {
+    if (!active) return;
+    const now = Date.now();
+    pts = pts.filter(p => now - p.t < DECAY);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const n = pts.length;
+    if (n >= 2) {
+      const mid = Array.from({length: n-1}, (_,i) => ({ x: (pts[i].x + pts[i+1].x) * .5, y: (pts[i].y + pts[i+1].y) * .5 }));
+      for (let i = 0; i < n - 1; i++) {
+        const tipRatio = (i + 1) / (n - 1);
+        const age = (now - pts[i+1].t) / DECAY;
+        const alpha = tipRatio * Math.pow(1 - age, 1.4);
+        if (alpha < 0.01) continue;
+        const g = Math.round(210 * tipRatio * (1 - age * .4));
+        const x0 = i === 0     ? pts[0].x   : mid[i-1].x, y0 = i === 0     ? pts[0].y   : mid[i-1].y;
+        const x1 = i === n - 2 ? pts[n-1].x : mid[i].x,   y1 = i === n - 2 ? pts[n-1].y : mid[i].y;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(pts[i].x, pts[i].y, x1, y1);
+        ctx.strokeStyle = `rgba(255,${g},10,${alpha})`; ctx.lineWidth = 1.5 + 1.5 * tipRatio;
+        ctx.lineCap = ctx.lineJoin = 'round'; ctx.stroke();
+      }
+      const tip = pts[n-1], tipAge = (now - tip.t) / DECAY;
+      if (tipAge < .18) {
+        const r = 16 * (1 - tipAge / .18);
+        const grd = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, r);
+        grd.addColorStop(0, 'rgba(255,230,60,.75)'); grd.addColorStop(.35, 'rgba(255,130,20,.45)'); grd.addColorStop(1, 'rgba(255,60,0,0)');
+        ctx.beginPath(); ctx.arc(tip.x, tip.y, r, 0, Math.PI*2); ctx.fillStyle = grd; ctx.fill();
+        ctx.beginPath(); ctx.arc(tip.x, tip.y, 2.8, 0, Math.PI*2); ctx.fillStyle = '#ffe050'; ctx.fill();
+      }
+    }
+    raf = requestAnimationFrame(draw);
+  }
+  window.toggleLaser = function () {
+    if (!canvas) init();
+    active = !active;
+    document.getElementById('btnLaser')?.classList.toggle('active-laser', active);
+    if (active) { document.body.style.cursor = 'none'; pts = []; ctx = canvas.getContext('2d'); raf = requestAnimationFrame(draw); }
+    else { document.body.style.cursor = ''; cancelAnimationFrame(raf); ctx?.clearRect(0, 0, canvas.width, canvas.height); }
+  };
+  window.addEventListener('pointermove', e => {
+    if (!active) return;
+    pts.push({ x: e.clientX, y: e.clientY, t: Date.now() });
+    if (pts.length > MAX_PTS) pts.splice(0, pts.length - MAX_PTS);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'l' || e.key === 'L') window.toggleLaser();
+    if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+    if (e.key === 's' || e.key === 'S') window.toggleSidebar();
+    if (e.key === 'Escape' && active) window.toggleLaser();
+  });
+})();
+
+/* ── 批注 ── */
+(function () {
+  const STORE_KEY = document.title.replace(/\s/g,'-').toLowerCase() + '-comments';
+  let data = { pins: [], nextId: 1 };
+  let mode = false, openId = null;
+  const overlay = document.getElementById('cmt-overlay');
+  const popup = document.getElementById('cmt-popup');
+  const threads = document.getElementById('cmt-threads');
+  const input = document.getElementById('cmt-input');
+  const resolveBtn = document.getElementById('cmt-resolve-btn');
+  function load() { try { data = JSON.parse(localStorage.getItem(STORE_KEY)) || data; } catch {} if (!data.nextId) data.nextId = (data.pins?.length || 0) + 1; }
+  function save() { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
+  function fmt(ts) { const d = Date.now() - ts; if (d < 60000) return '刚刚'; if (d < 3600000) return Math.floor(d / 60000) + ' 分钟前'; if (d < 86400000) return Math.floor(d / 3600000) + ' 小时前'; return new Date(ts).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }); }
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+  function makePinEl(pin) {
+    const el = document.createElement('div');
+    el.className = 'cmt-pin' + (pin.resolved ? ' is-resolved' : '');
+    el.dataset.pinId = pin.id;
+    el.innerHTML = `<div class="cmt-pin__dot"><span>#</span></div>`;
+    let ox, oy, opx, opy, moved;
+    el.addEventListener('pointerdown', e => { e.stopPropagation(); ox = e.clientX; oy = e.clientY; opx = pin.x; opy = pin.y; moved = false; el.setPointerCapture(e.pointerId); });
+    el.addEventListener('pointermove', e => { if (!el.hasPointerCapture(e.pointerId)) return; const dx = e.clientX - ox, dy = e.clientY - oy; if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return; moved = true; el.classList.add('is-dragging'); pin.x = opx + dx; pin.y = opy + dy; placePin(el, pin); });
+    el.addEventListener('pointerup', () => { el.classList.remove('is-dragging'); if (moved) { save(); if (openId === pin.id) positionPopup(); } else { openPopup(pin.id); } });
+    overlay.appendChild(el); return el;
+  }
+  function placePin(el, pin) { el.style.left = pin.x + 'px'; el.style.top = (pin.y - window.scrollY) + 'px'; }
+  function renderAll() { overlay.querySelectorAll('.cmt-pin').forEach(e => e.remove()); data.pins.forEach(pin => placePin(makePinEl(pin), pin)); updateBadge(); }
+  function updateBadge() { const btn = document.getElementById('btnComment'); const n = data.pins.filter(p => !p.resolved).length; let badge = btn.querySelector('.cmt-badge'); if (n > 0) { if (!badge) { badge = document.createElement('span'); badge.className = 'cmt-badge'; btn.appendChild(badge); } badge.textContent = n; } else { badge?.remove(); } }
+  window.addEventListener('scroll', () => { overlay.querySelectorAll('.cmt-pin').forEach(el => { const pin = data.pins.find(p => p.id === +el.dataset.pinId); if (pin) placePin(el, pin); }); if (openId !== null) positionPopup(); });
+  function openPopup(id) { const prev = openId; if (prev !== null) overlay.querySelector(`.cmt-pin[data-pin-id="${prev}"]`)?.classList.remove('is-active'); openId = id; overlay.querySelector(`.cmt-pin[data-pin-id="${id}"]`)?.classList.add('is-active'); renderThreads(); positionPopup(); popup.classList.add('open'); input.focus(); }
+  function closePopup() { if (openId !== null) { const pin = data.pins.find(p => p.id === openId); overlay.querySelector(`.cmt-pin[data-pin-id="${openId}"]`)?.classList.remove('is-active'); if (pin && pin.comments.length === 0) { data.pins = data.pins.filter(p => p.id !== openId); save(); overlay.querySelector(`.cmt-pin[data-pin-id="${openId}"]`)?.remove(); updateBadge(); } } input.value = ''; popup.classList.remove('open'); openId = null; }
+  function positionPopup() { const pin = data.pins.find(p => p.id === openId); if (!pin) return; const vx = pin.x, vy = pin.y - window.scrollY, vw = window.innerWidth, vh = window.innerHeight, pw = 268, ph = 340; let left = vx + 18, top = vy - 10; if (left + pw > vw - 16) left = vx - pw - 16; if (left < 8) left = 8; if (top + ph > vh - 16) top = vh - ph - 16; if (top < 8) top = 8; popup.style.left = left + 'px'; popup.style.top = top + 'px'; }
+  function renderThreads() { const pin = data.pins.find(p => p.id === openId); if (!pin) return; const hasComments = pin.comments.length > 0; popup.classList.toggle('is-empty', !hasComments); document.querySelector('.cmt-popup-actions').style.display = hasComments ? '' : 'none'; resolveBtn.textContent = pin.resolved ? '取消解决' : '标记解决'; resolveBtn.className = 'cmt-act-btn ' + (pin.resolved ? 'resolved' : 'resolve'); threads.innerHTML = hasComments ? pin.comments.map(c => `<div class="cmt-thread"><div class="cmt-avatar">我</div><div class="cmt-thread-body"><div class="cmt-thread-text">${esc(c.text)}</div><div class="cmt-thread-time">${fmt(c.ts)}</div></div></div>`).join('') : ''; threads.scrollTop = threads.scrollHeight; }
+  window.cmtSend = function () { const text = input.value.trim(); if (!text || openId === null) return; const pin = data.pins.find(p => p.id === openId); if (!pin) return; pin.comments.push({ text, ts: Date.now() }); save(); input.value = ''; renderThreads(); };
+  window.cmtResolve = function () { const pin = data.pins.find(p => p.id === openId); if (!pin) return; pin.resolved = !pin.resolved; save(); renderThreads(); overlay.querySelector(`.cmt-pin[data-pin-id="${pin.id}"]`)?.classList.toggle('is-resolved', pin.resolved); updateBadge(); };
+  window.cmtDelete = function () { data.pins = data.pins.filter(p => p.id !== openId); save(); overlay.querySelector(`.cmt-pin[data-pin-id="${openId}"]`)?.remove(); closePopup(); updateBadge(); };
+  window.toggleCommentMode = function () { mode = !mode; document.body.classList.toggle('comment-mode', mode); document.getElementById('btnComment')?.classList.toggle('active-comment', mode); if (mode && openId !== null) closePopup(); };
+  overlay.addEventListener('click', e => { if (!mode) return; if (e.target.closest('.cmt-pin')) return; const id = data.nextId++; const pin = { id, x: e.clientX, y: e.clientY + window.scrollY, comments: [], resolved: false }; data.pins.push(pin); save(); const el = makePinEl(pin); placePin(el, pin); el.classList.add('is-new'); setTimeout(() => el.classList.remove('is-new'), 400); e.stopPropagation(); window.toggleCommentMode(); openPopup(id); });
+  document.addEventListener('click', e => { if (openId !== null && !popup.contains(e.target) && !e.target.closest('.cmt-pin')) closePopup(); });
+  document.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { if (e.key === 'Enter' && !e.shiftKey && e.target === input) { e.preventDefault(); window.cmtSend(); } return; } if (e.key === 'c' || e.key === 'C') window.toggleCommentMode(); if (e.key === 'Escape') { if (openId !== null) closePopup(); else if (mode) window.toggleCommentMode(); } });
+  load();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderAll);
+  else renderAll();
+})();
+</script>
+</body>
+</html>

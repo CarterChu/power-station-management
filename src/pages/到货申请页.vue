@@ -646,11 +646,36 @@
                           {{ record.orderNo }}
                           <a-tag :color="record.arrivalType === '全部到货' ? 'success' : 'processing'" style="margin:0">{{ record.arrivalType }}</a-tag>
                           <a-tag v-if="props.editId && record.status" :color="STOCK_STATUS_COLOR[record.status]" style="margin:0">{{ STOCK_STATUS_LABEL[record.status] }}</a-tag>
+                          <span
+                            v-if="props.editId && record.status === 'rejected'"
+                            style="font-size:12px;color:#1677ff;cursor:pointer;white-space:nowrap;line-height:1"
+                            @click.stop="openRejectDetail(record)"
+                          >不通过原因<RightOutlined style="font-size:10px;margin-left:2px;vertical-align:middle" /></span>
                         </div>
                         <div class="payment-contract-meta-row" style="margin-top:8px">
                           <span class="payment-meta-item">
                             <span class="payment-meta-label">物料类型</span>
                             <span class="payment-meta-value">{{ record.materialType }}</span>
+                          </span>
+                          <span v-if="record.receiver" class="payment-meta-item">
+                            <span class="payment-meta-label">签收人</span>
+                            <span class="payment-meta-value">{{ record.receiver }}</span>
+                          </span>
+                          <span v-if="record.receiverPhone" class="payment-meta-item">
+                            <span class="payment-meta-label">签收人电话</span>
+                            <span class="payment-meta-value">{{ record.receiverPhone }}</span>
+                          </span>
+                          <span v-if="record.signStatus" class="payment-meta-item">
+                            <span class="payment-meta-label">签收状态</span>
+                            <span class="payment-meta-value">{{ SIGN_STATUS_LABEL[record.signStatus] }}</span>
+                          </span>
+                          <span v-if="record.signTime" class="payment-meta-item">
+                            <span class="payment-meta-label">签收时间</span>
+                            <span class="payment-meta-value">{{ record.signTime }}</span>
+                          </span>
+                          <span v-if="record.remark" class="payment-meta-item">
+                            <span class="payment-meta-label">备注</span>
+                            <span class="payment-meta-value">{{ record.remark }}</span>
                           </span>
                           <span class="payment-meta-item">
                             <span class="payment-meta-label">创建人</span>
@@ -674,17 +699,6 @@
                           @click.stop="openEditDrawer(record)"
                         >修改</a-button>
                         <DownOutlined class="section-toggle-icon" :class="{ rotated: collapsedStockCards.has(record.id) }" />
-                      </div>
-                    </div>
-                    <div
-                      v-if="props.editId && record.status === 'rejected' && (record.rejectReasons?.length || record.rejectComment)"
-                      style="padding:8px 12px;background:#fff2f0;font-size:13px;color:#cf1322"
-                    >
-                      <div v-if="record.rejectReasons?.length" style="margin-bottom:4px">
-                        <span style="font-weight:600">不通过原因：</span>{{ record.rejectReasons.join('、') }}
-                      </div>
-                      <div v-if="record.rejectComment">
-                        <span style="font-weight:600">审核意见：</span>{{ record.rejectComment }}
                       </div>
                     </div>
                     <table v-show="!collapsedStockCards.has(record.id)" class="payment-ratio-table" style="border-top:1px solid #f0f0f0">
@@ -886,18 +900,49 @@
     </div>
   </a-modal>
 
+  <!-- 审核不通过详情弹窗 -->
+  <a-modal
+    v-model:open="rejectDetailVisible"
+    title="审核不通过详情"
+    :footer="null"
+    width="520px"
+    destroy-on-close
+  >
+    <div v-if="rejectDetailEntry" style="padding:4px 0">
+      <div v-if="rejectDetailEntry.items?.length" style="margin-bottom:16px">
+        <div
+          v-for="r in rejectDetailEntry.items"
+          :key="r"
+          style="padding:4px 0;color:#262626;font-size:14px"
+        >· {{ r }}</div>
+      </div>
+      <div v-if="rejectDetailEntry.images?.length">
+        <div style="font-weight:600;margin-bottom:8px;color:#262626">图片</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <img
+            v-for="(src, i) in rejectDetailEntry.images"
+            :key="i"
+            :src="src"
+            style="width:152px;height:114px;object-fit:cover;border-radius:4px;border:1px solid #f0f0f0;cursor:pointer"
+          />
+        </div>
+      </div>
+    </div>
+  </a-modal>
+
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount, h } from 'vue'
 import { message } from 'ant-design-vue'
-import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, type StockRecord } from '../stores/stockRecords'
+import dayjs from 'dayjs'
+import { sharedStockRecords, initDemoStockRecords, hasUserSubmittedRecords, computeFilingStatusFromRecords, type StockRecord } from '../stores/stockRecords'
 import { stationStatusOverrides } from '../stores/stationStatus'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import {
   LeftOutlined, CalendarOutlined, CopyOutlined,
   CheckCircleOutlined, CloseCircleOutlined, EditOutlined, FileAddOutlined,
-  AuditOutlined, HolderOutlined, DownOutlined, QuestionCircleOutlined,
+  AuditOutlined, HolderOutlined, DownOutlined, QuestionCircleOutlined, RightOutlined,
 } from '@ant-design/icons-vue'
 
 const props = defineProps<{ editId?: string | null; initStatus?: string | null; initData?: Record<string, any> | null }>()
@@ -1068,7 +1113,12 @@ function handleCloseStockDrawer() {
 function openEditDrawer(record: StockRecord) {
   editingStockRecord.value = record
   // 设置物料类型（watch 因 editingStockRecord 已设置而跳过）
-  stockNewForm.materialType = record.materialType.split('、')
+  stockNewForm.materialType  = record.materialType.split('、')
+  stockNewForm.receiver      = record.receiver      ?? ''
+  stockNewForm.receiverPhone = record.receiverPhone ?? ''
+  stockNewForm.signStatus    = record.signStatus    ?? null
+  stockNewForm.signTime      = record.signTime ? dayjs(record.signTime) : null
+  stockNewForm.remark        = record.remark        ?? ''
   // 直接从记录填充 items，不走 watch 重建
   stockNewItems.splice(0)
   record.items.forEach(item => {
@@ -1089,6 +1139,20 @@ function openEditDrawer(record: StockRecord) {
 }
 
 const SIGN_STATUS_LABEL: Record<string, string> = { signed: '已签收', unsigned: '未签收' }
+
+const rejectDetailVisible = ref(false)
+const rejectDetailEntry   = ref<{ items: string[]; images: string[] } | null>(null)
+function openRejectDetail(record: StockRecord) {
+  const allLogs = groupedLogs.value.flatMap(g => g.logs)
+  const logEntry = allLogs.find(l => l.type === 'reject' && l.recordId === record.id)
+    ?? allLogs.find(l => l.type === 'reject')
+  const note = logEntry?.note ?? [...(record.rejectReasons ?? []), record.rejectComment].filter(Boolean).join('；')
+  rejectDetailEntry.value = {
+    items: note ? note.split('；').filter(Boolean) : [],
+    images: logEntry?.images ?? [],
+  }
+  rejectDetailVisible.value = true
+}
 
 const STOCK_STATUS_LABEL: Record<string, string> = {
   reviewing: '审核中',
@@ -1122,10 +1186,16 @@ async function handleSubmitStock() {
         rec.rejectReasons = []
         rec.rejectComment = ''
         rec.createTime    = submitTime
+        rec.receiver      = stockNewForm.receiver      || undefined
+        rec.receiverPhone = stockNewForm.receiverPhone || undefined
+        rec.signStatus    = stockNewForm.signStatus    || undefined
+        rec.signTime      = stockNewForm.signTime?.format?.('YYYY-MM-DD') || undefined
+        rec.remark        = stockNewForm.remark        || undefined
       }
-      detail.value.filingStatus = 'reviewing_stock'
+      const resubStatus = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
+      detail.value.filingStatus = resubStatus
       const stationId = props.editId ?? props.initData?.id
-      if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+      if (stationId) stationStatusOverrides[stationId] = resubStatus
       message.success('已重新提交，等待审核')
       handleCloseStockDrawer()
       return
@@ -1141,6 +1211,11 @@ async function handleSubmitStock() {
       status:       null,
       creator:      '张三',
       createTime:   submitTime,
+      receiver:      stockNewForm.receiver      || undefined,
+      receiverPhone: stockNewForm.receiverPhone || undefined,
+      signStatus:    stockNewForm.signStatus    || undefined,
+      signTime:      stockNewForm.signTime?.format?.('YYYY-MM-DD') || undefined,
+      remark:        stockNewForm.remark        || undefined,
       items: stockNewItems.filter(r => r.arrivedQty !== null && r.arrivedQty > 0).map(r => ({
         type:       r.type,
         code:       r.code,
@@ -1249,7 +1324,8 @@ async function handleSubmit() {
   })
   hasUserSubmittedRecords.value = true
   const stationId = props.editId ?? props.initData?.id
-  if (stationId) stationStatusOverrides[stationId] = 'reviewing_stock'
+  const submitStatus = computeFilingStatusFromRecords(sharedStockRecords, detail.value.yigongBom)
+  if (stationId) stationStatusOverrides[stationId] = submitStatus
   submitting.value = false
   message.success('到货申请已提交')
   emit('back')
@@ -1428,10 +1504,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [],
   },
   jiagongBom: [
@@ -1488,7 +1564,7 @@ const detail = ref({
       { id: 'p2', name: '李明',   position: '电工',       phone: '13812340002' },
     ],
   },
-  logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null }[],
+  logs: [] as { id: number; type: string; event: string; operator: string; time: string; note: string | null; images?: string[]; rejectReasons?: string[]; recordId?: string }[],
 })
 
 watch(() => props.initStatus, (val) => {
@@ -1506,12 +1582,12 @@ const LOGS_BY_STATUS: Record<string, typeof detail.value.logs> = {
     { id: 1, type: 'create', event: '创建到货申请',  operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
   partial_stock_rejected: [
-    { id: 3, type: 'reject', event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '部分物料到货数量不足，请补充' },
+    { id: 3, type: 'reject', event: '部分到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '部分物料到货数量不足，请补充', rejectReasons: ['到货数量与计划不符'] },
     { id: 2, type: 'submit', event: '提交到货申请',        operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
     { id: 1, type: 'create', event: '创建到货申请',        operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
   full_stock_rejected: [
-    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交' },
+    { id: 3, type: 'reject', event: '全部到货审核不通过', operator: '李四（审核员）', time: '2026-08-13 10:30', note: '到货数量与计划不符，请核实后重新提交', rejectReasons: ['到货数量与计划不符'], images: ['data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2I4YzhkOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YjhjOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+'] },
     { id: 2, type: 'submit', event: '提交到货申请',       operator: '张三（代理商）', time: '2026-08-12 17:00', note: null },
     { id: 1, type: 'create', event: '创建到货申请',       operator: '张三（代理商）', time: '2026-08-12 09:00', note: null },
   ],
@@ -1560,6 +1636,9 @@ const groupedLogs = computed(() => {
           operator: '李四（审核员）',
           time: rec.reviewTime ?? rec.createTime,
           note: noteArr.join('；') || null,
+          rejectReasons: rec.rejectReasons ?? [],
+          images: rec.rejectImages ?? [],
+          recordId: rec.id,
         })
       }
     }

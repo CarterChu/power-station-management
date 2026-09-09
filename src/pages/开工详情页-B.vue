@@ -484,91 +484,72 @@
       <div class="review-corner-handle review-corner-handle--se" @mousedown.stop="onCornerResizeStart($event, 'se')" />
 
       <div class="review-panel-header" @mousedown.prevent="onReviewDragStart">
-        <span class="review-panel-title">开工审核</span>
+        <span class="review-panel-title">
+          {{ selectedRole ? ROLE_LABEL[selectedRole] : '开工审核' }}
+        </span>
         <div style="display:flex;align-items:center;gap:16px">
           <HolderOutlined class="review-panel-drag-icon" />
           <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
         </div>
       </div>
 
-      <!-- 审核角色选择列表 -->
-      <div class="review-role-list">
-        <div
-          v-for="item in SUB_REVIEW_ITEMS"
-          :key="item.key"
-          class="review-role-row"
-          :class="{ active: activeReviewRole === item.key }"
-          @click="activeReviewRole = item.key"
-        >
-          <div class="review-role-row-left">
-            <a-radio :checked="activeReviewRole === item.key" style="pointer-events:none;margin:0" />
-            <span class="review-role-name">{{ item.label }}</span>
+      <template v-if="selectedRole">
+        <!-- 未提交：展示审核表单 -->
+        <template v-if="roleResults[selectedRole] === null">
+          <div class="review-reject-reasons">
+            <div class="review-reject-label">不通过原因</div>
+            <a-select
+              v-model:value="roleRejectReasons[selectedRole]"
+              mode="multiple"
+              :options="ROLE_REJECT_REASONS[selectedRole].map(r => ({ label: r, value: r }))"
+              placeholder="请选择不通过原因（可多选）"
+              style="width:100%"
+              :max-tag-count="2"
+            />
           </div>
-          <a-tag
-            v-if="subReviewResults[item.key]"
-            :color="subReviewResults[item.key] === 'pass' ? 'success' : 'error'"
-            style="margin:0;flex-shrink:0"
-          >{{ subReviewResults[item.key] === 'pass' ? '审核通过' : '审核不通过' }}</a-tag>
-          <span v-else style="font-size:12px;color:#bfbfbf;flex-shrink:0">待审核</span>
-        </div>
-      </div>
+          <div
+            class="review-textarea-wrap"
+            :class="{ 'drag-over': reviewDragOver }"
+            :style="reviewSize.h > 0 ? { flex: '1', minHeight: '0', overflow: 'hidden' } : {}"
+          >
+            <a-textarea
+              v-model:value="roleComments[selectedRole]"
+              placeholder="请输入审核意见..."
+              :auto-size="false"
+              :bordered="false"
+              :style="{ flex: reviewSize.h > 0 ? '1' : 'none', resize: 'none', padding: '8px 12px', fontSize: '14px', height: reviewSize.h > 0 ? '100%' : '120px' }"
+            />
+          </div>
+          <div
+            class="review-drop-zone"
+            :class="{ 'drag-over': reviewDragOver }"
+            @dragover.prevent="reviewDragOver = true"
+            @dragleave="reviewDragOver = false"
+            @drop="onReviewDropZoneDrop"
+          >
+            <div v-if="roleImageLists[selectedRole].length === 0" class="review-drop-hint" @click="onReviewClickUpload">
+              点击此处粘贴或拖拽图片上传
+            </div>
+            <div v-else class="review-image-list">
+              <div v-for="img in roleImageLists[selectedRole]" :key="img.uid" class="review-image-item">
+                <img :src="img.url" :alt="img.name" />
+                <span class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
+              </div>
+            </div>
+          </div>
+          <div class="review-panel-footer">
+            <a-button style="height:32px" danger type="primary" @click="submitReview('reject')">审核不通过</a-button>
+            <a-button style="height:32px" type="primary" @click="submitReview('pass')">审核通过</a-button>
+          </div>
+        </template>
 
-      <div class="review-reject-reasons">
-        <div class="review-reject-label">不通过原因</div>
-        <a-select
-          v-model:value="currentForm.reasons"
-          mode="multiple"
-          :options="REJECT_REASONS.map(r => ({ label: r, value: r }))"
-          placeholder="请选择不通过原因（可多选）"
-          style="width:100%"
-          :max-tag-count="2"
-          :disabled="!!currentResult"
-        />
-      </div>
-      <div
-        class="review-textarea-wrap"
-        :class="{ 'drag-over': reviewDragOver }"
-        :style="reviewSize.h > 0 ? { flex: '1', minHeight: '0', overflow: 'hidden' } : {}"
-      >
-        <a-textarea
-          v-model:value="currentForm.comment"
-          placeholder="请输入审核意见..."
-          :auto-size="false"
-          :bordered="false"
-          :disabled="!!currentResult"
-          :style="{ flex: reviewSize.h > 0 ? '1' : 'none', resize: 'none', padding: '8px 12px', fontSize: '14px', height: reviewSize.h > 0 ? '100%' : '120px' }"
-        />
-      </div>
-      <div
-        class="review-drop-zone"
-        :class="{ 'drag-over': reviewDragOver }"
-        @dragover.prevent="!currentResult && (reviewDragOver = true)"
-        @dragleave="reviewDragOver = false"
-        @drop="!currentResult && onReviewDropZoneDrop($event)"
-      >
-        <div v-if="currentForm.images.length === 0" class="review-drop-hint"
-          :style="currentResult ? 'cursor:default;color:#d9d9d9' : ''"
-          @click="!currentResult && onReviewClickUpload()"
-        >点击此处粘贴或拖拽图片上传</div>
-        <div v-else class="review-image-list">
-          <div v-for="img in currentForm.images" :key="img.uid" class="review-image-item">
-            <img :src="img.url" :alt="img.name" />
-            <span v-if="!currentResult" class="review-image-delete" @click.stop="removeReviewImage(img.uid)">×</span>
+        <!-- 已提交 -->
+        <div v-else class="review-submitted-view">
+          <div class="review-submitted-badge" :class="roleResults[selectedRole] === 'pass' ? 'is-pass' : 'is-reject'">
+            {{ roleResults[selectedRole] === 'pass' ? '✓ 审核通过' : '✗ 审核不通过' }}
           </div>
         </div>
-      </div>
-      <div class="review-panel-footer">
-        <a-tooltip :title="allDone ? '已完成开工审核' : (currentResult ? '该类型审核已完成' : '')">
-          <span style="display:inline-block">
-            <a-button style="height:32px" danger type="primary" :disabled="!!currentResult" @click="submitReview('reject')">审核不通过</a-button>
-          </span>
-        </a-tooltip>
-        <a-tooltip :title="allDone ? '已完成开工审核' : (currentResult ? '该类型审核已完成' : '')">
-          <span style="display:inline-block">
-            <a-button style="height:32px" type="primary" :disabled="!!currentResult" @click="submitReview('pass')">审核通过</a-button>
-          </span>
-        </a-tooltip>
-      </div>
+      </template>
     </div>
 
   </div>
@@ -579,7 +560,6 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
 import FlowLog from '../components/FlowLog.vue'
-import { stationStatusOverrides } from '../stores/stationStatus'
 import {
   LeftOutlined, DownOutlined, CopyOutlined,
   AuditOutlined, HolderOutlined,
@@ -588,8 +568,9 @@ import {
 const props = defineProps<{
   initRow?: Record<string, any> | null
   policyType?: string
+  reviewRole?: string
 }>()
-const emit = defineEmits<{ back: []; edit: [id: string] }>()
+const emit = defineEmits<{ back: [role: string, action: 'pass' | 'reject']; edit: [id: string] }>()
 
 const projectInfoOpen = ref(false)
 const activeTab       = ref('start')
@@ -621,6 +602,10 @@ onMounted(() => {
     tabsStuck.value = wrapper.getBoundingClientRect().top <= body.getBoundingClientRect().top + 1
   }
   detailBodyRef.value?.addEventListener('scroll', _scrollHandler, { passive: true })
+
+  if (props.reviewRole && detail.value.filingStatus === 'applying_start') {
+    reviewCollapsed.value = false
+  }
 })
 
 onUnmounted(() => {
@@ -631,11 +616,9 @@ onUnmounted(() => {
 
 const STATUS_COLOR: Record<string, string> = {
   waiting_start: 'default', applying_start: 'processing', start_rejected: 'error', started: 'success',
-  dispatched: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
   waiting_start: '待开工', applying_start: '开工审核中', start_rejected: '开工审核不通过', started: '已开工',
-  dispatched: '已派工',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -838,7 +821,7 @@ const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
     { id: 1, type: 'submit',  event: '提交建档申请', operator: '张三（代理商）',  time: '2026-07-14 17:20', note: null },
   ],
   start_rejected: [
-    { id: 4, type: 'reject',  event: '开工审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: '施工方案不完整，请补充安全施工方案及施工队资质证明材料。', images: ['data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2I4YzhkOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YjhjOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMTUwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2M4YzhiOCIgcng9IjQiLz48dGV4dCB4PSIxMDAiIHk9IjgwIiBmb250LXNpemU9IjE0IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuOCkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7lrqHmoLjlm77niYc8L3RleHQ+PC9zdmc+'] },
+    { id: 4, type: 'reject',  event: '开工审核不通过', operator: '审核组（安能）', time: '2026-08-13 16:30', note: '【商务】EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。\n【工程】施工现场条件不符合开工要求，需重新进行现场勘察并整改后再提交。' },
     { id: 3, type: 'submit',  event: '提交开工申请',   operator: '张三（代理商）', time: '2026-08-10 09:30', note: null },
     { id: 2, type: 'approve', event: '建档审核通过',   operator: '李四（审核员）', time: '2026-07-15 10:00', note: null },
     { id: 1, type: 'submit',  event: '提交建档申请',   operator: '张三（代理商）', time: '2026-07-14 17:20', note: null },
@@ -858,8 +841,8 @@ const currentLogs = computed(() => LOGS_BY_STATUS[detail.value.filingStatus] ?? 
 
 const reviewPanelVisible = ref(true)
 const reviewCollapsed    = ref(true)
-const showReviewFab   = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value &&  reviewCollapsed.value)
-const showReviewPanel = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value && !reviewCollapsed.value)
+const showReviewFab   = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value &&  reviewCollapsed.value && !!props.reviewRole)
+const showReviewPanel = computed(() => detail.value.filingStatus === 'applying_start' && reviewPanelVisible.value && !reviewCollapsed.value && !!props.reviewRole)
 
 watch(reviewCollapsed, async (collapsed) => {
   if (!collapsed) {
@@ -872,35 +855,25 @@ watch(reviewCollapsed, async (collapsed) => {
   }
 })
 
-const REJECT_REASONS = [
-  '施工方案不完整',
-  '施工队资质证明材料缺失',
-  '安全施工方案未提交',
-  '现场负责人信息有误',
-  '工程资料不完整或不清晰',
-  '技术资料缺失',
-  '开工日期填写有误',
-  '其他原因',
-]
+const ROLES = [
+  { key: 'biz',  label: '商务审核' },
+  { key: 'tech', label: '技术审核' },
+  { key: 'eng',  label: '工程审核' },
+] as const
+const ROLE_LABEL: Record<string, string> = { biz: '开工商务审核', tech: '开工技术审核', eng: '开工工程审核' }
 
-const SUB_REVIEW_ITEMS = [
-  { key: 'biz'  as const, label: '商务审核' },
-  { key: 'tech' as const, label: '技术审核' },
-  { key: 'eng'  as const, label: '工程审核' },
-]
-type ReviewRole = 'biz' | 'tech' | 'eng'
-const activeReviewRole  = ref<ReviewRole>('biz')
-const subReviewResults  = reactive<Record<ReviewRole, 'pass' | 'reject' | null>>({ biz: null, tech: null, eng: null })
-const reviewForms       = reactive<Record<ReviewRole, { reasons: string[]; comment: string; images: { uid: string; name: string; url: string }[] }>>({
-  biz:  { reasons: [], comment: '', images: [] },
-  tech: { reasons: [], comment: '', images: [] },
-  eng:  { reasons: [], comment: '', images: [] },
-})
-const currentForm   = computed(() => reviewForms[activeReviewRole.value])
-const currentResult = computed(() => subReviewResults[activeReviewRole.value])
-const allDone       = computed(() => subReviewResults.biz !== null && subReviewResults.tech !== null && subReviewResults.eng !== null)
+const ROLE_REJECT_REASONS: Record<string, string[]> = {
+  biz:  ['EMC 电价填写有误', '合同条款不完整', '商务资料缺失', '客户信息有误', '其他原因'],
+  tech: ['施工方案不完整', '技术交底文件缺失', '设备技术协议未提交', '技术资料不清晰', '其他原因'],
+  eng:  ['施工队资质证明材料缺失', '安全施工方案未提交', '现场负责人信息有误', '工程保险未提交', '现场条件不符合开工要求', '其他原因'],
+}
 
-const reviewDragOver = ref(false)
+const selectedRole    = ref<string | null>(props.reviewRole ?? null)
+const roleResults     = reactive<Record<string, 'pass' | 'reject' | null>>({ biz: null, tech: null, eng: null })
+const roleRejectReasons = reactive<Record<string, string[]>>({ biz: [], tech: [], eng: [] })
+const roleComments    = reactive<Record<string, string>>({ biz: '', tech: '', eng: '' })
+const roleImageLists  = reactive<Record<string, { uid: string; name: string; url: string }[]>>({ biz: [], tech: [], eng: [] })
+const reviewDragOver  = ref(false)
 const reviewPanelEl  = ref<HTMLElement | null>(null)
 const reviewSize     = reactive({ w: 420, h: 0 })
 const reviewPos      = reactive({ x: 0, y: 0 })
@@ -958,14 +931,17 @@ function onReviewDropZoneDrop(e: DragEvent) {
   if (e.dataTransfer?.files) addReviewFiles(Array.from(e.dataTransfer.files))
 }
 function addReviewFiles(files: File[]) {
-  const form = reviewForms[activeReviewRole.value]
+  if (!selectedRole.value) return
+  const list = roleImageLists[selectedRole.value]
   files.filter(f => f.type.startsWith('image/')).forEach(f => {
-    form.images.push({ uid: Date.now() + '-' + f.name, name: f.name, url: URL.createObjectURL(f) })
+    list.push({ uid: Date.now() + '-' + f.name, name: f.name, url: URL.createObjectURL(f) })
   })
 }
 function removeReviewImage(uid: string) {
-  const form = reviewForms[activeReviewRole.value]
-  form.images = form.images.filter(img => img.uid !== uid)
+  if (!selectedRole.value) return
+  const list = roleImageLists[selectedRole.value]
+  const idx = list.findIndex(img => img.uid === uid)
+  if (idx !== -1) list.splice(idx, 1)
 }
 function onReviewClickUpload() {
   const input = document.createElement('input')
@@ -973,22 +949,13 @@ function onReviewClickUpload() {
   input.onchange = () => { if (input.files) addReviewFiles(Array.from(input.files)) }
   input.click()
 }
-function submitReview(action: 'pass' | 'reject' | 'skip') {
-  if (action === 'skip') { message.info('暂不审核'); reviewPanelVisible.value = false; return }
-  const role  = activeReviewRole.value
-  const label = SUB_REVIEW_ITEMS.find(i => i.key === role)!.label
-  subReviewResults[role] = action === 'pass' ? 'pass' : 'reject'
-  if (allDone.value) {
-    const anyReject = Object.values(subReviewResults).some(v => v === 'reject')
-    const newStatus = anyReject ? 'start_rejected' : 'dispatched'
-    stationStatusOverrides[detail.value.id] = newStatus
-    message.success('已完成开工审核')
-    nextTick(() => emit('back'))
-  } else if (action === 'pass') {
-    message.success(`${label}审核通过`)
-  } else {
-    message.warning(`${label}审核不通过`)
-  }
+function submitReview(action: 'pass' | 'reject') {
+  if (!selectedRole.value) return
+  roleResults[selectedRole.value] = action
+  const roleLabel = ROLES.find(r => r.key === selectedRole.value)?.label ?? selectedRole.value
+  message.success(action === 'pass' ? `${roleLabel}通过` : `${roleLabel}不通过`)
+
+  emit('back', selectedRole.value!, action)
 }
 </script>
 
@@ -1157,18 +1124,35 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
 .review-image-delete { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; font-size: 13px; line-height: 18px; text-align: center; cursor: pointer; display: none; }
 .review-image-item:hover .review-image-delete { display: block; }
 .review-panel-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 20px; }
-.review-role-list { display: flex; flex-direction: column; padding: 12px 20px 4px; gap: 2px; }
-.review-role-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 10px; border-radius: 6px; cursor: pointer;
-  transition: background .15s;
-}
-.review-role-row:hover { background: #f5f7ff; }
-.review-role-row.active { background: #f0f4ff; }
-.review-role-row-left { display: flex; align-items: center; gap: 8px; }
-.review-role-name { font-size: 14px; color: rgba(0,0,0,0.88); }
 .review-reject-reasons { padding: 16px 20px 12px; }
 .review-reject-label { font-size: 14px; color: rgba(0,0,0,0.65); margin-bottom: 6px; }
+
+/* 角色总览 */
+.review-role-overview { display: flex; flex-direction: column; gap: 0; padding: 16px 20px 20px; }
+.review-role-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-radius: 8px; border: 1px solid #f0f0f0;
+  margin-bottom: 8px; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.review-role-card:last-child { margin-bottom: 0; }
+.review-role-card--pending:hover { border-color: #3060FF; background: #f8f9ff; }
+.review-role-card--done { background: #fafafa; cursor: default; }
+.review-role-card-label { font-size: 14px; font-weight: 500; color: #262626; margin-bottom: 2px; }
+.review-role-card-action { font-size: 12px; color: #8c8c8c; }
+
+/* 返回按钮 */
+.review-role-back {
+  padding: 10px 20px 0; font-size: 13px; color: #8c8c8c; cursor: pointer;
+  display: inline-block;
+}
+.review-role-back:hover { color: #3060FF; }
+
+/* 已提交视图 */
+.review-submitted-view { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px 20px 28px; }
+.review-submitted-badge { font-size: 15px; font-weight: 600; padding: 6px 16px; border-radius: 20px; }
+.review-submitted-badge.is-pass { color: #389e0d; background: #f6ffed; }
+.review-submitted-badge.is-reject { color: #cf1322; background: #fff2f0; }
+.review-submitted-tip { font-size: 13px; color: #8c8c8c; }
 .review-corner-handle {
   position: absolute; width: 16px; height: 16px; z-index: 20;
 }

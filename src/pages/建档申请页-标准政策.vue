@@ -1314,16 +1314,19 @@ const REGION_OPTIONS = [
 ]
 
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'warning', pending_review: 'processing',
+  filing: 'warning', self_reviewing: 'processing', pending_review: 'purple', filing_approved: 'success',
+  filing_self_rejected: 'error', filing_platform_rejected: 'error',
   rejected: 'error',
   biz_self_rejected: 'error', tech_self_rejected: 'error',
   biz_rejected: 'error', tech_rejected: 'error',
   all_self_rejected: 'error', all_rejected: 'error',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档审核中', rejected: '建档审核不通过',
+  filing: '建档中', self_reviewing: '建档自审中', pending_review: '建档平台审核中', filing_approved: '建档审核通过',
+  filing_self_rejected: '建档自审不通过', filing_platform_rejected: '建档审核不通过',
+  rejected: '建档审核不通过',
   biz_self_rejected: '商务自审不通过', tech_self_rejected: '技术自审不通过',
-  biz_rejected: '商务审核不通过', tech_rejected: '技术审核不通过',
+  biz_rejected: '平台商务审核不通过', tech_rejected: '平台技术审核不通过',
   all_self_rejected: '全部自审不通过', all_rejected: '全部审核不通过',
 }
 const SURVEY_PHOTO_CATS = [
@@ -1381,20 +1384,28 @@ const STANDARD_PAYMENT_NODES = [
 
 const filingStatus = ref<string | null>(props.initStatus ?? null)
 watch(() => props.initStatus, (val) => { if (val != null) filingStatus.value = val })
-const FILING_REJECTED_STATUSES = ['rejected','biz_self_rejected','tech_self_rejected','biz_rejected','tech_rejected','all_self_rejected','all_rejected']
+const FILING_REJECTED_STATUSES = ['rejected','biz_self_rejected','tech_self_rejected','biz_rejected','tech_rejected','all_self_rejected','all_rejected','filing_self_rejected','filing_platform_rejected']
 const REJECT_INFO_MAP: Record<string, any> = {
   rejected:          { stage: '建档审核',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
   biz_self_rejected: { stage: '商务自审',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
   tech_self_rejected:{ stage: '技术自审',   reviewer: '李四（审核员）', time: '2026-08-11 16:10', reason: '技术方案不完整，设备选型有误，请修正后重新提交。' },
   biz_rejected:      { stage: '商务审核',   reviewer: '李四（审核员）', time: '2026-08-11 15:30', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-  tech_rejected:     { stage: '技术审核',   reviewer: '李四（审核员）', time: '2026-08-11 16:10', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
-  all_self_rejected: { stage: '建档审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
+  tech_rejected:     { stage: '平台技术审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
+  all_self_rejected: { stage: '建档自审', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
     { title: '商务自审不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
     { title: '技术自审不通过', reason: '技术方案不完整，设备选型有误，请修正后重新提交。' },
   ]},
   all_rejected: { stage: '建档审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
     { title: '商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
     { title: '技术审核不通过', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
+  ]},
+  filing_self_rejected: { stage: '建档自审', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
+    { title: '商务自审不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { title: '技术自审不通过', reason: '技术方案不完整，设备选型有误，请修正后重新提交。' },
+  ]},
+  filing_platform_rejected: { stage: '建档审核', reviewer: '李四（审核员）', time: '2026-08-11 16:10', sections: [
+    { title: '平台商务审核不通过', reason: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
+    { title: '平台技术审核不通过', reason: '系统设计方案不符合区域并网要求，请重新提交。' },
   ]},
 }
 const rejectInfo = computed(() => REJECT_INFO_MAP[filingStatus.value ?? ''] ?? {})

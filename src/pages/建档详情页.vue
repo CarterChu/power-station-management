@@ -619,7 +619,7 @@
     <!-- 审核 FAB -->
     <div v-if="showReviewFab" class="review-fab" @click="reviewCollapsed = false">
       <AuditOutlined style="font-size:16px;position:relative;top:-1px" />
-      <span style="font-size:13px">建档商务审核</span>
+      <span style="font-size:13px">{{ reviewPanelTitle }}</span>
     </div>
 
     <!-- 可拖拽审核面板 -->
@@ -637,7 +637,7 @@
       <div class="review-corner-handle review-corner-handle--se" @mousedown.stop="onCornerResizeStart($event, 'se')" />
 
       <div class="review-panel-header" @mousedown.prevent="onReviewDragStart">
-        <span class="review-panel-title">建档商务审核</span>
+        <span class="review-panel-title">{{ reviewPanelTitle }}</span>
         <div style="display:flex;align-items:center;gap:16px">
           <HolderOutlined class="review-panel-drag-icon" />
           <span class="review-panel-close" @click.stop="reviewCollapsed = true">×</span>
@@ -702,8 +702,9 @@ import {
   LeftOutlined, CopyOutlined,
   AuditOutlined, HolderOutlined, DownOutlined,
 } from '@ant-design/icons-vue'
+import { submitFilingSelfReview, submitFilingPlatformReview } from '../stores/stationStatus'
 
-const props = defineProps<{ initStatus?: string; policyType?: string; initRow?: Record<string, any> }>()
+const props = defineProps<{ initStatus?: string; policyType?: string; initRow?: Record<string, any>; selfReviewRole?: string; platformReviewRole?: string }>()
 const emit = defineEmits<{ back: []; edit: [id: string] }>()
 const projectInfoOpen = ref(true)
 
@@ -713,20 +714,16 @@ function copyStationNo(no: string) {
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
-const FILING_REJECTED_STATUSES = ['biz_self_rejected', 'tech_self_rejected', 'biz_rejected', 'tech_rejected', 'all_self_rejected', 'all_rejected']
+const FILING_REJECTED_STATUSES: string[] = []
 const STATUS_COLOR: Record<string, string> = {
-  filing: 'warning', pending_review: 'processing',
-  biz_self_rejected: 'error', tech_self_rejected: 'error',
-  biz_rejected: 'error', tech_rejected: 'error',
-  all_self_rejected: 'error', all_rejected: 'error',
-  approved: 'success',
+  filing: 'warning', self_reviewing: 'processing', pending_review: 'purple', filing_approved: 'success',
+  filing_self_rejected: 'error', filing_platform_rejected: 'error',
+  waiting_start: 'default', approved: 'success',
 }
 const STATUS_LABEL: Record<string, string> = {
-  filing: '建档中', pending_review: '建档审核中',
-  biz_self_rejected: '商务自审不通过', tech_self_rejected: '技术自审不通过',
-  biz_rejected: '商务审核不通过', tech_rejected: '技术审核不通过',
-  all_self_rejected: '全部自审不通过', all_rejected: '全部审核不通过',
-  approved: '审核通过',
+  filing: '建档中', self_reviewing: '建档自审中', pending_review: '建档平台审核中', filing_approved: '建档审核通过',
+  filing_self_rejected: '建档自审不通过', filing_platform_rejected: '建档审核不通过',
+  waiting_start: '待开工', approved: '审核通过',
 }
 const PROJECT_TYPE_LABEL: Record<string, string> = { emc: '常规 EMC', public_emc: '公建 EMC' }
 const GRID_VOLTAGE_LABEL: Record<string, string> = { low: '低压', high: '中高压' }
@@ -861,10 +858,10 @@ const detail = ref({
     { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
   ],
   photos: {
-    exterior: Array.from({ length: 10 }, (_, i) => `https://picsum.photos/seed/ext${i + 1}/160/160`),
-    roof:     Array.from({ length: 4 },  (_, i) => `https://picsum.photos/seed/roof${i + 1}/160/160`),
-    meter:    Array.from({ length: 2 },  (_, i) => `https://picsum.photos/seed/meter${i + 1}/160/160`),
-    inverter: Array.from({ length: 3 },  (_, i) => `https://picsum.photos/seed/inv${i + 1}/160/160`),
+    exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    roof:     Array.from({ length: 4 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    meter:    Array.from({ length: 2 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
+    inverter: Array.from({ length: 3 },  (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
     other:    [],
   },
   jiagongBom: [
@@ -916,61 +913,74 @@ const filingStatusFromProps = computed(() =>
 
 type LogEntry = { id: number; type: string; event: string; operator: string; time: string; note: string | null }
 
-const LOGS_BY_STATUS: Record<string, LogEntry[]> = {
-  filing: [
-    { id: 2, type: 'create', event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-  pending_review: [
-    { id: 3, type: 'submit', event: '提交建档',  operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',  operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',  operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-  rejected: [
-    { id: 4, type: 'reject', event: '审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 3, type: 'submit', event: '提交建档',   operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',   operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',   operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-  all_self_rejected: [
-    { id: 5, type: 'reject', event: '技术自审不通过', operator: '李四（审核员）', time: '2026-08-11 16:10', note: '技术方案不完整，设备选型有误，请修正后重新提交。' },
-    { id: 4, type: 'reject', event: '商务自审不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 3, type: 'submit', event: '提交建档',       operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',       operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',       operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-  all_rejected: [
-    { id: 5, type: 'reject', event: '技术审核不通过', operator: '李四（审核员）', time: '2026-08-11 16:10', note: '系统设计方案不符合区域并网要求，请重新提交。' },
-    { id: 4, type: 'reject', event: '商务审核不通过', operator: '李四（审核员）', time: '2026-08-11 15:30', note: 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' },
-    { id: 3, type: 'submit', event: '提交建档',       operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create', event: '保存草稿',       operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create', event: '创建建档',       operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-  approved: [
-    { id: 4, type: 'approve', event: '审核通过', operator: '李四（审核员）', time: '2026-08-11 10:00', note: null },
-    { id: 3, type: 'submit',  event: '提交建档', operator: '张三（代理商）', time: '2026-08-10 17:20', note: null },
-    { id: 2, type: 'create',  event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
-    { id: 1, type: 'create',  event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
-  ],
-}
-
-const MULTI_REJECT_STATUSES = ['all_self_rejected', 'all_rejected']
 const currentLogs = computed(() => {
-  const s = detail.value.filingStatus
-  if (!FILING_REJECTED_STATUSES.includes(s)) return LOGS_BY_STATUS[s] ?? []
-  if (MULTI_REJECT_STATUSES.includes(s)) return LOGS_BY_STATUS[s] ?? []
-  const logs = LOGS_BY_STATUS['rejected'] ?? []
-  return logs.map(l => l.type === 'reject' ? { ...l, event: STATUS_LABEL[s] } : l)
+  const status = detail.value.filingStatus
+  const selfP   = (props.initRow?.selfReviewProgress   ?? {}) as Record<string, string | null>
+  const platP   = (props.initRow?.platformReviewProgress ?? {}) as Record<string, string | null>
+
+  // 固定底部：创建/草稿
+  const base: LogEntry[] = [
+    { id: 0, type: 'create', event: '保存草稿', operator: '张三（代理商）', time: '2026-08-10 14:05', note: null },
+    { id: 0, type: 'create', event: '创建建档', operator: '张三（代理商）', time: '2026-08-10 09:32', note: null },
+  ]
+
+  // 自审阶段条目
+  const selfEntries: LogEntry[] = []
+  if (selfP.tech) selfEntries.push({
+    id: 0,
+    type: selfP.tech === 'pass' ? 'approve' : 'reject',
+    event: selfP.tech === 'pass' ? '技术自审通过' : '技术自审不通过',
+    operator: '王五（技术审核员）',
+    time: '2026-08-11 16:10',
+    note: selfP.tech === 'reject' ? '屋面承重核算数据缺失，请补充结构安全评估报告。' : null,
+  })
+  if (selfP.biz) selfEntries.push({
+    id: 0,
+    type: selfP.biz === 'pass' ? 'approve' : 'reject',
+    event: selfP.biz === 'pass' ? '商务自审通过' : '商务自审不通过',
+    operator: '赵六（商务审核员）',
+    time: '2026-08-11 14:30',
+    note: selfP.biz === 'reject' ? 'EMC 电价填写有误，当前区域标准电价为 0.6200 元/kWh，请核实后重新提交。' : null,
+  })
+
+  const submitEntry: LogEntry = { id: 0, type: 'submit', event: '提交建档（自审中）', operator: '张三（代理商）', time: '2026-08-10 17:20', note: null }
+  const platformSubmitEntry: LogEntry = { id: 0, type: 'submit', event: '提交平台审核', operator: '系统（自审通过）', time: '2026-08-11 09:00', note: null }
+
+  // 平台审核阶段条目
+  const platEntries: LogEntry[] = []
+  if (platP.tech) platEntries.push({
+    id: 0,
+    type: platP.tech === 'pass' ? 'approve' : 'reject',
+    event: platP.tech === 'pass' ? '平台技术审核通过' : '平台技术审核不通过',
+    operator: '李四（平台技术审核员）',
+    time: '2026-08-12 11:20',
+    note: platP.tech === 'reject' ? '现场勘测照片不符合要求，屋顶结构照片模糊，请重新拍摄上传。' : null,
+  })
+  if (platP.biz) platEntries.push({
+    id: 0,
+    type: platP.biz === 'pass' ? 'approve' : 'reject',
+    event: platP.biz === 'pass' ? '平台商务审核通过' : '平台商务审核不通过',
+    operator: '孙七（平台商务审核员）',
+    time: '2026-08-12 10:00',
+    note: platP.biz === 'reject' ? '合同签约主体与项目公司不一致，请核实后重新提交。' : null,
+  })
+
+  let entries: LogEntry[] = []
+  if (status === 'filing') {
+    entries = [...base]
+  } else if (['self_reviewing', 'filing_self_rejected'].includes(status)) {
+    entries = [...selfEntries, submitEntry, ...base]
+  } else {
+    entries = [...platEntries, platformSubmitEntry, ...selfEntries, submitEntry, ...base]
+  }
+
+  return entries.map((e, i) => ({ ...e, id: entries.length - i }))
 })
 
 // ─── 权限 ────────────────────────────────────────────────────────────────────
 
-const canEdit = computed(() =>
-  ['filing', ...FILING_REJECTED_STATUSES].includes(detail.value.filingStatus)
-)
-const canVoid = computed(() =>
-  detail.value.filingStatus === 'filing'
-)
+const canEdit = computed(() => detail.value.filingStatus === 'filing')
+const canVoid = computed(() => detail.value.filingStatus === 'filing')
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
@@ -1097,20 +1107,34 @@ async function voidFiling(_id: string) {}
 // ─── 审核面板 ─────────────────────────────────────────────────────────────────
 
 const reviewPanelVisible = ref(true)
-const reviewCollapsed    = ref(true)
-const showReviewFab   = computed(() => detail.value.filingStatus === 'pending_review' && reviewPanelVisible.value &&  reviewCollapsed.value)
-const showReviewPanel = computed(() => detail.value.filingStatus === 'pending_review' && reviewPanelVisible.value && !reviewCollapsed.value)
+const reviewCollapsed    = ref(!props.selfReviewRole && !props.platformReviewRole)
 
-watch(reviewCollapsed, async (collapsed) => {
-  if (!collapsed) {
-    await nextTick()
-    if (reviewPanelEl.value) {
-      const h = reviewPanelEl.value.getBoundingClientRect().height
-      reviewPos.x = window.innerWidth - reviewSize.w - 32
-      reviewPos.y = window.innerHeight - h - 32
-    }
-  }
+const activeReviewRole = computed(() => props.selfReviewRole || props.platformReviewRole || null)
+const reviewPhase      = computed<'self' | 'platform' | null>(() =>
+  props.selfReviewRole ? 'self' : props.platformReviewRole ? 'platform' : null
+)
+const ROLE_LABEL: Record<string, string> = { biz: '商务', tech: '技术' }
+const reviewPanelTitle = computed(() => {
+  const r = ROLE_LABEL[activeReviewRole.value ?? ''] ?? ''
+  return reviewPhase.value === 'self' ? `建档${r}自审` : reviewPhase.value === 'platform' ? `建档${r}审核` : '建档审核'
 })
+
+const showReviewFab   = computed(() => !!activeReviewRole.value && reviewPanelVisible.value &&  reviewCollapsed.value)
+const showReviewPanel = computed(() => !!activeReviewRole.value && reviewPanelVisible.value && !reviewCollapsed.value)
+
+async function positionReviewPanel() {
+  await nextTick()
+  if (reviewPanelEl.value) {
+    const h = reviewPanelEl.value.getBoundingClientRect().height
+    reviewPos.x = window.innerWidth - reviewSize.w - 32
+    reviewPos.y = window.innerHeight - h - 32
+  }
+}
+
+watch(reviewCollapsed, (collapsed) => { if (!collapsed) positionReviewPanel() })
+
+// 自审/平台审核自动展开时初始定位
+if (!reviewCollapsed.value) nextTick(positionReviewPanel)
 
 const REJECT_REASONS = [
   '商务信息填写有误',
@@ -1198,10 +1222,19 @@ function onReviewClickUpload() {
   input.click()
 }
 function submitReview(action: 'pass' | 'reject' | 'skip') {
-  if (action === 'pass')   message.success('已审核通过')
-  else if (action === 'reject') message.warning('已标记审核不通过')
-  else message.info('暂不审核')
+  if (action === 'skip') { message.info('暂不审核'); return }
+  const role  = activeReviewRole.value
+  const phase = reviewPhase.value
+  const label = reviewPanelTitle.value
+  if (role && phase === 'self') {
+    submitFilingSelfReview(props.initRow?.id ?? detail.value.id, role, action)
+  } else if (role && phase === 'platform') {
+    submitFilingPlatformReview(props.initRow?.id ?? detail.value.id, role, action)
+  }
+  if (action === 'pass')   message.success(`${label}通过`)
+  else                     message.error(`${label}不通过`)
   reviewPanelVisible.value = false
+  emit('back')
 }
 </script>
 
