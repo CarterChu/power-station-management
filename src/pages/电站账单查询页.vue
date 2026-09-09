@@ -3,6 +3,7 @@
     <div class="slist-main-card">
       <AnfeProTable
         ref="tableRef"
+        table-key="lnc-bill-query"
         :columns="columns"
         :filters="filters"
         :config="tableConfig"
