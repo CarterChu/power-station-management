@@ -68,7 +68,7 @@
         <!-- 上部分：核心信息 -->
         <div class="detail-section">
           <div class="detail-section-title">核心信息</div>
-          <a-descriptions :column="2" bordered size="small">
+          <a-descriptions :column="2" size="small">
             <a-descriptions-item label="账单号">{{ currentRow.billNo }}</a-descriptions-item>
             <a-descriptions-item label="电站编号">{{ currentRow.stationNo }}</a-descriptions-item>
             <a-descriptions-item label="电站名称" :span="2">{{ currentRow.stationName }}</a-descriptions-item>
@@ -146,14 +146,9 @@ const currentRow = ref<any>(null)
 
 // ── 账单明细列定义 ──
 
-const DETAIL_STATUS_ITEMS = ['待生成', '待确认', '已确认', '已作废']
-
 const detailColumns = [
-  { title: '费用名称', dataIndex: 'name',     key: 'name',     width: 180 },
-  { title: '费用编码', dataIndex: 'code',     key: 'code',     width: 130 },
-  { title: '合同金额(元)', dataIndex: 'contractAmt', key: 'contractAmt', width: 130, align: 'right' as const },
-  { title: '实付金额(元)', dataIndex: 'actualAmt',   key: 'actualAmt',   width: 130, align: 'right' as const },
-  { title: '状态',     dataIndex: 'status',   key: 'status',   width: 90 },
+  { title: '费用名称', dataIndex: 'name', key: 'name' },
+  { title: '金额(元)', dataIndex: 'amt',  key: 'amt',  align: 'right' as const },
 ]
 
 const START_ITEMS = [
@@ -192,12 +187,10 @@ function mockAmt(seed: string, base: number) {
 }
 
 function buildDetailRows(items: { name: string; code: string }[], rowId: string) {
-  return items.map((item, idx) => {
-    const contract = mockAmt(item.code + rowId, 800000 + idx * 12000)
-    const actual   = mockAmt(item.code + rowId + 'a', 750000 + idx * 11000)
-    const status   = DETAIL_STATUS_ITEMS[(item.code.charCodeAt(0) + +rowId + idx) % DETAIL_STATUS_ITEMS.length]
-    return { ...item, contractAmt: contract, actualAmt: actual, status }
-  })
+  return items.map((item, idx) => ({
+    ...item,
+    amt: mockAmt(item.code + rowId, 800000 + idx * 12000),
+  }))
 }
 
 const detailData = computed(() => {
