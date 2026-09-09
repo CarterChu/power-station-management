@@ -67,66 +67,85 @@
       <template v-if="currentRow">
         <!-- 上部分：核心信息 -->
         <div class="detail-section">
-          <div class="detail-section-title">{{ currentRow.stationName }}</div>
-          <a-descriptions :column="2" size="small">
-            <a-descriptions-item label="账单号">{{ currentRow.billNo }}</a-descriptions-item>
-            <a-descriptions-item label="电站编号">{{ currentRow.stationNo }}</a-descriptions-item>
-            <a-descriptions-item label="结算对象类型">{{ currentRow.settlementObjectType }}</a-descriptions-item>
-            <a-descriptions-item label="结算对象">{{ currentRow.settlementObject }}</a-descriptions-item>
-            <a-descriptions-item label="账单类型" :span="2">{{ currentRow.billType }}</a-descriptions-item>
-            <a-descriptions-item label="应用场景">{{ currentRow.scenario || '--' }}</a-descriptions-item>
-            <a-descriptions-item label="结算单编号">{{ currentRow.settlementNo || '--' }}</a-descriptions-item>
-            <a-descriptions-item label="结算状态">
-              <a-tag :color="SETTLEMENT_STATUS_COLOR[currentRow.settlementStatus]" style="margin:0">
-                {{ SETTLEMENT_STATUS_LABEL[currentRow.settlementStatus] ?? currentRow.settlementStatus }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="是否可结算">
-              <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
-                {{ currentRow.isSettleable ? '可结算' : '不可结算' }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="推送NC状态">
-              <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
-                {{ NC_STATUS_LABEL[currentRow.ncPushStatus] ?? currentRow.ncPushStatus }}
-              </a-tag>
-            </a-descriptions-item>
-            <a-descriptions-item label="账单创建时间">{{ currentRow.billCreateTime }}</a-descriptions-item>
-          </a-descriptions>
+          <div class="info-section-title">{{ currentRow.stationName }}</div>
+          <div class="detail-info-grid">
+            <div class="info-item">
+              <span class="info-label">账单号</span>
+              <span class="info-value">{{ currentRow.billNo }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">电站编号</span>
+              <span class="info-value">
+                <span class="station-no-cell">
+                  <a class="station-no-link" @click="handleViewStation(currentRow.stationNo)">{{ currentRow.stationNo }}</a>
+                  <a-tooltip title="复制电站编号">
+                    <CopyOutlined class="copy-icon-sm" @click="handleCopy(currentRow.stationNo)" />
+                  </a-tooltip>
+                </span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">结算对象类型</span>
+              <span class="info-value">{{ currentRow.settlementObjectType }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">结算对象</span>
+              <span class="info-value">{{ currentRow.settlementObject }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账单类型</span>
+              <span class="info-value">{{ currentRow.billType }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">应用场景</span>
+              <span class="info-value">{{ currentRow.scenario || '--' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">结算单编号</span>
+              <span class="info-value">{{ currentRow.settlementNo || '--' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">结算状态</span>
+              <span class="info-value">
+                <a-tag :color="SETTLEMENT_STATUS_COLOR[currentRow.settlementStatus]" style="margin:0">
+                  {{ SETTLEMENT_STATUS_LABEL[currentRow.settlementStatus] ?? currentRow.settlementStatus }}
+                </a-tag>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">是否可结算</span>
+              <span class="info-value">
+                <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
+                  {{ currentRow.isSettleable ? '可结算' : '不可结算' }}
+                </a-tag>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">推送NC状态</span>
+              <span class="info-value">
+                <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
+                  {{ NC_STATUS_LABEL[currentRow.ncPushStatus] ?? currentRow.ncPushStatus }}
+                </a-tag>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">账单创建时间</span>
+              <span class="info-value">{{ currentRow.billCreateTime }}</span>
+            </div>
+          </div>
         </div>
+
+        <div class="section-divider"></div>
 
         <!-- 下部分：账单明细 -->
         <div class="detail-section">
-          <div class="detail-section-title">账单明细</div>
-          <a-tabs>
-            <a-tab-pane key="start" tab="开工">
-              <a-table
-                :columns="detailColumns"
-                :data-source="detailData.start"
-                :pagination="false"
-                size="small"
-                row-key="code"
-              />
-            </a-tab-pane>
-            <a-tab-pane key="grid" tab="并网">
-              <a-table
-                :columns="detailColumns"
-                :data-source="detailData.grid"
-                :pagination="false"
-                size="small"
-                row-key="code"
-              />
-            </a-tab-pane>
-            <a-tab-pane key="complete" tab="竣工">
-              <a-table
-                :columns="detailColumns"
-                :data-source="detailData.complete"
-                :pagination="false"
-                size="small"
-                row-key="code"
-              />
-            </a-tab-pane>
-          </a-tabs>
+          <div class="info-section-title">账单明细</div>
+          <div class="fee-cards">
+            <div class="fee-card" v-for="item in currentDetailItems" :key="item.code">
+              <div class="fee-card-name">{{ item.name }}</div>
+              <div class="fee-card-amt">¥ {{ item.amt }}</div>
+            </div>
+          </div>
         </div>
       </template>
     </a-drawer>
@@ -143,41 +162,40 @@ const tableRef = ref<any>(null)
 const drawerVisible = ref(false)
 const currentRow = ref<any>(null)
 
-// ── 账单明细列定义 ──
+// ── 账单明细 ──
 
-const detailColumns = [
-  { title: '费用名称', dataIndex: 'name', key: 'name' },
-  { title: '金额(元)', dataIndex: 'amt',  key: 'amt',  align: 'right' as const },
-]
-
-const START_ITEMS = [
-  { name: '开发商开工费', code: 'KFSKGF01' },
-  { name: '施工方开工费', code: 'SGFKGF01' },
-  { name: '监理方开工费', code: 'JLFKGF01' },
-  { name: '设计院开工费', code: 'SJYKGF01' },
-  { name: '设备采购方开工费', code: 'CGFKGF01' },
-]
-
-const GRID_ITEMS = [
-  { name: '开发商并网费', code: 'KFSBWF01' },
-  { name: '施工方并网费', code: 'SGFBWF01' },
-  { name: '监理方并网费', code: 'JLFBWF01' },
-  { name: '设计院并网费', code: 'SJYBWF01' },
-  { name: '设备采购方并网费', code: 'CGFBWF01' },
-]
-
-const COMPLETE_ITEMS = [
-  { name: '开发商竣工费',   code: 'KFSJGF01' },
-  { name: '开发商质保金',   code: 'KFSZBJ01' },
-  { name: '施工方竣工费',   code: 'SGFJGF01' },
-  { name: '施工方质保金',   code: 'SGFZBJ01' },
-  { name: '监理方竣工费',   code: 'JLFJGF01' },
-  { name: '监理方质保金',   code: 'JLFZBJ01' },
-  { name: '设计院竣工费',   code: 'SJYJGF01' },
-  { name: '设计院质保金',   code: 'SJYZBJ01' },
-  { name: '设备采购方竣工费', code: 'CGFJGF01' },
-  { name: '设备采购方质保金', code: 'CGFZBJ01' },
-]
+const SETTLEMENT_FEE_MAP: Record<string, { name: string; code: string }[]> = {
+  代理商: [
+    { name: '开发商开工费', code: 'KFSKGF01' },
+    { name: '开发商并网费', code: 'KFSBWF01' },
+    { name: '开发商竣工费', code: 'KFSJGF01' },
+    { name: '开发商质保金', code: 'KFSZBJ01' },
+  ],
+  施工方: [
+    { name: '施工方开工费', code: 'SGFKGF01' },
+    { name: '施工方并网费', code: 'SGFBWF01' },
+    { name: '施工方竣工费', code: 'SGFJGF01' },
+    { name: '施工方质保金', code: 'SGFZBJ01' },
+  ],
+  监理方: [
+    { name: '监理方开工费', code: 'JLFKGF01' },
+    { name: '监理方并网费', code: 'JLFBWF01' },
+    { name: '监理方竣工费', code: 'JLFJGF01' },
+    { name: '监理方质保金', code: 'JLFZBJ01' },
+  ],
+  设计院: [
+    { name: '设计院开工费', code: 'SJYKGF01' },
+    { name: '设计院并网费', code: 'SJYBWF01' },
+    { name: '设计院竣工费', code: 'SJYJGF01' },
+    { name: '设计院质保金', code: 'SJYZBJ01' },
+  ],
+  运维后台厂家: [
+    { name: '设备采购方开工费', code: 'CGFKGF01' },
+    { name: '设备采购方并网费', code: 'CGFBWF01' },
+    { name: '设备采购方竣工费', code: 'CGFJGF01' },
+    { name: '设备采购方质保金', code: 'CGFZBJ01' },
+  ],
+}
 
 function mockAmt(seed: string, base: number) {
   let h = 0
@@ -185,21 +203,14 @@ function mockAmt(seed: string, base: number) {
   return ((base + (h % 50000)) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-function buildDetailRows(items: { name: string; code: string }[], rowId: string) {
+const currentDetailItems = computed(() => {
+  if (!currentRow.value) return []
+  const type = currentRow.value.settlementObjectType as string
+  const items = SETTLEMENT_FEE_MAP[type] ?? []
   return items.map((item, idx) => ({
     ...item,
-    amt: mockAmt(item.code + rowId, 800000 + idx * 12000),
+    amt: mockAmt(item.code + currentRow.value.id, 800000 + idx * 12000),
   }))
-}
-
-const detailData = computed(() => {
-  if (!currentRow.value) return { start: [], grid: [], complete: [] }
-  const id = currentRow.value.id
-  return {
-    start:    buildDetailRows(START_ITEMS,    id),
-    grid:     buildDetailRows(GRID_ITEMS,     id),
-    complete: buildDetailRows(COMPLETE_ITEMS, id),
-  }
 })
 
 // ── 枚举映射 ──
@@ -870,21 +881,97 @@ const MOCK_DATA = [
 
 .detail-section {
   padding: 20px 24px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
-.detail-section:last-child {
-  border-bottom: none;
+.section-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 0 24px;
 }
 
-.detail-section-title {
+/* info-grid — 与建档详情页一致 */
+.info-section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  margin: 0 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.info-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.info-item--span2 { grid-column: span 2; }
+.info-label {
   font-size: 14px;
-  font-weight: 600;
-  color: #1d2129;
-  margin-bottom: 14px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 22px;
+  padding-bottom: 8px;
+  white-space: nowrap;
+}
+.info-value {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 22px;
+  word-break: break-word;
 }
 
-.detail-section :deep(.ant-tabs-nav) {
-  margin-bottom: 12px;
+/* 账单明细费用卡片 */
+.fee-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.fee-card {
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fee-card-name {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 20px;
+}
+.fee-card-amt {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 28px;
+}
+
+/* 标题内电站名称链接 */
+.station-name-link {
+  color: rgba(0, 0, 0, 0.88);
+  cursor: pointer;
+  font-weight: 500;
+}
+.station-name-link:hover {
+  color: #1677ff;
+  text-decoration: underline;
+}
+.copy-icon-sm {
+  font-size: 13px;
+  color: #bbb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.copy-icon-sm:hover {
+  color: #1677ff;
 }
 </style>
