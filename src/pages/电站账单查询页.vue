@@ -92,17 +92,17 @@ const SETTLEMENT_STATUS_COLOR: Record<string, string> = {
 }
 
 const NC_STATUS_LABEL: Record<string, string> = {
-  not_pushed: '未推送',
-  pushing:    '推送中',
-  pushed:     '推送成功',
-  failed:     '推送失败',
+  pending:     '待推送',
+  pushed:      '推送成功',
+  failed:      '推送失败',
+  not_needed:  '无需推送',
 }
 
 const NC_STATUS_COLOR: Record<string, string> = {
-  not_pushed: 'default',
-  pushing:    'processing',
+  pending:    'warning',
   pushed:     'success',
   failed:     'error',
+  not_needed: 'default',
 }
 
 // ── 筛选项 ──
@@ -295,10 +295,10 @@ const filters = [
     component: 'select',
     placeholder: '选择推送NC状态',
     options: [
-      { label: '未推送',   value: 'not_pushed' },
-      { label: '推送中',   value: 'pushing' },
+      { label: '待推送',   value: 'pending' },
       { label: '推送成功', value: 'pushed' },
       { label: '推送失败', value: 'failed' },
+      { label: '无需推送', value: 'not_needed' },
     ],
   },
   {
@@ -330,10 +330,21 @@ const filters = [
     placeholder: '选择应用场景（多选）',
     props: { mode: 'multiple', showArrow: true },
     options: [
-      { label: '工商业屋顶光伏', value: 'biz_rooftop' },
-      { label: '居民屋顶光伏',   value: 'res_rooftop' },
-      { label: '地面电站',       value: 'ground' },
-      { label: '智慧社区',       value: 'smart_community' },
+      { label: '平改坡',          value: '平改坡' },
+      { label: '10°单坡阳光房',   value: '10°单坡阳光房' },
+      { label: '平台阵列式',       value: '平台阵列式' },
+      { label: '斜屋顶',          value: '斜屋顶' },
+      { label: '5°单坡阳光房',    value: '5°单坡阳光房' },
+      { label: '5°人字坡阳光房',  value: '5°人字坡阳光房' },
+      { label: '院内支架',         value: '院内支架' },
+      { label: '南10北5阳光房',   value: '南10北5阳光房' },
+      { label: '默认',            value: '默认' },
+      { label: '院内阳光房',       value: '院内阳光房' },
+      { label: '斜屋顶北坡',       value: '斜屋顶北坡' },
+      { label: '7°平台阵列式',    value: '7°平台阵列式' },
+      { label: '院内支架-双坡',    value: '院内支架-双坡' },
+      { label: '斜屋顶南北坡B场景', value: '斜屋顶南北坡B场景' },
+      { label: '斜屋顶南北坡',     value: '斜屋顶南北坡' },
     ],
   },
 ]
@@ -421,7 +432,7 @@ const MOCK_DATA = [
     settlementNo: '',
     settlementStatus: 'pending_invoice_upload',
     isSettleable: false,
-    ncPushStatus: 'not_pushed',
+    ncPushStatus: 'pending',
     billCreateTime: '2026-09-02 14:30:00',
   },
   {
