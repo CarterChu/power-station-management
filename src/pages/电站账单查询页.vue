@@ -398,10 +398,11 @@ const tableConfig = {
       }
     }
 
-    // Mock data
+    // Mock data with pagination
     await new Promise(r => setTimeout(r, 300))
+    const start = ((pageIndex ?? 1) - 1) * (pageRows ?? 20)
     return {
-      data: MOCK_DATA,
+      data: MOCK_DATA.slice(start, start + (pageRows ?? 20)),
       count: MOCK_DATA.length,
     }
   },
