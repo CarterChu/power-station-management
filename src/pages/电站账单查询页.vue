@@ -67,11 +67,10 @@
       <template v-if="currentRow">
         <!-- 上部分：核心信息 -->
         <div class="detail-section">
-          <div class="detail-section-title">核心信息</div>
+          <div class="detail-section-title">{{ currentRow.stationName }}</div>
           <a-descriptions :column="2" size="small">
             <a-descriptions-item label="账单号">{{ currentRow.billNo }}</a-descriptions-item>
             <a-descriptions-item label="电站编号">{{ currentRow.stationNo }}</a-descriptions-item>
-            <a-descriptions-item label="电站名称" :span="2">{{ currentRow.stationName }}</a-descriptions-item>
             <a-descriptions-item label="结算对象类型">{{ currentRow.settlementObjectType }}</a-descriptions-item>
             <a-descriptions-item label="结算对象">{{ currentRow.settlementObject }}</a-descriptions-item>
             <a-descriptions-item label="账单类型" :span="2">{{ currentRow.billType }}</a-descriptions-item>
