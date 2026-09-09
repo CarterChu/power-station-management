@@ -59,8 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, h } from 'vue'
+import { message, Tooltip } from 'ant-design-vue'
 import { CopyOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
@@ -115,6 +115,8 @@ const NC_STATUS_COLOR: Record<string, string> = {
   failed:     'error',
   not_needed: 'default',
 }
+
+const tipCell = (text: string) => h(Tooltip, { title: text }, () => h('span', { class: 'cell-tip' }, text))
 
 // ── 筛选项 ──
 
@@ -363,14 +365,14 @@ const filters = [
 // ── 表格列 ──
 
 const columns = [
-  { title: '账单号',       dataIndex: 'billNo',               key: 'billNo',               width: 180, fixed: 'left' as const, ellipsis: true },
+  { title: '账单号',       dataIndex: 'billNo',               key: 'billNo',               width: 180, fixed: 'left' as const, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '电站编号',     dataIndex: 'stationNo',            key: 'stationNo',            width: 180, component: 'custom', slotName: 'stationNoSlot' },
-  { title: '电站名称',     dataIndex: 'stationName',          key: 'stationName',          width: 200, ellipsis: true },
+  { title: '电站名称',     dataIndex: 'stationName',          key: 'stationName',          width: 200, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '结算对象类型', dataIndex: 'settlementObjectType', key: 'settlementObjectType', width: 130 },
-  { title: '结算对象',     dataIndex: 'settlementObject',     key: 'settlementObject',     width: 160, ellipsis: true },
-  { title: '账单类型',     dataIndex: 'billType',             key: 'billType',             width: 220, ellipsis: true },
-  { title: '应用场景',     dataIndex: 'scenario',             key: 'scenario',             width: 140, ellipsis: true },
-  { title: '结算单编号',   dataIndex: 'settlementNo',         key: 'settlementNo',         width: 180, ellipsis: true },
+  { title: '结算对象',     dataIndex: 'settlementObject',     key: 'settlementObject',     width: 160, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
+  { title: '账单类型',     dataIndex: 'billType',             key: 'billType',             width: 220, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
+  { title: '应用场景',     dataIndex: 'scenario',             key: 'scenario',             width: 140, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
+  { title: '结算单编号',   dataIndex: 'settlementNo',         key: 'settlementNo',         width: 180, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '结算状态',     dataIndex: 'settlementStatus',     key: 'settlementStatus',     width: 120, component: 'custom', slotName: 'settlementStatusSlot' },
   { title: '是否可结算',   dataIndex: 'isSettleable',         key: 'isSettleable',         width: 110, component: 'custom', slotName: 'settleableSlot' },
   { title: '推送NC状态',   dataIndex: 'ncPushStatus',         key: 'ncPushStatus',         width: 120, component: 'custom', slotName: 'ncPushStatusSlot' },
@@ -569,5 +571,12 @@ const MOCK_DATA = [
 
 .copy-icon:hover {
   color: #1677ff;
+}
+
+.cell-tip {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
