@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System PC · 组件生成机制</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f7f7f5;
+  --card-bg: #ffffff;
+  --text: #1a1a1a;
+  --muted: #666;
+  --border: #e8e8e6;
+  --surface: #f0f0ee;
+  --blue: #1677ff;
+  --blue-soft: #e8f4ff;
+  --purple: #4d49fc;
+  --purple-soft: rgba(77,73,252,.08);
+  --green: #16a34a;
+  --green-soft: rgba(22,163,74,.08);
+  --orange: #f76040;
+  --orange-soft: rgba(247,96,64,.08);
+  --font: 'PingFang SC', -apple-system, system-ui, sans-serif;
+  --radius: 12px;
+}
+html.dark {
+  --bg: #171715;
+  --card-bg: #232321;
+  --text: #f0f0ee;
+  --muted: #999;
+  --border: #333331;
+  --surface: #2a2a28;
+  --blue-soft: rgba(22,119,255,.12);
+  --purple-soft: rgba(77,73,252,.15);
+  --green-soft: rgba(22,163,74,.12);
+  --orange-soft: rgba(247,96,64,.12);
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 100vh;
+  padding: 48px 24px 80px;
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+
+/* header */
+.page-header { margin-bottom: 48px; }
+.page-tag {
+  display: inline-block;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: var(--purple); background: var(--purple-soft);
+  border: 1px solid rgba(77,73,252,.2);
+  padding: 3px 10px; border-radius: 999px;
+  margin-bottom: 14px;
+}
+.page-title { font-size: 32px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; margin-bottom: 10px; }
+.page-sub { font-size: 15px; color: var(--muted); max-width: 520px; }
+
+/* section */
+.section { margin-bottom: 48px; }
+.section-title {
+  font-size: 13px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* 三层卡片 */
+.layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.layer-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 22px;
+  position: relative;
+  overflow: hidden;
+}
+.layer-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.layer-card.l1::before { background: var(--blue); }
+.layer-card.l2::before { background: var(--purple); }
+.layer-card.l3::before { background: var(--green); }
+
+.layer-num {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  margin-bottom: 10px;
+}
+.l1 .layer-num { color: var(--blue); }
+.l2 .layer-num { color: var(--purple); }
+.l3 .layer-num { color: var(--green); }
+
+.layer-prefix {
+  font-size: 20px; font-weight: 800; font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-bottom: 6px; line-height: 1;
+}
+.l1 .layer-prefix { color: var(--blue); }
+.l2 .layer-prefix { color: var(--purple); }
+.l3 .layer-prefix { color: var(--green); }
+
+.layer-name { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.layer-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
+
+.layer-examples { display: flex; flex-direction: column; gap: 4px; }
+.ex-item {
+  font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 3px 8px; border-radius: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.l1 .ex-item { background: var(--blue-soft); color: var(--blue); }
+.l2 .ex-item { background: var(--purple-soft); color: var(--purple); }
+.l3 .ex-item { background: var(--green-soft); color: var(--green); }
+
+.layer-install {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.install-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.l1 .install-dot { background: var(--blue); }
+.l2 .install-dot { background: var(--purple); }
+.l3 .install-dot { background: var(--green); }
+
+/* 一致性策略 */
+.align-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.align-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; gap: 14px;
+}
+.align-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 16px;
+}
+.align-icon.doc { background: var(--orange-soft); }
+.align-icon.code { background: var(--green-soft); }
+.align-label { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.align-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+
+/* 回流机制 */
+.flow { display: flex; align-items: stretch; }
+.flow-step {
+  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 20px 18px;
+  position: relative;
+}
+.flow-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.flow-step:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+.flow-step + .flow-step { border-left: none; }
+
+.flow-arrow {
+  position: absolute; right: -13px; top: 50%;
+  transform: translateY(-50%);
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted);
+  z-index: 1;
+}
+
+.flow-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; margin-bottom: 10px;
+}
+.flow-label { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.flow-note  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.step-1 .flow-icon { background: var(--blue-soft); }
+.step-2 .flow-icon { background: var(--orange-soft); }
+.step-3 .flow-icon { background: var(--purple-soft); }
+.step-4 .flow-icon { background: var(--green-soft); }
+
+/* 已沉淀组件 */
+.comp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.comp-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.comp-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 5px; flex-shrink: 0; margin-top: 1px;
+  background: var(--green-soft); color: var(--green);
+  border: 1px solid rgba(22,163,74,.2);
+}
+.comp-name { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.comp-desc { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.comp-scene {
+  display: inline-block; margin-top: 6px;
+  font-size: 11px; padding: 1px 7px; border-radius: 4px;
+  background: var(--surface); color: var(--muted);
+}
+
+/* note */
+.note {
+  background: var(--purple-soft);
+  border-left: 3px solid var(--purple);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-top: 20px; line-height: 1.6;
+}
+.note strong { color: var(--purple); }
+
+/* theme toggle */
+.toggle {
+  position: fixed; top: 16px; right: 16px;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--card-bg); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; z-index: 99;
+}
+
+/* footer */
+.footer {
+  margin-top: 60px; padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--muted);
+  display: flex; justify-content: space-between;
+}
+
+@media (max-width: 680px) {
+  .layers { grid-template-columns: 1fr; }
+  .align-row { grid-template-columns: 1fr; }
+  .flow { flex-direction: column; }
+  .flow-step { border-radius: 0 !important; border-left: 1px solid var(--border) !important; border-top: none; }
+  .flow-step:first-child { border-radius: var(--radius) var(--radius) 0 0 !important; border-top: 1px solid var(--border) !important; }
+  .flow-step:last-child  { border-radius: 0 0 var(--radius) var(--radius) !important; }
+  .flow-arrow { display: none; }
+  .comp-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<button class="toggle" onclick="toggleTheme()" title="切换主题">🌙</button>
+
+<div class="wrap">
+
+  <div class="page-header">
+    <div class="page-tag">Design System PC</div>
+    <h1 class="page-title">组件生成机制</h1>
+    <p class="page-sub">在安能 PC 端中后台项目中，组件按来源分三层管理，项目中沉淀的私有组件可回流至 skill，供后续项目直接复用。</p>
+  </div>
+
+  <!-- 三层体系 -->
+  <div class="section">
+    <div class="section-title">三层组件体系</div>
+    <div class="layers">
+
+      <div class="layer-card l1">
+        <div class="layer-num">LAYER 01</div>
+        <div class="layer-prefix">a-</div>
+        <div class="layer-name">Ant Design Vue</div>
+        <div class="layer-desc">原生 UI 组件，直接使用，参考官方文档。覆盖通用场景：布局、表单、弹窗、数据展示等。</div>
+        <div class="layer-examples">
+          <span class="ex-item">a-table</span>
+          <span class="ex-item">a-form / a-form-item</span>
+          <span class="ex-item">a-modal / a-drawer</span>
+          <span class="ex-item">a-select / a-input</span>
+        </div>
+        <div class="layer-install">
+          <span class="install-dot"></span>
+          npm install ant-design-vue
+        </div>
+      </div>
+
+      <div class="layer-card l2">
+        <div class="layer-num">LAYER 02</div>
+        <div class="layer-prefix">Anfe-</div>
+        <div class="layer-name">安能业务组件库</div>
+        <div class="layer-desc">@anfe/vue-pro-components 封装的业务组件，内置请求、分页、表单 Schema 等能力，优先于裸 Ant Design 使用。</div>
+        <div class="layer-examples">
+          <span class="ex-item">AnfeProTable</span>
+          <span class="ex-item">AnfeBaseForm</span>
+          <span class="ex-item">AnfeNavigationBar</span>
+          <span class="ex-item">AnfeRegionCascader</span>
+        </div>
+        <div class="layer-install">
+          <span class="install-dot"></span>
+          npm install @anfe/vue-pro-components
+        </div>
+      </div>
+
+      <div class="layer-card l3">
+        <div class="layer-num">LAYER 03</div>
+        <div class="layer-prefix">私有</div>
+        <div class="layer-name">项目私有组件</div>
+        <div class="layer-desc">在项目实践中沉淀的本地组件，无法 npm 安装。通过规格文档 + 源码对齐，保证跨项目一致性。</div>
+        <div class="layer-examples">
+          <span class="ex-item">FlowLog</span>
+          <span class="ex-item">RejectCard</span>
+          <span class="ex-item">FileUploadField</span>
+          <span class="ex-item">FileAttachmentView</span>
+        </div>
+        <div class="layer-install">
+          <span class="install-dot"></span>
+          复制源码至 src/components/
+        </div>
+      </div>
+
+    </div>
+
+    <div class="align-row">
+      <div class="align-card">
+        <div class="align-icon doc">📄</div>
+        <div>
+          <div class="align-label">规格文档对齐</div>
+          <div class="align-desc">props、类型定义、用法示例、业务场景说明，保证使用方式一致。</div>
+        </div>
+      </div>
+      <div class="align-card">
+        <div class="align-icon code">⚙️</div>
+        <div>
+          <div class="align-label">源码直接复用</div>
+          <div class="align-desc">存储经过审查的完整源码，生成新项目时原样写入，样式和交互像素级对齐。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 回流机制 -->
+  <div class="section">
+    <div class="section-title">私有组件回流机制</div>
+    <div class="flow">
+      <div class="flow-step step-1">
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">项目需求</div>
+        <div class="flow-note">现有组件库无法满足的业务场景，需要定制开发。</div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step step-2">
+        <div class="flow-icon">🔨</div>
+        <div class="flow-label">开发私有组件</div>
+        <div class="flow-note">在项目 src/components/ 中创建，满足当前项目需求。</div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step step-3">
+        <div class="flow-icon">✅</div>
+        <div class="flow-label">质量审查</div>
+        <div class="flow-note">检查类型安全、默认值、样式一致性，修复潜在问题。</div>
+        <div class="flow-arrow">→</div>
+      </div>
+      <div class="flow-step step-4">
+        <div class="flow-icon">♻️</div>
+        <div class="flow-label">写回 skill</div>
+        <div class="flow-note">源码 + 规格文档写入 skill，后续项目直接生成，无需重写。</div>
+      </div>
+    </div>
+    <div class="note">
+      <strong>核心价值：</strong>每个新项目的组件积累不会丢失——经过审查的组件沉淀到 skill 后，下一个项目可以站在上一个项目的肩膀上出发，而不是从零开始。
+    </div>
+  </div>
+
+  <!-- 已沉淀组件 -->
+  <div class="section">
+    <div class="section-title">已沉淀的私有组件</div>
+    <div class="comp-grid">
+
+      <div class="comp-card">
+        <span class="comp-badge">私有</span>
+        <div>
+          <div class="comp-name">FlowLog</div>
+          <div class="comp-desc">流转日志时间线，按日期分组展示审批历史，支持 5 种操作类型、操作人、备注和附图。</div>
+          <span class="comp-scene">建档 / 开工 / 完工详情页</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <span class="comp-badge">私有</span>
+        <div>
+          <div class="comp-name">RejectCard</div>
+          <div class="comp-desc">审核不通过卡片，支持单角色和多角色合并两种模式，可展开收起。</div>
+          <span class="comp-scene">各节点申请页顶部</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <span class="comp-badge">私有</span>
+        <div>
+          <div class="comp-name">FileUploadField</div>
+          <div class="comp-desc">表单文件上传字段，支持选文件、删文件，已选列表展示文件类型图标。</div>
+          <span class="comp-scene">各节点申请页表单</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <span class="comp-badge">私有</span>
+        <div>
+          <div class="comp-name">FileAttachmentView</div>
+          <div class="comp-desc">附件只读展示，鼠标悬停显示预览和下载操作，与 FileUploadField 成对使用。</div>
+          <span class="comp-scene">各节点详情页附件区</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <span class="comp-badge">私有</span>
+        <div>
+          <div class="comp-name">FileTypeIcon</div>
+          <div class="comp-desc">文件类型图标，根据扩展名自动显示对应格式图标，支持 Word / Excel / PDF / 图片 / PS / AI / OFD 等。</div>
+          <span class="comp-scene">FileUploadField / FileAttachmentView 内部</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Design System PC · 工商业电站管理平台</span>
+    <span>2026</span>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  if (localStorage.getItem('ds-theme') === 'dark') {
+    document.documentElement.classList.add('dark');
+    document.querySelector('.toggle').textContent = '☀️';
+  }
+})();
+function toggleTheme() {
+  const dark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('ds-theme', dark ? 'dark' : 'light');
+  document.querySelector('.toggle').textContent = dark ? '☀️' : '🌙';
+}
+</script>
+</body>
+</html>
