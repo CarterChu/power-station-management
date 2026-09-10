@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设计评审简报 · 工商业电站管理</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis', useMaxWidth: true } });</script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff;
+  --card-bg: #ffffff;
+  --text: #000000;
+  --border: #e5e7eb;
+  --surface-soft: #f2f2f2;
+  --muted: #666666;
+  --accent-primary: #4d49fc;
+  --accent-error: #dc2626;
+  --accent-green: #16a34a;
+  --chart-1: #4d49fc;
+  --chart-2: #f76040;
+  --chart-3: #13c5be;
+  --chart-4: #a35cfb;
+  --font: 'PingFang SC', -apple-system, system-ui, sans-serif;
+  --radius-card: 8px;
+  --radius-pill: 9999px;
+}
+html.dark {
+  --bg: #171715;
+  --card-bg: #272725;
+  --text: #f5f5f4;
+  --border: #434342;
+  --surface-soft: #2d2d2b;
+  --muted: #9c9c9b;
+  --accent-primary: #7a77fd;
+  --accent-error: #ef4444;
+  --accent-green: #22c55e;
+  --chart-1: #7a77fd;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.75; font-size: 15px; }
+
+/* ── 布局 ── */
+#sidebar {
+  position: fixed; top: 0; left: 0; width: 220px;
+  height: 100vh; overflow-y: auto;
+  background: var(--card-bg); border-right: 1px solid var(--border);
+  padding: 24px 0;
+}
+#sidebar a {
+  display: flex; align-items: center; gap: 10px; padding: 7px 18px;
+  font-size: 12.5px; color: var(--muted); text-decoration: none;
+  border-left: 3px solid transparent; transition: all .14s;
+}
+#sidebar a .ch-num {
+  width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  background: var(--surface-soft); color: var(--muted); transition: all .14s;
+}
+#sidebar a:hover { color: var(--chart-2); background: rgba(247,96,64,.06); }
+#sidebar a:hover .ch-num { background: rgba(247,96,64,.15); color: var(--chart-2); }
+#sidebar a.active { color: var(--chart-2); font-weight: 600; border-left-color: var(--chart-2); background: rgba(247,96,64,.06); }
+#sidebar a.active .ch-num { background: var(--chart-2); color: #fff; }
+.sidebar-logo { padding: 0 18px 20px; font-size: 13px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.sidebar-label { padding: 4px 18px 2px; font-size: 10.5px; color: var(--muted); letter-spacing: .04em; font-weight: 600; text-transform: uppercase; margin-top: 8px; }
+
+.main { margin-left: 220px; }
+.content-wrap { max-width: 1000px; padding: 48px 52px 80px; margin: 0 auto; }
+
+/* ── 暗色切换 ── */
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; width: 32px; height: 32px;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  z-index: 200; color: var(--text);
+}
+
+/* ── 封面 ── */
+.doc-cover { padding: 64px 0 48px; border-bottom: 1px solid var(--border); }
+.doc-cover-tag { display: inline-flex; background: rgba(247,96,64,.1); color: var(--chart-2); font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: var(--radius-pill); letter-spacing: .04em; margin-bottom: 22px; }
+.doc-cover-title { font-size: 40px; font-weight: 800; color: var(--text); line-height: 1.15; letter-spacing: -.015em; margin-bottom: 18px; }
+.doc-cover-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+.doc-cover-meta .sep { color: var(--border); }
+.doc-cover-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.doc-cover-desc { color: var(--muted); font-size: 14px; line-height: 1.8; max-width: 680px; }
+
+/* ── 章节标题 ── */
+.chapter-header {
+  background: rgba(247,96,64,.06); padding: 20px 24px; border-radius: 10px;
+  display: flex; align-items: center; gap: 14px; margin-top: 80px;
+}
+#why.chapter-header { margin-top: 48px; }
+.chapter-num { background: var(--chart-2); color: #fff; font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 4px; flex-shrink: 0; }
+.chapter-title { color: var(--chart-2); font-size: 20px; font-weight: 700; }
+.chapter-tag { background: rgba(247,96,64,.12); color: var(--chart-2); font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: var(--radius-pill); margin-left: auto; }
+
+/* ── 卡片 ── */
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; }
+.pain-card { border-radius: var(--radius-card); padding: 14px 16px; border-left: 3px solid; margin-bottom: 10px; }
+.pain-card-1 { border-color: var(--accent-error); background: rgba(220,38,38,.04); }
+.pain-card-2 { border-color: var(--chart-2); background: rgba(247,96,64,.04); }
+.pain-card-3 { border-color: var(--chart-4); background: rgba(163,92,251,.04); }
+.pain-card-4 { border-color: var(--accent-green); background: rgba(22,163,74,.04); }
+.pain-card-title { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+.pain-card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+.role-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; }
+.role-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 10px; flex-shrink: 0; }
+
+.value-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; }
+.v-metric { background: rgba(22,163,74,.08); color: var(--accent-green); border: 1px solid rgba(22,163,74,.3); border-radius: var(--radius-card); padding: 3px 10px; font-size: 12px; font-weight: 700; display: inline-block; margin-top: 6px; }
+
+.review-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; }
+.rv-q { font-size: 13.5px; font-weight: 700; color: var(--chart-1); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.rv-q::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--chart-1); flex-shrink: 0; }
+.rv-body { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+/* ── 难点编号 ── */
+.c-num { width: 22px; height: 22px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ── 流程步骤 ── */
+.flow { margin: 16px 0; }
+.flow-step { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 2px; position: relative; }
+.flow-step:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 28px; width: 1px; height: calc(100% + 2px); background: var(--border); }
+.flow-num { width: 26px; height: 26px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 1; }
+.flow-body { padding-top: 3px; padding-bottom: 16px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.flow-body strong { color: var(--text); }
+
+/* ── Note ── */
+.note { background: rgba(77,73,252,.05); border-left: 3px solid var(--accent-primary); border-radius: 0 var(--radius-card) var(--radius-card) 0; padding: 10px 14px; margin: 12px 0; font-size: 13.5px; }
+.note strong { color: var(--accent-primary); }
+
+/* ── 统计行 ── */
+.stat-box { flex: 1; min-width: 140px; border-radius: var(--radius-card); padding: 14px 16px; text-align: center; background: var(--card-bg); border: 1px solid var(--border); }
+.stat-num { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.1; }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.stat-sub { font-size: 11px; color: var(--muted); }
+
+/* ── 标签 ── */
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap; }
+.tag-key  { background: rgba(77,73,252,.08); color: var(--chart-1); border: 1px solid rgba(77,73,252,.25); }
+.tag-risk { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+.tag-open { background: rgba(247,96,64,.08); color: var(--chart-2); border: 1px solid rgba(247,96,64,.25); }
+.tag-ok   { background: rgba(22,163,74,.08); color: var(--accent-green); border: 1px solid rgba(22,163,74,.25); }
+
+/* ── 表格 ── */
+.tbl-wrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--border); border-radius: var(--radius-card); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { background: var(--surface-soft); font-weight: 600; text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--muted); vertical-align: top; line-height: 1.6; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) td { background: var(--surface-soft); }
+
+/* ── Mermaid ── */
+.mermaid-wrap { background: var(--surface-soft); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 18px 16px; margin: 14px 0; overflow-x: auto; text-align: center; }
+
+/* ── 状态色块演示 ── */
+.status-demo { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: var(--radius-pill); font-size: 12.5px; font-weight: 500; border: 1px solid; }
+.status-chip .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.s-processing { background: #e6f4ff; color: #0958d9; border-color: #91caff; }
+.s-error { background: #fff2f0; color: #cf1322; border-color: #ffa39e; }
+.s-success { background: #f6ffed; color: #389e0d; border-color: #b7eb8f; }
+.s-default { background: var(--surface-soft); color: var(--muted); border-color: var(--border); }
+.s-warning { background: #fffbe6; color: #d48806; border-color: #ffe58f; }
+
+/* ── 对比 ── */
+.comparison-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+.comparison-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.comp-card { border: 1.5px solid var(--border); border-radius: var(--radius-card); padding: 14px; position: relative; }
+.comp-card.winner { border-color: var(--accent-primary); }
+.comp-badge { position: absolute; top: -1px; right: 12px; background: var(--accent-primary); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 0 0 6px 6px; }
+.comp-title { font-size: 13.5px; font-weight: 700; margin-bottom: 8px; }
+.comp-item { display: flex; gap: 6px; margin-top: 4px; line-height: 1.5; font-size: 12.5px; }
+
+/* ── 页脚 ── */
+.doc-footer { border-top: 1px solid var(--border); margin-top: 80px; padding: 28px 0 0; display: flex; align-items: center; justify-content: space-between; }
+.doc-footer-left { font-size: 13px; color: var(--muted); }
+.doc-footer-left strong { color: var(--text); font-weight: 600; }
+.doc-footer-right { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.footer-avatar { width: 18px; height: 18px; border-radius: 50%; background: var(--chart-2); color: #fff; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* ── 工具函数 ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.section-lead { font-size: 14px; color: var(--muted); line-height: 1.75; margin: 16px 0 20px; }
+.section-h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 24px 0 12px; display: flex; align-items: center; gap: 8px; }
+.section-h3::before { content: ''; display: block; width: 3px; height: 15px; background: var(--chart-2); border-radius: 2px; }
+
+/* ── 设计决策卡 ── */
+.decision-card { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; margin: 12px 0; }
+.decision-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--chart-2); margin-bottom: 6px; }
+.decision-row { display: flex; gap: 16px; }
+.decision-col { flex: 1; }
+.decision-col-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.decision-col-text { font-size: 13.5px; color: var(--text); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/>
+  </symbol>
+  <symbol id="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+  </symbol>
+</svg>
+
+<button class="theme-toggle" onclick="toggleTheme()">
+  <svg width="16" height="16"><use id="themeIcon" href="#ic-moon"/></svg>
+</button>
+
+<nav id="sidebar">
+  <div class="sidebar-logo">工商业电站管理</div>
+  <div class="sidebar-label">章节导航</div>
+  <a href="#why"><span class="ch-num">1</span>为什么做</a>
+  <a href="#who"><span class="ch-num">2</span>给谁做</a>
+  <a href="#hard"><span class="ch-num">3</span>难在哪里</a>
+  <a href="#how"><span class="ch-num">4</span>怎么解决</a>
+  <a href="#alt"><span class="ch-num">5</span>多方案差异</a>
+  <a href="#value"><span class="ch-num">6</span>价值是什么</a>
+  <a href="#review"><span class="ch-num">7</span>评审关注点</a>
+</nav>
+
+<div class="main">
+<div class="content-wrap">
+
+<!-- 封面 -->
+<div class="doc-cover">
+  <div class="doc-cover-tag">正泰安能 · 工商业电站管理平台</div>
+  <div class="doc-cover-title">工商业电站管理<br>设计评审简报</div>
+  <div class="doc-cover-meta">
+    <div class="doc-cover-avatar">朱</div>
+    <span>朱旭洲（交互设计师）</span><span class="sep">·</span>
+    <span>版本 1.0</span><span class="sep">·</span>
+    <span>2026-09</span>
+  </div>
+  <p class="doc-cover-desc">本简报基于工商业电站管理系统 Demo 源码还原设计意图，重点说明五个核心设计决策背后的业务问题和取舍逻辑：信息结构分层、状态体系建立、A/B 方案权衡、跨模块校验机制、驳回原因强化展示。供评审方在 30 分钟内建立完整判断。</p>
+</div>
+
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin:40px 0 0">
+  <div class="stat-box">
+    <div class="stat-num">4</div>
+    <div class="stat-label">项目推进节点</div>
+    <div class="stat-sub">建档 · 开工 · 并网 · 竣工</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">14+</div>
+    <div class="stat-label">电站状态枚举</div>
+    <div class="stat-sub">跨节点统一颜色体系</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">3</div>
+    <div class="stat-label">核心角色</div>
+    <div class="stat-sub">代理商 · 内部审核员 · 平台管理员</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">5</div>
+    <div class="stat-label">核心设计决策</div>
+    <div class="stat-sub">每项均有业务问题对应</div>
+  </div>
+</div>
+
+<!-- ══ 第 1 章 ══ -->
+<div class="chapter-header" id="why">
+  <span class="chapter-num">01</span>
+  <span class="chapter-title">为什么做</span>
+  <span class="chapter-tag">问题定义</span>
+</div>
+
+<p class="section-lead">工商业电站从立项到并网投运，要经历建档、开工、并网、竣工四个节点，每个节点涉及多方协作和多轮审核。原有系统缺乏对这条完整链路的统一管理，导致项目推进过程中出现三类核心问题，反复造成无效往返和沟通成本。</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0">
+  <div class="pain-card pain-card-1">
+    <div class="pain-card-title">审核员在大量内容中寻找决策信息</div>
+    <div class="pain-card-desc">审核页面与填写页面共用同一套界面，审核员需要在普通填写字段中寻找"状态""驳回原因""BOM 数量"等关键依据，每次审核都要额外花时间定位。</div>
+  </div>
+  <div class="pain-card pain-card-2">
+    <div class="pain-card-title">申请者不知道被驳回后该改哪里</div>
+    <div class="pain-card-desc">驳回原因藏在流转日志中，申请者打开修改页面后看不到任何提示，需要手动切换到"日志"区域才能找到原因，修改方向不清晰。</div>
+  </div>
+  <div class="pain-card pain-card-3">
+    <div class="pain-card-title">跨节点状态难以横向理解</div>
+    <div class="pain-card-desc">建档节点有 6 个状态、开工有 5 个状态，各节点独立命名，没有统一颜色规则，列表页同时展示时用户无法快速判断"这个电站现在卡在哪里"。</div>
+  </div>
+  <div class="pain-card pain-card-4">
+    <div class="pain-card-title">BOM 数量跨模块约束靠人工记忆</div>
+    <div class="pain-card-desc">开工节点确认的甲供 BOM 数量（如组件 560 块）是后续到货申请的上限，但到货申请页没有前置提示，申请者填写超额数量只有在提交后才被告知错误。</div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>核心判断</strong>：以上四个问题根因相同——系统没有区分"操作界面"和"决策界面"的信息优先级，把所有角色的需求堆在同一个页面，导致每个角色都在不相关的噪音中找自己需要的信息。
+</div>
+
+
+<!-- ══ 第 2 章 ══ -->
+<div class="chapter-header" id="who">
+  <span class="chapter-num">02</span>
+  <span class="chapter-title">给谁做</span>
+  <span class="chapter-tag">目标用户</span>
+</div>
+
+<p class="section-lead">系统服务三类角色，操作行为和信息需求完全不同，混用同一界面是核心矛盾来源。</p>
+
+<div class="grid-3 mt-16">
+  <div class="role-card">
+    <div class="role-avatar" style="background:#4d49fc">代</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">代理商（申请方）</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">关心：我还差什么，怎么让项目往前推</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">核心任务</div>
+    <ul style="font-size:12.5px;color:var(--muted);padding-left:16px;line-height:1.8">
+      <li>提交建档/开工/到货/完工申请</li>
+      <li>查看驳回原因，修改后重新提交</li>
+      <li>跟踪自己项目的推进状态</li>
+    </ul>
+    <div style="margin-top:10px;font-size:12.5px;color:var(--accent-error)"><strong>当前痛点</strong>：驳回后不知道改哪里；BOM 超限在提交时才报错</div>
+  </div>
+  <div class="role-card">
+    <div class="role-avatar" style="background:#f76040">审</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">内部审核员（安能侧）</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">关心：这个申请达标了吗，通过还是驳回</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">核心任务</div>
+    <ul style="font-size:12.5px;color:var(--muted);padding-left:16px;line-height:1.8">
+      <li>商务审核 / 技术审核 / 工程审核</li>
+      <li>查看申请材料、BOM 信息、合同</li>
+      <li>填写审核意见、选择驳回原因</li>
+    </ul>
+    <div style="margin-top:10px;font-size:12.5px;color:var(--accent-error)"><strong>当前痛点</strong>：审核内容与只读信息混排，多子审核需逐一切换</div>
+  </div>
+  <div class="role-card">
+    <div class="role-avatar" style="background:#13c5be">管</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">平台管理员（总览方）</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">关心：整体项目状态，哪里卡住了</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">核心任务</div>
+    <ul style="font-size:12.5px;color:var(--muted);padding-left:16px;line-height:1.8">
+      <li>查看所有电站的节点分布和状态</li>
+      <li>快速定位异常电站</li>
+      <li>下载报表，追踪进度指标</li>
+    </ul>
+    <div style="margin-top:10px;font-size:12.5px;color:var(--accent-error)"><strong>当前痛点</strong>：列表状态太多，无法快速看出整体健康度</div>
+  </div>
+</div>
+
+
+<!-- ══ 第 3 章 ══ -->
+<div class="chapter-header" id="hard">
+  <span class="chapter-num">03</span>
+  <span class="chapter-title">难在哪里</span>
+  <span class="chapter-tag">设计挑战</span>
+</div>
+
+<p class="section-lead">这个系统的设计难度不在于单页复杂度，而在于多角色 × 多节点 × 强依赖关系的组合。每个设计决策都要同时满足三个角色的不同需要，还不能破坏数据在节点间的一致性。</p>
+
+<div style="margin:20px 0">
+  <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+    <div class="c-num">1</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">同一套数据，服务于完全对立的使用目的</div>
+      <div style="font-size:13.5px;color:var(--muted)">开工申请表中的"现场负责人""开工日期""BOM 确认数量"，在申请者视角是需要填写的字段，在审核员视角是需要核查的依据，在管理员视角是需要汇总的指标。三种意图需要三种呈现方式，但信息源是同一份。</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+    <div class="c-num">2</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">14+ 个状态枚举，要在一个列表里让人看懂</div>
+      <div style="font-size:13.5px;color:var(--muted)">建档节点 6 个状态、开工节点 5 个状态，外加并网、竣工、到货各自的状态，同时出现在列表页同一列。用户在扫视时必须立刻判断电站健康程度，这要求颜色语言高度一致且语义无歧义。</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+    <div class="c-num">3</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">BOM 数量是跨节点的隐性约束</div>
+      <div style="font-size:13.5px;color:var(--muted)">开工节点确认的甲供 BOM（如组件 560 块、逆变器 8 台）对到货申请是上限约束，但两个节点在界面上完全独立。不做设计上的前置提示，用户填写时没有参考依据，只能靠记忆或翻阅历史记录。</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:16px">
+    <div class="c-num">4</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">审核流程不能干扰信息阅读</div>
+      <div style="font-size:13.5px;color:var(--muted)">审核员在审核时需要大量阅读申请材料，审核操作（选择通过/不通过、写意见）不能遮挡内容，但又需要随时可以触达。把审核操作做成固定底部栏会遮挡内容，做成独立页面又要反复跳转。</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <div class="c-num">5</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">信息密度 vs 操作效率，列表页无法同时满足</div>
+      <div style="font-size:13.5px;color:var(--muted)">管理员希望一屏看到电站尽可能多的信息（状态、审核进度、节点）；代理商希望快速找到"待我操作"的电站并直接进入操作入口。两个需求对列表页的列设计、筛选方式、主操作入口提出了相反的要求。</div>
+    </div>
+  </div>
+</div>
+
+<div class="tbl-wrap mt-16">
+  <table>
+    <thead>
+      <tr><th>约束条件</th><th>影响范围</th><th>设计上的限制</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>建档信息在后续节点不可编辑</td><td>开工/到货/完工详情页</td><td>所有历史节点信息必须以只读方式展示，不能出现编辑控件引发误操作</td></tr>
+      <tr><td>审核节点分商务/技术两个子审核</td><td>建档详情、开工详情</td><td>两个子审核可由不同人操作，且可独立通过/不通过，界面需要支持"部分完成"状态</td></tr>
+      <tr><td>BOM 数量在开工节点锁定</td><td>到货申请页</td><td>到货物料数量不能超出开工节点确认的 BOM 总量，超出必须前置拦截</td></tr>
+      <tr><td>标准政策与非标政策字段结构不同</td><td>所有建档/开工/完工页面</td><td>同一套页面要通过 policyType 参数分支渲染，两套字段结构不能相互影响</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ══ 第 4 章 ══ -->
+<div class="chapter-header" id="how">
+  <span class="chapter-num">04</span>
+  <span class="chapter-title">怎么解决</span>
+  <span class="chapter-tag">解决方案</span>
+</div>
+
+<p class="section-lead">核心策略是<strong>按角色意图分层界面</strong>——详情页专门服务于"审核决策"，申请/编辑页专门服务于"任务推进"，两套界面共享数据但布局完全不同。在此基础上，用统一颜色体系解决状态认知问题，用前置校验解决跨模块数据一致性问题。</p>
+
+<div class="section-h3">决策 1：详情页 vs 申请/编辑页彻底分离</div>
+
+<div class="comparison-row">
+  <div class="decision-card">
+    <div class="decision-label">详情页（审核侧 · 只读）</div>
+    <div class="decision-row">
+      <div class="decision-col">
+        <div class="decision-col-title">设计目标</div>
+        <div class="decision-col-text">审核员能在 30 秒内判断是否通过，不需要翻找关键信息</div>
+      </div>
+      <div class="decision-col">
+        <div class="decision-col-title">核心手段</div>
+        <div class="decision-col-text">① 固定顶栏显示电站名称 + 节点 + 当前状态<br>② Tab 分类展示（勘察/设计/商务/备案/节点专属）<br>③ 浮动审核面板，随时触达不遮挡内容<br>④ 右侧常驻流转日志</div>
+      </div>
+    </div>
+  </div>
+  <div class="decision-card">
+    <div class="decision-label">申请/编辑页（申请方 · 可操作）</div>
+    <div class="decision-row">
+      <div class="decision-col">
+        <div class="decision-col-title">设计目标</div>
+        <div class="decision-col-text">申请者知道"现在填什么、为什么填、填完了没有"</div>
+      </div>
+      <div class="decision-col">
+        <div class="decision-col-title">核心手段</div>
+        <div class="decision-col-text">① 驳回原因卡片首屏展示（状态=不通过时）<br>② 已完成节点信息折叠只读，仅开放当前节点<br>③ 顶栏保留保存/提交按钮，始终可见<br>④ 历史信息折叠但可展开，不占主屏</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-h3">决策 2：驳回原因首屏强化展示</div>
+<p style="font-size:13.5px;color:var(--muted);margin-bottom:12px">申请者点击"修改"进入编辑页时，驳回原因卡片（RejectCard）出现在项目信息卡片之前，是页面的第一个可见元素。用户打开页面即知道为什么被驳回、谁在什么时候驳回的，而不需要去日志里查找。</p>
+
+<div class="card" style="background:rgba(220,38,38,.03);border-color:#ffa39e;margin:0 0 12px">
+  <div style="font-size:12px;font-weight:700;color:var(--accent-error);margin-bottom:8px">开工审核不通过 — 修改页顶部展示样例</div>
+  <div style="font-size:13.5px;color:var(--text);margin-bottom:6px"><strong>驳回阶段</strong>：开工审核 &nbsp;|&nbsp; <strong>审核人</strong>：李四（审核员）&nbsp;|&nbsp; <strong>时间</strong>：2026-08-11 15:30</div>
+  <div style="font-size:13px;color:#cf1322;padding:8px;background:#fff2f0;border-radius:6px">施工方案不完整，请补充安全施工方案及施工队资质证明材料。</div>
+</div>
+
+<div class="note">
+  <strong>设计意图</strong>：把"为什么要改"放在"改什么"之前，而不是藏在右侧日志流里。让申请者在开始填写之前就明确目标，减少因方向不清导致的无效重复提交。
+</div>
+
+<div class="section-h3">决策 3：电站状态体系 — 统一颜色语言</div>
+<p style="font-size:13.5px;color:var(--muted);margin-bottom:12px">跨节点使用同一套颜色语义，节点差异通过文案区分，而非颜色区分。审核员和申请者在任何节点看到橙红色，都知道"这里有问题需要处理"。</p>
+
+<div class="status-demo">
+  <div class="status-chip s-processing"><div class="dot" style="background:#1677ff"></div>审核中（任意节点）</div>
+  <div class="status-chip s-error"><div class="dot" style="background:#ff4d4f"></div>审核不通过（任意节点）</div>
+  <div class="status-chip s-success"><div class="dot" style="background:#52c41a"></div>已通过 / 已完成</div>
+  <div class="status-chip s-default"><div class="dot" style="background:#d9d9d9"></div>待操作（初始状态）</div>
+  <div class="status-chip s-warning"><div class="dot" style="background:#faad14"></div>建档中（草稿）</div>
+</div>
+
+<div class="tbl-wrap mt-12">
+  <table>
+    <thead><tr><th>节点</th><th>状态枚举</th><th>颜色</th><th>语义说明</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4" style="font-weight:600">建档</td><td>建档中</td><td><span class="tag" style="background:#fffbe6;color:#d48806;border:1px solid #ffe58f">warning</span></td><td>草稿，未提交</td></tr>
+      <tr><td>建档自审中 / 平台审核中</td><td><span class="tag tag-key">processing</span></td><td>提交后等待审核</td></tr>
+      <tr><td>建档自审不通过 / 平台审核不通过</td><td><span class="tag tag-risk">error</span></td><td>驳回，需修改重提</td></tr>
+      <tr><td>建档审核通过</td><td><span class="tag tag-ok">success</span></td><td>进入下一节点</td></tr>
+      <tr><td rowspan="4" style="font-weight:600">开工</td><td>待开工</td><td><span class="tag" style="background:var(--surface-soft);color:var(--muted);border:1px solid var(--border)">default</span></td><td>建档通过后等待申请</td></tr>
+      <tr><td>开工审核中</td><td><span class="tag tag-key">processing</span></td><td>提交后等待审核</td></tr>
+      <tr><td>开工审核不通过</td><td><span class="tag tag-risk">error</span></td><td>驳回，需修改重提</td></tr>
+      <tr><td>已开工 / 已派工</td><td><span class="tag tag-ok">success</span></td><td>开工审核通过</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-h3">决策 4：BOM 跨模块前置校验</div>
+
+<div class="flow mt-8">
+  <div class="flow-step">
+    <div class="flow-num">1</div>
+    <div class="flow-body"><strong>开工节点锁定 BOM 数量</strong><br>审核通过后，甲供 BOM（如单晶硅组件 560 块、逆变器 8 台）作为参照上限写入系统，后续不可修改。</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">2</div>
+    <div class="flow-body"><strong>到货申请页实时展示 BOM 剩余量</strong><br>申请者填写到货数量时，界面同时展示"BOM 确认总量 / 已到货 / 本次可填上限"，无需查阅历史记录。</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">3</div>
+    <div class="flow-body"><strong>超量时前置拦截</strong><br>输入数量超出剩余量时，输入框立刻变红并提示超出信息，提交按钮置灰，不等服务端返回错误。</div>
+  </div>
+  <div class="flow-step">
+    <div class="flow-num">4</div>
+    <div class="flow-body"><strong>服务端二次校验</strong><br>服务端作为最终防线，返回错误时给出具体差值，确保前后端一致。</div>
+  </div>
+</div>
+
+<div class="section-h3">决策 5：浮动审核面板，不阻断信息阅读</div>
+<p style="font-size:13.5px;color:var(--muted);margin-bottom:12px">审核员在详情页阅读材料时，审核操作区以 FAB 方式收起在右下角（仅在"审核中"状态时出现）。点击 FAB 展开后，面板可拖拽、可缩放，不遮挡当前阅读的任何区域。提交审核后面板自动收起。</p>
+
+<div class="card mt-8" style="background:var(--surface-soft)">
+  <div style="display:flex;gap:20px;align-items:flex-start">
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">审核 FAB（收起态）</div>
+      <div style="font-size:12.5px;color:var(--muted)">状态为"审核中"时，右下角出现橙色浮动按钮。其他状态下不显示，不占用页面空间。</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">审核面板（展开态）</div>
+      <div style="font-size:12.5px;color:var(--muted)">展开后支持四角缩放、整体拖拽。包含：子审核类型切换（商务/技术/工程）、不通过原因多选、意见文本域、图片上传区、通过/不通过按钮。</div>
+    </div>
+    <div style="flex:1">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">多子审核进度</div>
+      <div style="font-size:12.5px;color:var(--muted)">建档节点含商务+技术两个子审核，面板以列表展示各类型审核状态（待审核/已通过/已不通过），每类型可独立操作。</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ 第 5 章 ══ -->
+<div class="chapter-header" id="alt">
+  <span class="chapter-num">05</span>
+  <span class="chapter-title">多方案差异</span>
+  <span class="chapter-tag">方案对比</span>
+</div>
+
+<p class="section-lead">核心方案决策有两处：列表页的信息架构（A/B 方案），以及审核操作区的交互形式。两处都有真实的替代方案，选择背后有明确的取舍理由。</p>
+
+<div class="section-h3">决策点 A：电站列表信息架构</div>
+
+<div class="comparison-row three mt-12">
+  <div class="comp-card">
+    <div class="comp-title">方案 A — 信息完整型</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">列表直接展示节点状态、建档状态、审核进度三列，字段覆盖完整。</div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>管理员可一眼看到项目全貌，不用进详情</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>状态字段支持扩展，增加节点只加列</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-error);margin-top:8px">
+      <span style="flex-shrink:0">−</span><span>列太多，代理商找"我要操作"的入口需要扫视</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-error)">
+      <span style="flex-shrink:0">−</span><span>建档状态和申请入口混排，操作意图不清</span>
+    </div>
+  </div>
+  <div class="comp-card winner">
+    <div class="comp-badge">推荐 · 方案B</div>
+    <div class="comp-title">方案 B — 任务驱动型</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">以"当前节点状态"为主轴，操作按钮根据状态动态出现。</div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>代理商只看到"现在需要做什么"，操作路径最短</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>状态列减少，列表不横向溢出</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>顶部节点汇总卡片给管理员看全局分布</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-error);margin-top:8px">
+      <span style="flex-shrink:0">−</span><span>历史节点详细状态需进详情页查看</span>
+    </div>
+  </div>
+  <div class="comp-card">
+    <div class="comp-title">方案 C — 卡片视图型</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">每个电站以卡片展示，含节点进度条、最新操作、快捷按钮。</div>
+    <div class="comp-item" style="color:var(--accent-green)">
+      <span style="flex-shrink:0">+</span><span>视觉层次丰富，信息组织更自然</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-error);margin-top:8px">
+      <span style="flex-shrink:0">−</span><span>同屏展示数量少，管理大量项目时效率低</span>
+    </div>
+    <div class="comp-item" style="color:var(--accent-error)">
+      <span style="flex-shrink:0">−</span><span>与已有 AnfeProTable 体系不兼容，开发成本高</span>
+    </div>
+  </div>
+</div>
+
+<div class="note mt-12">
+  <strong>选 B 的核心理由</strong>：主要用户（代理商）的使用模式是"找到待操作的电站 → 点击操作按钮"，而不是"阅读所有电站的全量状态"。方案 B 把操作路径缩短到最少。管理员的全局需求由顶部节点汇总卡片满足，不需要每行都展示完整历史。
+</div>
+
+<div class="section-h3">决策点 B：审核操作区交互形式</div>
+
+<div class="comparison-row mt-8">
+  <div class="comp-card">
+    <div class="comp-title">方案 X — 固定底部审核栏</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">审核操作固定在页面底部，始终可见，类似移动端底部操作栏。</div>
+    <div class="comp-item" style="color:var(--accent-green)"><span style="flex-shrink:0">+</span><span>操作区永远在固定位置，无需找按钮</span></div>
+    <div class="comp-item" style="color:var(--accent-error);margin-top:6px"><span style="flex-shrink:0">−</span><span>底部占用约 100px，长表单内容被持续遮挡</span></div>
+    <div class="comp-item" style="color:var(--accent-error)"><span style="flex-shrink:0">−</span><span>意见文本域空间受限，附图上传不自然</span></div>
+  </div>
+  <div class="comp-card winner">
+    <div class="comp-badge">推荐 · 浮动面板</div>
+    <div class="comp-title">方案 Y — 可拖拽浮动面板</div>
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">审核面板以浮动卡片展示，可拖拽移位、四角缩放，不阅读时收为 FAB。</div>
+    <div class="comp-item" style="color:var(--accent-green)"><span style="flex-shrink:0">+</span><span>不遮挡任何内容，审核员自由控制面板位置</span></div>
+    <div class="comp-item" style="color:var(--accent-green)"><span style="flex-shrink:0">+</span><span>面板尺寸可调，意见和图片上传空间充足</span></div>
+    <div class="comp-item" style="color:var(--accent-error);margin-top:6px"><span style="flex-shrink:0">−</span><span>首次使用需要学习"FAB=审核入口"这个约定</span></div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>选浮动面板的核心理由</strong>：开工详情页的审核材料包含大量只读内容（勘察照片、BOM 表格、多份合同），页面非常长。固定底部栏会持续占用屏幕面积；浮动面板让审核员把操作区移到空白处，对照材料填写意见，体验更接近"在文档旁边批注"的心智模型。
+</div>
+
+<div class="mermaid-wrap mt-24">
+<div class="mermaid">
+flowchart LR
+  A1[申请者] --> B1[提交申请]
+  B1 --> C1{驳回?}
+  C1 -- 是 --> D1[RejectCard\n首屏展示原因]
+  D1 --> E1[明确方向修改]
+  E1 --> B1
+  C1 -- 否 --> F1[节点推进]
+  F1 --> G1[到货申请]
+  G1 --> H1{BOM超量?}
+  H1 -- 是 --> I1[前置拦截\n不可提交]
+  H1 -- 否 --> J1[提交成功]
+</div>
+</div>
+
+
+<!-- ══ 第 6 章 ══ -->
+<div class="chapter-header" id="value">
+  <span class="chapter-num">06</span>
+  <span class="chapter-title">价值是什么</span>
+  <span class="chapter-tag">预期收益</span>
+</div>
+
+<p class="section-lead">这套设计的价值集中在两个方向：减少因为界面设计问题导致的无效往返，以及建立可扩展的状态体系减少后续新节点接入的设计成本。</p>
+
+<div class="grid-2 mt-16">
+  <div class="value-card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">减少审核驳回后的无效修改次数</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">驳回原因首屏强化展示 + RejectCard 明确驳回阶段、审核人、原因，申请者修改时目标明确，预期减少"不知道改哪里"导致的重复提交。</div>
+    <span class="v-metric">目标：重复驳回率下降 30%</span>
+  </div>
+  <div class="value-card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">消除 BOM 超量的无效提交</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">到货申请页展示剩余可用量 + 输入超限立刻拦截，用户在填写阶段即知道上限，无需等待后端报错再修改重提。</div>
+    <span class="v-metric">目标：BOM 超量错误提交率归零</span>
+  </div>
+  <div class="value-card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">审核决策效率提升</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">详情页 Tab 分类 + 浮动审核面板，审核员无需在信息和操作之间跳转，关键字段（状态、BOM、合同金额）优先展示在首屏。</div>
+    <span class="v-metric">目标：单次审核操作时间缩短 40%</span>
+  </div>
+  <div class="value-card">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">状态体系可扩展，后续节点零额外学习成本</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">统一颜色语义（蓝=审核中/红=不通过/绿=通过）在所有节点复用，新增节点（如"质保"）只需定义文案，颜色规则已有共识。</div>
+    <span class="v-metric">新节点接入设计成本: -60%</span>
+  </div>
+</div>
+
+
+<!-- ══ 第 7 章 ══ -->
+<div class="chapter-header" id="review">
+  <span class="chapter-num">07</span>
+  <span class="chapter-title">评审关注点</span>
+  <span class="chapter-tag">待拍板</span>
+</div>
+
+<p class="section-lead">以下问题在当前 Demo 中做了假设性处理，实际落地前需要与产品、研发、业务方确认。每个问题都影响具体的设计决策。</p>
+
+<div class="grid-2 mt-16">
+  <div class="review-card">
+    <div class="rv-q">BOM 剩余量的计算逻辑由谁负责</div>
+    <div class="rv-body">当前设计假设系统能实时提供"BOM 确认总量 - 已累计到货量 = 剩余可用量"，但这需要跨节点数据聚合。如果后端无法实时计算，前置校验需要改为"提交时校验"而非"输入时校验"，用户体验明显下降。</div>
+  </div>
+  <div class="review-card">
+    <div class="rv-q">浮动审核面板的角色权限如何控制</div>
+    <div class="rv-body">当前 Demo 中，详情页的 FAB 在状态为"审核中"时对所有用户显示。实际需要确认：只有有审核权限的人才能看到 FAB，还是所有人都能看到但无权限时只读？这影响权限判断的实现位置。</div>
+  </div>
+  <div class="review-card">
+    <div class="rv-q">驳回原因是否需要结构化存储</div>
+    <div class="rv-body">当前支持下拉选项（预置原因）+ 自由文本两种输入。如果后续需要统计"哪类原因最常见"，预置原因的编码需要后端结构化存储。这影响产品对驳回原因下拉选项的定义粒度。</div>
+  </div>
+  <div class="review-card">
+    <div class="rv-q">列表方案 B 是否覆盖管理员的所有信息需求</div>
+    <div class="rv-body">方案 B 的全局总览由顶部节点汇总卡片满足，但目前只有数量，没有"按区域/按代理商"的下钻能力。如果管理员需要查"浙江区域待开工的电站列表"，当前设计需要补充二级筛选。</div>
+  </div>
+</div>
+
+<div class="tbl-wrap mt-24">
+  <table>
+    <thead>
+      <tr><th>待确认项</th><th>影响的设计决策</th><th>优先级</th><th>建议负责人</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>BOM 剩余量能否实时计算</td>
+        <td>到货申请页的校验时机（输入时 vs 提交时）</td>
+        <td><span class="tag tag-risk">高</span></td>
+        <td>后端研发确认</td>
+      </tr>
+      <tr>
+        <td>审核权限控制粒度</td>
+        <td>FAB 的显示条件逻辑</td>
+        <td><span class="tag tag-risk">高</span></td>
+        <td>产品 + 研发</td>
+      </tr>
+      <tr>
+        <td>驳回原因是否结构化</td>
+        <td>下拉选项的编码设计</td>
+        <td><span class="tag tag-open">中</span></td>
+        <td>产品确认数据需求</td>
+      </tr>
+      <tr>
+        <td>管理员列表需要下钻能力吗</td>
+        <td>方案 B 是否需要补充区域/代理商二级筛选</td>
+        <td><span class="tag tag-open">中</span></td>
+        <td>管理员角色访谈</td>
+      </tr>
+      <tr>
+        <td>非标政策与标准政策的字段差异范围</td>
+        <td>所有申请/详情页的 policyType 分支覆盖完整性</td>
+        <td><span class="tag" style="background:var(--surface-soft);color:var(--muted);border:1px solid var(--border)">低</span></td>
+        <td>业务方提供完整清单</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<footer class="doc-footer">
+  <div class="doc-footer-left"><strong>设计评审简报_工商业电站管理</strong> &nbsp;·&nbsp; 版本 1.0</div>
+  <div class="doc-footer-right">
+    <div class="footer-avatar">朱</div>
+    朱旭洲（交互设计师）· 2026-09
+  </div>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function() {
+  var key = document.title.replace(/\s/g, '-').toLowerCase() + '-theme';
+  if (localStorage.getItem(key) === 'dark') document.documentElement.classList.add('dark');
+  window.__themeKey = key;
+})();
+function updateIcon() {
+  var u = document.getElementById('themeIcon');
+  if (u) u.setAttribute('href', document.documentElement.classList.contains('dark') ? '#ic-sun' : '#ic-moon');
+}
+function toggleTheme() {
+  document.documentElement.classList.toggle('dark');
+  localStorage.setItem(window.__themeKey, document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  updateIcon();
+}
+updateIcon();
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      document.querySelectorAll('#sidebar a[href^="#"]').forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '0px 0px -60% 0px', threshold: 0 });
+document.querySelectorAll('.chapter-header').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
