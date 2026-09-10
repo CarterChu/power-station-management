@@ -234,7 +234,7 @@ const dispatchDetailRow       = ref<Record<string, any>>({})
 const page = computed(() => activeTabKey.value)
 
 // ── sessionStorage 状态持久化（刷新保留当前页） ──
-const _SS_KEY = 'lnc-app-state'
+const _SS_KEY = 'lnc-app-state-v3'
 const _SS_VER = 3
 function _saveState() {
   try {
