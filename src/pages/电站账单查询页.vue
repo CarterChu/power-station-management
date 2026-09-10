@@ -67,8 +67,21 @@
       <template v-if="currentRow">
         <!-- 上部分：核心信息 -->
         <div class="detail-section">
-          <div class="info-section-title">{{ currentRow.stationName }}</div>
+          <div class="info-section-title">
+            {{ currentRow.stationName }}
+            <a-tag
+              v-if="currentRow.stationType === '工商业'"
+              :color="currentRow.policyType === '标准政策' ? 'blue' : 'orange'"
+              style="margin: 0; font-size: 12px; font-weight: 400"
+            >{{ currentRow.policyType }}电站</a-tag>
+            <span class="detail-toggle" @click="detailExpanded = !detailExpanded">
+              <UpOutlined v-if="detailExpanded" />
+              <DownOutlined v-else />
+              {{ detailExpanded ? '收起' : '展开' }}
+            </span>
+          </div>
           <div class="detail-info-grid">
+            <!-- 第一行：默认显示 -->
             <div class="info-item">
               <span class="info-label">账单号</span>
               <span class="info-value">{{ currentRow.billNo }}</span>
@@ -88,54 +101,57 @@
               <span class="info-label">电站类型</span>
               <span class="info-value">{{ currentRow.stationType || '--' }}</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">结算对象类型</span>
-              <span class="info-value">{{ currentRow.settlementObjectType }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">结算对象</span>
-              <span class="info-value">{{ currentRow.settlementObject }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">账单类型</span>
-              <span class="info-value">{{ currentRow.billType }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">应用场景</span>
-              <span class="info-value">{{ currentRow.scenario || '--' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">结算单编号</span>
-              <span class="info-value">{{ currentRow.settlementNo || '--' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">结算状态</span>
-              <span class="info-value">
-                <a-tag :color="SETTLEMENT_STATUS_COLOR[currentRow.settlementStatus]" style="margin:0">
-                  {{ SETTLEMENT_STATUS_LABEL[currentRow.settlementStatus] ?? currentRow.settlementStatus }}
-                </a-tag>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">是否可结算</span>
-              <span class="info-value">
-                <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
-                  {{ currentRow.isSettleable ? '可结算' : '不可结算' }}
-                </a-tag>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">推送NC状态</span>
-              <span class="info-value">
-                <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
-                  {{ NC_STATUS_LABEL[currentRow.ncPushStatus] ?? currentRow.ncPushStatus }}
-                </a-tag>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">账单创建时间</span>
-              <span class="info-value">{{ currentRow.billCreateTime }}</span>
-            </div>
+            <!-- 第2-4行：展开后显示 -->
+            <template v-if="detailExpanded">
+              <div class="info-item">
+                <span class="info-label">结算对象类型</span>
+                <span class="info-value">{{ currentRow.settlementObjectType }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">结算对象</span>
+                <span class="info-value">{{ currentRow.settlementObject }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">账单类型</span>
+                <span class="info-value">{{ currentRow.billType }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">应用场景</span>
+                <span class="info-value">{{ currentRow.scenario || '--' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">结算单编号</span>
+                <span class="info-value">{{ currentRow.settlementNo || '--' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">结算状态</span>
+                <span class="info-value">
+                  <a-tag :color="SETTLEMENT_STATUS_COLOR[currentRow.settlementStatus]" style="margin:0">
+                    {{ SETTLEMENT_STATUS_LABEL[currentRow.settlementStatus] ?? currentRow.settlementStatus }}
+                  </a-tag>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">是否可结算</span>
+                <span class="info-value">
+                  <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
+                    {{ currentRow.isSettleable ? '可结算' : '不可结算' }}
+                  </a-tag>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">推送NC状态</span>
+                <span class="info-value">
+                  <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
+                    {{ NC_STATUS_LABEL[currentRow.ncPushStatus] ?? currentRow.ncPushStatus }}
+                  </a-tag>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">账单创建时间</span>
+                <span class="info-value">{{ currentRow.billCreateTime }}</span>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -143,13 +159,50 @@
 
         <!-- 下部分：账单明细 -->
         <div class="detail-section">
-          <div class="info-section-title">账单明细</div>
-          <div class="fee-cards">
-            <div class="fee-card" v-for="item in currentDetailItems" :key="item.code">
-              <div class="fee-card-name">{{ item.name }}</div>
-              <div class="fee-card-amt">¥ {{ item.amt }}</div>
+          <!-- 工商业：按角色/按费用类型切换 -->
+          <template v-if="currentRow.stationType === '工商业'">
+            <div class="info-section-title">
+              账单明细
+              <div class="seg-ctrl">
+                <span :class="['seg-ctrl-item', detailViewMode === 'role' ? 'is-active' : '']" @click="detailViewMode = 'role'">按角色</span>
+                <span :class="['seg-ctrl-item', detailViewMode === 'type' ? 'is-active' : '']" @click="detailViewMode = 'type'">按费用类型</span>
+              </div>
             </div>
-          </div>
+            <div class="fee-groups">
+              <template v-if="detailViewMode === 'role'">
+                <div class="fee-group" v-for="group in allDetailGroups" :key="group.type">
+                  <div class="fee-group-label">{{ group.type }}</div>
+                  <div class="fee-cards">
+                    <div class="fee-card" v-for="item in group.items" :key="item.code">
+                      <div class="fee-card-name">{{ item.name }}</div>
+                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="fee-group" v-for="group in feeTypeGroups" :key="group.type">
+                  <div class="fee-group-label">{{ group.type }}</div>
+                  <div class="fee-cards">
+                    <div class="fee-card" v-for="item in group.items" :key="item.name">
+                      <div class="fee-card-name">{{ item.name }}{{ group.type }}</div>
+                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+          <!-- 非工商业：直接平铺费用项 -->
+          <template v-else>
+            <div class="info-section-title">账单明细</div>
+            <div class="fee-cards">
+              <div class="fee-card" v-for="item in flatDetailItems" :key="item.code">
+                <div class="fee-card-name">{{ item.name }}</div>
+                <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
     </a-drawer>
@@ -159,12 +212,14 @@
 <script setup lang="ts">
 import { ref, h, computed } from 'vue'
 import { message, Tooltip } from 'ant-design-vue'
-import { CopyOutlined } from '@ant-design/icons-vue'
+import { CopyOutlined, DownOutlined, UpOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const tableRef = ref<any>(null)
 const drawerVisible = ref(false)
 const currentRow = ref<any>(null)
+const detailExpanded = ref(false)
+const detailViewMode = ref<'role' | 'type'>('role')
 
 // ── 账单明细 ──
 
@@ -193,7 +248,7 @@ const SETTLEMENT_FEE_MAP: Record<string, { name: string; code: string }[]> = {
     { name: '设计院竣工费', code: 'SJYJGF01' },
     { name: '设计院质保金', code: 'SJYZBJ01' },
   ],
-  运维后台厂家: [
+  设备采购方: [
     { name: '设备采购方开工费', code: 'CGFKGF01' },
     { name: '设备采购方并网费', code: 'CGFBWF01' },
     { name: '设备采购方竣工费', code: 'CGFJGF01' },
@@ -204,17 +259,118 @@ const SETTLEMENT_FEE_MAP: Record<string, { name: string; code: string }[]> = {
 function mockAmt(seed: string, base: number) {
   let h = 0
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff
+  if (h % 5 === 0) return '0.00'
   return ((base + (h % 50000)) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-const currentDetailItems = computed(() => {
+const GROUP_BASE: Record<string, number> = {
+  代理商:     3200000,
+  施工方:     8500000,
+  监理方:      480000,
+  设计院:      260000,
+  设备采购方:  5600000,
+}
+
+const NON_GY_FEE_ITEMS = [
+  { name: '并网促销费',        code: 'NF01' },
+  { name: '其他补助费',        code: 'NF02' },
+  { name: '整村运维监控设备费', code: 'NF03' },
+  { name: '新签分享激励费',    code: 'NF04' },
+  { name: '高压并网费',        code: 'NF05' },
+  { name: '开拓奖励费',        code: 'NF06' },
+  { name: '低压并网费',        code: 'NF07' },
+  { name: '监理竣工费',        code: 'NF08' },
+  { name: '整县开发激励费',    code: 'NF09' },
+  { name: '专营奖励费',        code: 'NF10' },
+  { name: '规约转化器补贴费',  code: 'NF11' },
+  { name: '战区补贴费',        code: 'NF12' },
+  { name: '逆变器补贴费',      code: 'NF13' },
+  { name: '安装费',            code: 'NF14' },
+  { name: '阳光房水槽费',      code: 'NF15' },
+  { name: '国补费',            code: 'NF16' },
+  { name: '市占率奖励费',      code: 'NF17' },
+  { name: '终验扣款费',        code: 'NF18' },
+  { name: '自采物料补贴费',    code: 'NF19' },
+  { name: '抗风补助费',        code: 'NF20' },
+  { name: '推广商品费',        code: 'NF21' },
+  { name: '支架补贴费',        code: 'NF22' },
+  { name: '设计竣工费',        code: 'NF23' },
+  { name: '开发费质保金费',    code: 'NF24' },
+  { name: '金顶宝补贴费',      code: 'NF25' },
+  { name: '开发费',            code: 'NF26' },
+  { name: '高质量运营兑现费',  code: 'NF27' },
+  { name: '低压质保金费',      code: 'NF28' },
+  { name: '封彩钢费',          code: 'NF29' },
+  { name: '安装费质保金费',    code: 'NF30' },
+  { name: '暂扣开发费',        code: 'NF31' },
+  { name: '越秀新商激励费',    code: 'NF32' },
+  { name: '并网能力兑现费',    code: 'NF33' },
+  { name: '超期电站基础费',    code: 'NF34' },
+  { name: '新开拓奖励费',      code: 'NF35' },
+  { name: '高压竣工费',        code: 'NF36' },
+  { name: '阳光房补贴费',      code: 'NF37' },
+  { name: '高压设备到货款费',  code: 'NF38' },
+  { name: '完工考核费',        code: 'NF39' },
+  { name: '特殊方案费',        code: 'NF40' },
+  { name: '低压竣工费',        code: 'NF41' },
+  { name: '低压完工款费',      code: 'NF42' },
+  { name: '低压并网考核费',    code: 'NF43' },
+  { name: '完工促销费',        code: 'NF44' },
+  { name: '高压质保金费',      code: 'NF45' },
+  { name: '并网考核费',        code: 'NF46' },
+]
+
+const flatDetailItems = computed(() => {
+  if (!currentRow.value || currentRow.value.stationType === '工商业') return []
+  let h = 0
+  const seed = String(currentRow.value.id)
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) & 0xffff
+  const count = 10 + (h % 8)
+  const result = []
+  for (let i = 0; i < NON_GY_FEE_ITEMS.length && result.length < count; i++) {
+    const pick = (h * (i + 7)) & 0xff
+    if (pick % 3 !== 0) result.push({
+      ...NON_GY_FEE_ITEMS[i],
+      amt: mockAmt(NON_GY_FEE_ITEMS[i].code + currentRow.value.id, 300000 + i * 25000),
+    })
+  }
+  return result.slice(0, count)
+})
+
+const FEE_TYPE_LABELS = ['开工费', '并网费', '竣工费', '质保金']
+
+const activeRoles = computed(() => {
+  if (!currentRow.value) return Object.keys(SETTLEMENT_FEE_MAP)
+  if (currentRow.value.stationType === '工商业' && currentRow.value.policyType === '非标准政策') {
+    return ['代理商', '施工方']
+  }
+  return Object.keys(SETTLEMENT_FEE_MAP)
+})
+
+const feeTypeGroups = computed(() => {
   if (!currentRow.value) return []
-  const type = currentRow.value.settlementObjectType as string
-  const items = SETTLEMENT_FEE_MAP[type] ?? []
-  return items.map((item, idx) => ({
-    ...item,
-    amt: mockAmt(item.code + currentRow.value.id, 800000 + idx * 12000),
+  const roles = Object.entries(SETTLEMENT_FEE_MAP).filter(([role]) => activeRoles.value.includes(role))
+  return FEE_TYPE_LABELS.map((label, typeIdx) => ({
+    type: label,
+    items: roles.map(([role, items]) => ({
+      name: role,
+      code: items[typeIdx].code,
+      amt: mockAmt(items[typeIdx].code + currentRow.value.id, (GROUP_BASE[role] ?? 800000) + typeIdx * 30000),
+    })),
   }))
+})
+
+const allDetailGroups = computed(() => {
+  if (!currentRow.value) return []
+  return Object.entries(SETTLEMENT_FEE_MAP)
+    .filter(([type]) => activeRoles.value.includes(type))
+    .map(([type, items]) => ({
+      type,
+      items: items.map((item, idx) => ({
+        ...item,
+        amt: mockAmt(item.code + currentRow.value.id, (GROUP_BASE[type] ?? 800000) + idx * 30000),
+      })),
+    }))
 })
 
 // ── 枚举映射 ──
@@ -593,6 +749,8 @@ function handleCopy(text: string) {
 
 function handleViewDetail(row: any) {
   currentRow.value = row
+  detailExpanded.value = false
+  detailViewMode.value = 'role'
   drawerVisible.value = true
 }
 
@@ -641,6 +799,7 @@ const MOCK_DATA = [
     stationNo: 'ZC2608240003',
     stationName: '苏州工业园区分布式电站',
     stationType: '工商业',
+    policyType: '标准政策',
     settlementObjectType: '施工方',
     settlementObject: '苏州新能源建设工程有限公司',
     billType: '整村开发施工方竣工账单',
@@ -785,6 +944,7 @@ const MOCK_DATA = [
     stationNo: 'ZC2608240012',
     stationName: '义乌市国际商贸城屋顶光伏',
     stationType: '工商业',
+    policyType: '非标准政策',
     settlementObjectType: '施工方',
     settlementObject: '义乌鑫源建设工程有限公司',
     billType: '整村开发施工方到货账单',
@@ -972,6 +1132,17 @@ const MOCK_DATA = [
 }
 
 /* 账单明细费用卡片 */
+.fee-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.fee-group-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 8px;
+}
 .fee-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -996,6 +1167,10 @@ const MOCK_DATA = [
   color: rgba(0, 0, 0, 0.88);
   line-height: 28px;
 }
+.fee-card-amt.is-zero {
+  color: rgba(0, 0, 0, 0.25);
+  font-weight: 400;
+}
 
 /* 标题内电站名称链接 */
 .station-name-link {
@@ -1006,6 +1181,50 @@ const MOCK_DATA = [
 .station-name-link:hover {
   color: #1677ff;
   text-decoration: underline;
+}
+.seg-ctrl {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+  height: 28px;
+  box-sizing: border-box;
+}
+.seg-ctrl-item {
+  padding: 0 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.45);
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+.seg-ctrl-item.is-active {
+  background: #fff;
+  color: rgba(0, 0, 0, 0.88);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.detail-toggle {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 400;
+  color: #1677ff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+.detail-toggle:hover {
+  opacity: 0.8;
 }
 .copy-icon-sm {
   font-size: 13px;
