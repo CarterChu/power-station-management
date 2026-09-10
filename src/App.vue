@@ -235,9 +235,11 @@ const page = computed(() => activeTabKey.value)
 
 // ── sessionStorage 状态持久化（刷新保留当前页） ──
 const _SS_KEY = 'lnc-app-state'
+const _SS_VER = 3
 function _saveState() {
   try {
     sessionStorage.setItem(_SS_KEY, JSON.stringify({
+      _v: _SS_VER,
       tabs: tabs.value,
       activeTabKey: activeTabKey.value,
       editingId: editingId.value,
@@ -271,6 +273,7 @@ onMounted(() => {
     const raw = sessionStorage.getItem(_SS_KEY)
     if (!raw) return
     const s = JSON.parse(raw)
+    if (s._v !== _SS_VER) { sessionStorage.removeItem(_SS_KEY); return }
     if (s.tabs) tabs.value = s.tabs
     if (s.activeTabKey) activeTabKey.value = s.activeTabKey
     editingId.value = s.editingId ?? null
