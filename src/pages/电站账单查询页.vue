@@ -8,7 +8,7 @@
         :filters="filters"
         :config="tableConfig"
         :page-size="10"
-        :table-props="{ scroll: { x: 1800 } }"
+        :table-props="{ scroll: { x: 1960 } }"
       >
         <template #operationRight>
           <a-space>
@@ -51,7 +51,7 @@
 
         <!-- 操作 -->
         <template #actionSlot="{ row }">
-          <a-button type="link" size="small" @click="handleViewDetail(row)">详情</a-button>
+          <a-button type="link" size="small" @click="handleViewDetail(row)">查看费用项</a-button>
         </template>
       </AnfeProTable>
     </div>
@@ -83,6 +83,10 @@
                   </a-tooltip>
                 </span>
               </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">电站类型</span>
+              <span class="info-value">{{ currentRow.stationType || '--' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">结算对象类型</span>
@@ -515,6 +519,7 @@ const columns = [
   { title: '账单号',       dataIndex: 'billNo',               key: 'billNo',               width: 180, fixed: 'left' as const, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '电站编号',     dataIndex: 'stationNo',            key: 'stationNo',            width: 180, component: 'custom', slotName: 'stationNoSlot' },
   { title: '电站名称',     dataIndex: 'stationName',          key: 'stationName',          width: 200, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
+  { title: '电站类型',     dataIndex: 'stationType',          key: 'stationType',          width: 160, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '结算对象类型', dataIndex: 'settlementObjectType', key: 'settlementObjectType', width: 130 },
   { title: '结算对象',     dataIndex: 'settlementObject',     key: 'settlementObject',     width: 160, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '账单类型',     dataIndex: 'billType',             key: 'billType',             width: 220, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
@@ -524,7 +529,7 @@ const columns = [
   { title: '是否可结算',   dataIndex: 'isSettleable',         key: 'isSettleable',         width: 110, component: 'custom', slotName: 'settleableSlot' },
   { title: '推送NC状态',   dataIndex: 'ncPushStatus',         key: 'ncPushStatus',         width: 120, component: 'custom', slotName: 'ncPushStatusSlot' },
   { title: '账单创建时间', dataIndex: 'billCreateTime',       key: 'billCreateTime',       width: 180 },
-  { title: '操作',         key: 'action',                     fixed: 'right' as const,     width: 80,  component: 'custom', slotName: 'actionSlot' },
+  { title: '操作',         key: 'action',                     fixed: 'right' as const,     width: 100, component: 'custom', slotName: 'actionSlot' },
 ]
 
 // ── 请求配置 ──
@@ -545,12 +550,33 @@ const tableConfig = {
       }
     }
 
-    // Mock data with pagination
+    // 筛选
+    const filtered = MOCK_DATA.filter(row => {
+      if (query.settlementObjectType && row.settlementObjectType !== query.settlementObjectType) return false
+      if (query.settlementObject && !row.settlementObject.includes(query.settlementObject)) return false
+      if (query.stationNo && !row.stationNo.includes(query.stationNo)) return false
+      if (query.stationType?.length && !query.stationType.includes(row.stationType)) return false
+      if (query.settlementNo && !row.settlementNo?.includes(query.settlementNo)) return false
+      if (query.settlementStatus?.length && !query.settlementStatus.includes(row.settlementStatus)) return false
+      if (query.billType?.length && !query.billType.includes(row.billType)) return false
+      if (query.isSettleable != null && query.isSettleable !== '') {
+        if (row.isSettleable !== (query.isSettleable === 'true')) return false
+      }
+      if (query.ncPushStatus && row.ncPushStatus !== query.ncPushStatus) return false
+      if (query.scenario?.length && !query.scenario.includes(row.scenario)) return false
+      if (query.billNo && !row.billNo.includes(query.billNo)) return false
+      if (query.inSettlement != null && query.inSettlement !== '') {
+        const hasSettlement = Boolean(row.settlementNo)
+        if (hasSettlement !== (query.inSettlement === 'true')) return false
+      }
+      return true
+    })
+
     await new Promise(r => setTimeout(r, 300))
     const start = ((pageIndex ?? 1) - 1) * (pageRows ?? 20)
     return {
-      data: MOCK_DATA.slice(start, start + (pageRows ?? 20)),
-      count: MOCK_DATA.length,
+      data: filtered.slice(start, start + (pageRows ?? 20)),
+      count: filtered.length,
     }
   },
 }
@@ -582,6 +608,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901001',
     stationNo: 'ZC2608240001',
     stationName: '杭州滨江区某屋顶光伏项目',
+    stationType: '金顶宝',
     settlementObjectType: '代理商',
     settlementObject: '浙江安能新能源科技有限公司',
     billType: '整村开发代理商竣工账单',
@@ -597,6 +624,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901002',
     stationNo: 'ZC2608240002',
     stationName: '宁波鄞州区工厂屋顶项目',
+    stationType: '绿电家-兴业版',
     settlementObjectType: '代理商',
     settlementObject: '宁波绿能电力有限公司',
     billType: '并网安装费账单',
@@ -612,6 +640,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901003',
     stationNo: 'ZC2608240003',
     stationName: '苏州工业园区分布式电站',
+    stationType: '工商业',
     settlementObjectType: '施工方',
     settlementObject: '苏州新能源建设工程有限公司',
     billType: '整村开发施工方竣工账单',
@@ -627,6 +656,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901004',
     stationNo: 'ZC2608240004',
     stationName: '温州鹿城区商业楼宇项目',
+    stationType: '泰益宝',
     settlementObjectType: '监理方',
     settlementObject: '温州光能工程监理有限公司',
     billType: '整村开发监理竣工账单',
@@ -642,6 +672,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901005',
     stationNo: 'ZC2608240005',
     stationName: '嘉兴南湖区居民光伏项目',
+    stationType: '泰阳宝（安能）',
     settlementObjectType: '代理商',
     settlementObject: '嘉兴绿电发展有限公司',
     billType: '泰阳宝安装费账单',
@@ -657,6 +688,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901006',
     stationNo: 'ZC2608240006',
     stationName: '绍兴越城区整村开发项目',
+    stationType: '星光宝',
     settlementObjectType: '设计院',
     settlementObject: '绍兴恒远建筑设计有限公司',
     billType: '整村开发设计院竣工账单',
@@ -672,6 +704,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901007',
     stationNo: 'ZC2608240007',
     stationName: '南京江宁区物流园屋顶光伏',
+    stationType: '悦租',
     settlementObjectType: '运维后台厂家',
     settlementObject: '南京智慧能源管理有限公司',
     billType: '整村开发后台厂家调差账单',
@@ -687,6 +720,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901008',
     stationNo: 'ZC2608240008',
     stationName: '无锡惠山区钢结构厂房项目',
+    stationType: '绿光宝',
     settlementObjectType: '施工方',
     settlementObject: '无锡泰阳建设工程有限公司',
     billType: '整村开发施工方并网账单',
@@ -702,6 +736,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901009',
     stationNo: 'ZC2608240009',
     stationName: '常州武进区冷链仓储光伏',
+    stationType: '金屋宝',
     settlementObjectType: '代理商',
     settlementObject: '常州晴天能源科技有限公司',
     billType: '并网开发费账单',
@@ -717,6 +752,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901010',
     stationNo: 'ZC2608240010',
     stationName: '金华婺城区食品加工厂光伏',
+    stationType: '绿电家-民生版',
     settlementObjectType: '监理方',
     settlementObject: '金华中正工程监理咨询有限公司',
     billType: '整村开发监理变更账单',
@@ -732,6 +768,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901011',
     stationNo: 'ZC2608240011',
     stationName: '台州椒江区商业综合体光伏',
+    stationType: '金租宝-兴业版',
     settlementObjectType: '代理商',
     settlementObject: '台州阳光新能源有限公司',
     billType: '完工安装费账单',
@@ -747,6 +784,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901012',
     stationNo: 'ZC2608240012',
     stationName: '义乌市国际商贸城屋顶光伏',
+    stationType: '工商业',
     settlementObjectType: '施工方',
     settlementObject: '义乌鑫源建设工程有限公司',
     billType: '整村开发施工方到货账单',
@@ -762,6 +800,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901013',
     stationNo: 'ZC2608240013',
     stationName: '湖州吴兴区纺织厂屋顶光伏',
+    stationType: '泰益宝',
     settlementObjectType: '设计院',
     settlementObject: '湖州建筑规划设计研究院有限公司',
     billType: '整村开发设计变更账单',
@@ -777,6 +816,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901014',
     stationNo: 'ZC2608240014',
     stationName: '衢州柯城区农业大棚光伏',
+    stationType: '星光宝整村开发',
     settlementObjectType: '代理商',
     settlementObject: '衢州绿色能源发展有限公司',
     billType: '退质保金账单',
@@ -792,6 +832,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901015',
     stationNo: 'ZC2608240015',
     stationName: '丽水莲都区山地光伏电站',
+    stationType: '泰阳宝（光伏星）',
     settlementObjectType: '运维后台厂家',
     settlementObject: '丽水数字能源科技有限公司',
     billType: '整村运维厂家竣工账单',
@@ -807,6 +848,7 @@ const MOCK_DATA = [
     billNo: 'BD20260901016',
     stationNo: 'ZC2608240016',
     stationName: '舟山定海区港口仓储光伏',
+    stationType: '绿电家-全款直销(安能)',
     settlementObjectType: '代理商',
     settlementObject: '舟山海岛新能源有限公司',
     billType: '并网考核账单',
