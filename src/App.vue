@@ -200,9 +200,9 @@ import { submitStartReview } from './stores/stationStatus'
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list', label: '电站列表', closable: false },
+  { key: 'list-b', label: '电站列表', closable: false },
 ])
-const activeTabKey = ref('list')
+const activeTabKey = ref('list-b')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -212,7 +212,7 @@ const filingInitStatus = ref<string | null>(null)
 const startApplyInitData   = ref<any>(null)
 const startApplyInitStatus = ref<string | null>(null)
 const startDetailRow       = ref<Record<string, any>>({})
-const previousListTab      = ref<string>('list')
+const previousListTab      = ref<string>('list-b')
 const stockApplyInitData   = ref<any>(null)
 const stockApplyInitStatus = ref<string | null>(null)
 const stockDetailRow       = ref<Record<string, any>>({})
@@ -271,8 +271,8 @@ onMounted(() => {
     const raw = sessionStorage.getItem(_SS_KEY)
     if (!raw) return
     const s = JSON.parse(raw)
-    if (s.tabs) tabs.value = s.tabs
-    if (s.activeTabKey) activeTabKey.value = s.activeTabKey
+    if (s.tabs) tabs.value = s.tabs.map((t: Tab) => t.key === 'list' ? { ...t, key: 'list-b' } : t)
+    if (s.activeTabKey) activeTabKey.value = s.activeTabKey === 'list' ? 'list-b' : s.activeTabKey
     editingId.value = s.editingId ?? null
     if (s.detailStatus) detailStatus.value = s.detailStatus
     if (s.detailPolicyType) detailPolicyType.value = s.detailPolicyType
@@ -447,8 +447,8 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list') openTab('list', '电站列表', false)
-  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
+  if (key === 'biz-list') openTab('list-b', '电站列表', false)
+  else if (key === 'biz-dashboard') openTab('list-b', '电站列表', false)
   else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
   else if (key === 'fin-bill-query') openTab('bill-query', '电站账单查询', false)
   const domain = getMenuGroupDomain(key)
