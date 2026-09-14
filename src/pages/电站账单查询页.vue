@@ -59,7 +59,7 @@
     <!-- 账单详情 Drawer -->
     <a-drawer
       v-model:open="drawerVisible"
-      title="账单详情"
+      :title="currentRow?.stationNo === 'ZC2608240001' ? '电站账单详情' : '账单详情'"
       width="760"
       :body-style="{ padding: '0', overflowY: 'auto' }"
       destroy-on-close
@@ -111,7 +111,7 @@
                 <span class="info-label">结算对象</span>
                 <span class="info-value">{{ currentRow.settlementObject }}</span>
               </div>
-              <div class="info-item">
+              <div class="info-item" v-if="currentRow.stationNo !== 'ZC2608240001'">
                 <span class="info-label">账单类型</span>
                 <span class="info-value">{{ currentRow.billType }}</span>
               </div>
@@ -131,7 +131,7 @@
                   </a-tag>
                 </span>
               </div>
-              <div class="info-item">
+              <div class="info-item" v-if="currentRow.stationNo !== 'ZC2608240001'">
                 <span class="info-label">是否可结算</span>
                 <span class="info-value">
                   <a-tag :color="currentRow.isSettleable ? 'success' : 'default'" style="margin:0">
@@ -139,7 +139,7 @@
                   </a-tag>
                 </span>
               </div>
-              <div class="info-item">
+              <div class="info-item" v-if="currentRow.stationNo !== 'ZC2608240001'">
                 <span class="info-label">推送NC状态</span>
                 <span class="info-value">
                   <a-tag :color="NC_STATUS_COLOR[currentRow.ncPushStatus]" style="margin:0">
@@ -147,7 +147,7 @@
                   </a-tag>
                 </span>
               </div>
-              <div class="info-item">
+              <div class="info-item" v-if="currentRow.stationNo !== 'ZC2608240001'">
                 <span class="info-label">账单创建时间</span>
                 <span class="info-value">{{ currentRow.billCreateTime }}</span>
               </div>
@@ -162,7 +162,7 @@
           <!-- 工商业：按角色/按费用类型切换 -->
           <template v-if="currentRow.stationType === '工商业'">
             <div class="info-section-title">
-              账单明细
+              <span>账单明细<span class="unit-hint">单位：元</span></span>
               <div class="seg-ctrl">
                 <span :class="['seg-ctrl-item', detailViewMode === 'role' ? 'is-active' : '']" @click="detailViewMode = 'role'">按角色</span>
                 <span :class="['seg-ctrl-item', detailViewMode === 'type' ? 'is-active' : '']" @click="detailViewMode = 'type'">按费用类型</span>
@@ -175,7 +175,7 @@
                   <div class="fee-cards">
                     <div class="fee-card" v-for="item in group.items" :key="item.code">
                       <div class="fee-card-name">{{ item.name }}</div>
-                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">{{ item.amt }}</div>
                     </div>
                   </div>
                 </div>
@@ -186,7 +186,7 @@
                   <div class="fee-cards">
                     <div class="fee-card" v-for="item in group.items" :key="item.name">
                       <div class="fee-card-name">{{ item.name }}{{ group.type }}</div>
-                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+                      <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">{{ item.amt }}</div>
                     </div>
                   </div>
                 </div>
@@ -195,17 +195,56 @@
           </template>
           <!-- 非工商业：直接平铺费用项 -->
           <template v-else>
-            <div class="info-section-title">账单明细</div>
-            <div class="fee-cards">
+            <div class="info-section-title">账单明细<span class="unit-hint">单位：元</span></div>
+            <!-- ZC2608240001：行列表样式，4列 + 分割线 -->
+            <div v-if="['ZC2608240001','ZC2608240002'].includes(currentRow.stationNo)" class="fee-table">
+              <div class="fee-table-row" v-for="(row, ri) in flatDetailRows" :key="ri">
+                <div
+                  v-for="item in row"
+                  :key="item.code"
+                  :class="['fee-table-cell', item.isComposite && 'fee-table-cell--composite']"
+                  @click="item.isComposite && openComposite(item)"
+                >
+                  <div class="fee-table-name">
+                    {{ item.name }}
+                    <span v-if="item.isComposite" class="composite-tag">明细</span>
+                  </div>
+                  <div :class="['fee-table-amt', item.isComposite ? 'is-composite-amt' : (item.amt === '0.00' && 'is-zero')]">{{ item.amt }}</div>
+                </div>
+                <div class="fee-table-cell fee-table-empty" v-for="j in (4 - row.length)" :key="'e'+j"></div>
+              </div>
+            </div>
+            <!-- 其他电站：卡片样式 -->
+            <div v-else class="fee-cards">
               <div class="fee-card" v-for="item in flatDetailItems" :key="item.code">
                 <div class="fee-card-name">{{ item.name }}</div>
-                <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">¥ {{ item.amt }}</div>
+                <div :class="['fee-card-amt', item.amt === '0.00' && 'is-zero']">{{ item.amt }}</div>
               </div>
             </div>
           </template>
         </div>
       </template>
     </a-drawer>
+
+    <!-- 复合费用项子明细弹窗 -->
+    <a-modal
+      v-model:open="compositeModal"
+      :title="selectedComposite?.name"
+      :footer="null"
+      width="440"
+      destroy-on-close
+    >
+      <div v-if="selectedComposite" class="composite-modal-body">
+        <div class="composite-sub-item" v-for="child in selectedComposite.children" :key="child.name">
+          <span class="composite-sub-name">{{ child.name }}</span>
+          <span class="composite-sub-amt">{{ child.amt }}</span>
+        </div>
+        <div class="composite-sub-total">
+          <span>合计</span>
+          <span>{{ selectedComposite.amt }}</span>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -320,6 +359,61 @@ const NON_GY_FEE_ITEMS = [
   { name: '并网考核费',        code: 'NF46' },
 ]
 
+const STATION_COMPOSITE_ITEMS: Record<string, any[]> = {
+  'ZC2608240001': [
+    {
+      name: '综合安装费', code: 'CP01', amt: '42,680.00', isComposite: true,
+      children: [
+        { name: '主体安装费', amt: '18,000.00' },
+        { name: '电气布线费', amt: '9,680.00' },
+        { name: '防水处理费', amt: '6,500.00' },
+        { name: '配件安装费', amt: '8,500.00' },
+      ],
+    },
+    {
+      name: '开发综合服务费', code: 'CP02', amt: '23,400.00', isComposite: true,
+      children: [
+        { name: '项目策划费', amt: '8,000.00' },
+        { name: '勘察设计费', amt: '6,400.00' },
+        { name: '报批协调费', amt: '9,000.00' },
+      ],
+    },
+  ],
+  'ZC2608240002': [
+    {
+      name: '综合安装费', code: 'CP01', amt: '38,920.00', isComposite: true,
+      children: [
+        { name: '主体安装费', amt: '16,500.00' },
+        { name: '电气布线费', amt: '8,420.00' },
+        { name: '防水处理费', amt: '5,800.00' },
+        { name: '配件安装费', amt: '8,200.00' },
+      ],
+    },
+    {
+      name: '开发综合服务费', code: 'CP02', amt: '19,750.00', isComposite: true,
+      children: [
+        { name: '项目策划费', amt: '7,200.00' },
+        { name: '勘察设计费', amt: '5,550.00' },
+        { name: '报批协调费', amt: '7,000.00' },
+      ],
+    },
+  ],
+}
+
+const compositeModal = ref(false)
+const selectedComposite = ref<any>(null)
+function openComposite(item: any) {
+  selectedComposite.value = item
+  compositeModal.value = true
+}
+
+const flatDetailRows = computed(() => {
+  const items = flatDetailItems.value
+  const rows: (typeof items)[] = []
+  for (let i = 0; i < items.length; i += 4) rows.push(items.slice(i, i + 4))
+  return rows
+})
+
 const flatDetailItems = computed(() => {
   if (!currentRow.value || currentRow.value.stationType === '工商业') return []
   let h = 0
@@ -334,7 +428,9 @@ const flatDetailItems = computed(() => {
       amt: mockAmt(NON_GY_FEE_ITEMS[i].code + currentRow.value.id, 300000 + i * 25000),
     })
   }
-  return result.slice(0, count)
+  const baseItems = result.slice(0, count)
+  const compositeItems = STATION_COMPOSITE_ITEMS[currentRow.value.stationNo] ?? []
+  return [...compositeItems, ...baseItems]
 })
 
 const FEE_TYPE_LABELS = ['开工费', '并网费', '竣工费', '质保金']
@@ -1167,6 +1263,92 @@ const MOCK_DATA = [
   color: rgba(0, 0, 0, 0.88);
   line-height: 28px;
 }
+/* 行列表样式（ZC2608240001） */
+.fee-table {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.fee-table-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid #f0f0f0;
+}
+.fee-table-row:last-child { border-bottom: none; }
+.fee-table-cell {
+  padding: 14px 16px;
+  border-right: 1px solid #f0f0f0;
+}
+.fee-table-cell:last-child { border-right: none; }
+.fee-table-empty { }
+.fee-table-name {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 20px;
+  margin-bottom: 4px;
+}
+.fee-table-amt {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 28px;
+}
+.fee-table-amt.is-zero {
+  color: rgba(0, 0, 0, 0.25);
+  font-weight: 400;
+}
+.fee-table-cell--composite {
+  cursor: pointer;
+  background: rgba(22, 119, 255, 0.02);
+}
+.fee-table-cell--composite:hover {
+  background: rgba(22, 119, 255, 0.06);
+}
+.composite-tag {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(22, 119, 255, 0.1);
+  color: #1677ff;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.fee-table-amt.is-composite-amt {
+  color: #1677ff;
+  font-size: 18px;
+  font-weight: 500;
+}
+/* 复合费用弹窗 */
+.composite-modal-body {
+  padding: 4px 0 8px;
+}
+.composite-sub-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 14px;
+}
+.composite-sub-name {
+  color: rgba(0, 0, 0, 0.65);
+}
+.composite-sub-amt {
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 500;
+}
+.composite-sub-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
 .fee-card-amt.is-zero {
   color: rgba(0, 0, 0, 0.25);
   font-weight: 400;
@@ -1181,6 +1363,12 @@ const MOCK_DATA = [
 .station-name-link:hover {
   color: #1677ff;
   text-decoration: underline;
+}
+.unit-hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.35);
+  margin-left: 8px;
 }
 .seg-ctrl {
   display: inline-flex;
