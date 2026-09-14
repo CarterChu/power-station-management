@@ -207,9 +207,9 @@
                 >
                   <div class="fee-table-name">
                     {{ item.name }}
-                    <span v-if="item.isComposite" class="composite-tag">明细</span>
+                    <span v-if="item.isComposite" class="composite-tag">明细 →</span>
                   </div>
-                  <div :class="['fee-table-amt', item.isComposite ? 'is-composite-amt' : (item.amt === '0.00' && 'is-zero')]">{{ item.amt }}</div>
+                  <div :class="['fee-table-amt', !item.isComposite && item.amt === '0.00' && 'is-zero']">{{ item.amt }}</div>
                 </div>
                 <div class="fee-table-cell fee-table-empty" v-for="j in (4 - row.length)" :key="'e'+j"></div>
               </div>
@@ -231,7 +231,7 @@
       v-model:open="compositeModal"
       :title="selectedComposite?.name"
       :footer="null"
-      width="440"
+      :width="380"
       destroy-on-close
     >
       <div v-if="selectedComposite" class="composite-modal-body">
@@ -1315,11 +1315,7 @@ const MOCK_DATA = [
   margin-left: 5px;
   vertical-align: middle;
 }
-.fee-table-amt.is-composite-amt {
-  color: #1677ff;
-  font-size: 18px;
-  font-weight: 500;
-}
+
 /* 复合费用弹窗 */
 .composite-modal-body {
   padding: 4px 0 8px;
