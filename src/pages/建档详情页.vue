@@ -86,7 +86,20 @@
             </div>
             <div class="info-section" style="border-top: none; padding-top: 0">
               <div class="info-grid">
-                <div class="info-item info-item--span2"><span class="info-label">产权证明</span><span class="info-value"><FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span></span></div>
+                <div class="info-item info-item--span2">
+                  <span class="info-label">产权证明</span>
+                  <span class="info-value">
+                    <template v-if="props.selfReviewRole === 'biz'">
+                      <FileUploadField v-model:file-list="propertyProofFiles" :multiple="true" accept=".pdf,.jpg,.jpeg,.png">
+                        <a-button size="small" type="dashed"><PlusOutlined style="margin-right:4px" />上传文件</a-button>
+                      </FileUploadField>
+                      <a-button size="small" type="primary" style="margin-top:6px" :loading="propertyProofSaving" @click="handleSavePropertyProof">保存</a-button>
+                    </template>
+                    <template v-else>
+                      <FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span>
+                    </template>
+                  </span>
+                </div>
                 <div class="info-item info-item--span2"><span class="info-label">营业执照/组织机构代码证</span><span class="info-value"><FileAttachmentView v-if="detail.bizLicense?.length" :files="detail.bizLicense" /><span v-else>—</span></span></div>
                 <div class="info-item info-item--span2"><span class="info-label">开户许可证</span><span class="info-value"><FileAttachmentView v-if="detail.bankAccountCert" :files="[detail.bankAccountCert]" /><span v-else>—</span></span></div>
                 <div class="info-item" style="grid-column-start:1"><span class="info-label">法定代表人身份证正面</span><div class="id-card-img id-card-img--front" v-if="detail.idCardFront" /><span v-else>—</span></div>
@@ -123,7 +136,20 @@
                 <div class="info-item"><span class="info-label">EMC 电价</span><span class="info-value">{{ detail.emcPrice }} 元/kWh</span></div>
                 <div class="info-item"><span class="info-label">消纳比例</span><span class="info-value">{{ detail.consumptionRate }}%</span></div>
                 <div class="info-item"><span class="info-label">公建机构类型</span><span class="info-value">{{ PUBLIC_BUILD_TYPE_LABEL[detail.publicBuildType] || '—' }}</span></div>
-                <div class="info-item info-item--span2" style="grid-column-start:1"><span class="info-label">产权证明</span><span class="info-value"><FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span></span></div>
+                <div class="info-item info-item--span2" style="grid-column-start:1">
+                  <span class="info-label">产权证明</span>
+                  <span class="info-value">
+                    <template v-if="props.selfReviewRole === 'biz'">
+                      <FileUploadField v-model:file-list="propertyProofFiles" :multiple="true" accept=".pdf,.jpg,.jpeg,.png">
+                        <a-button size="small" type="dashed"><PlusOutlined style="margin-right:4px" />上传文件</a-button>
+                      </FileUploadField>
+                      <a-button size="small" type="primary" style="margin-top:6px" :loading="propertyProofSaving" @click="handleSavePropertyProof">保存</a-button>
+                    </template>
+                    <template v-else>
+                      <FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span>
+                    </template>
+                  </span>
+                </div>
               </div>
             </div>
           </template>
@@ -697,10 +723,11 @@
 import { ref, computed, watch, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
+import FileUploadField from '../components/FileUploadField.vue'
 import FlowLog from '../components/FlowLog.vue'
 import {
   LeftOutlined, CopyOutlined,
-  AuditOutlined, HolderOutlined, DownOutlined,
+  AuditOutlined, HolderOutlined, DownOutlined, PlusOutlined,
 } from '@ant-design/icons-vue'
 import { submitFilingSelfReview, submitFilingPlatformReview } from '../stores/stationStatus'
 
@@ -985,6 +1012,24 @@ const canVoid = computed(() => detail.value.filingStatus === 'filing')
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
 const activeTab = ref('survey')
+
+const propertyProofFiles = ref<any[]>(
+  (detail.value.propertyProof ?? []).map((name: string, i: number) => ({
+    uid: `existing-${i}`,
+    name,
+    status: 'done' as const,
+    percent: 100,
+  }))
+)
+const propertyProofSaving = ref(false)
+function handleSavePropertyProof() {
+  propertyProofSaving.value = true
+  setTimeout(() => {
+    detail.value.propertyProof = propertyProofFiles.value.map((f: any) => f.name)
+    propertyProofSaving.value = false
+    message.success('产权证明已保存')
+  }, 600)
+}
 
 const detailBodyRef = ref<HTMLElement | null>(null)
 const tabsWrapperRef = ref<HTMLElement | null>(null)
