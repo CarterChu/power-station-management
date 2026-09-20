@@ -9,23 +9,35 @@
       <div class="fav__actions">
         <EyeOutlined class="fav__btn" title="预览" @click.stop="onPreview(name)" />
         <DownloadOutlined class="fav__btn" title="下载" @click.stop="onDownload(name)" />
+        <a-popconfirm
+          v-if="deletable"
+          title="确认删除该文件？"
+          ok-text="删除"
+          cancel-text="取消"
+          @confirm.stop="emit('delete', name)"
+          @click.stop
+        >
+          <DeleteOutlined class="fav__btn fav__btn--danger" title="删除" />
+        </a-popconfirm>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { EyeOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import { EyeOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import FileTypeIcon from './FileTypeIcon.vue'
 
 const props = withDefaults(defineProps<{
   files: string[]
   uploadInfo?: string
-}>(), { files: () => [] })
+  deletable?: boolean
+}>(), { files: () => [], deletable: false })
 
 const emit = defineEmits<{
   preview: [name: string]
   download: [name: string]
+  delete: [name: string]
 }>()
 
 function onPreview(name: string) { emit('preview', name) }
@@ -101,5 +113,9 @@ function onDownload(name: string) { emit('download', name) }
 
 .fav__btn:hover {
   color: rgba(0, 0, 0, 0.72);
+}
+
+.fav__btn--danger:hover {
+  color: #ff4d4f;
 }
 </style>

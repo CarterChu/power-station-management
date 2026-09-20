@@ -90,10 +90,15 @@
                   <span class="info-label">产权证明</span>
                   <span class="info-value">
                     <template v-if="props.selfReviewRole === 'biz'">
-                      <FileUploadField v-model:file-list="propertyProofFiles" :multiple="true" accept=".pdf,.jpg,.jpeg,.png">
+                      <FileAttachmentView
+                        v-if="propertyProofFiles.length"
+                        :files="propertyProofFiles.map(f => f.name)"
+                        :deletable="true"
+                        @delete="(name) => { propertyProofFiles = propertyProofFiles.filter(f => f.name !== name) }"
+                      />
+                      <a-upload :show-upload-list="false" :before-upload="handlePropertyProofUpload" :multiple="true" accept=".pdf,.jpg,.jpeg,.png" style="display:block;margin-top:4px">
                         <a-button size="small" type="dashed"><PlusOutlined style="margin-right:4px" />上传文件</a-button>
-                      </FileUploadField>
-                      <a-button size="small" type="primary" style="margin-top:6px" :loading="propertyProofSaving" @click="handleSavePropertyProof">保存</a-button>
+                      </a-upload>
                     </template>
                     <template v-else>
                       <FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span>
@@ -140,10 +145,15 @@
                   <span class="info-label">产权证明</span>
                   <span class="info-value">
                     <template v-if="props.selfReviewRole === 'biz'">
-                      <FileUploadField v-model:file-list="propertyProofFiles" :multiple="true" accept=".pdf,.jpg,.jpeg,.png">
+                      <FileAttachmentView
+                        v-if="propertyProofFiles.length"
+                        :files="propertyProofFiles.map(f => f.name)"
+                        :deletable="true"
+                        @delete="(name) => { propertyProofFiles = propertyProofFiles.filter(f => f.name !== name) }"
+                      />
+                      <a-upload :show-upload-list="false" :before-upload="handlePropertyProofUpload" :multiple="true" accept=".pdf,.jpg,.jpeg,.png" style="display:block;margin-top:4px">
                         <a-button size="small" type="dashed"><PlusOutlined style="margin-right:4px" />上传文件</a-button>
-                      </FileUploadField>
-                      <a-button size="small" type="primary" style="margin-top:6px" :loading="propertyProofSaving" @click="handleSavePropertyProof">保存</a-button>
+                      </a-upload>
                     </template>
                     <template v-else>
                       <FileAttachmentView v-if="detail.propertyProof?.length" :files="detail.propertyProof" /><span v-else>—</span>
@@ -723,7 +733,6 @@
 import { ref, computed, watch, reactive, nextTick, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import FileAttachmentView from '../components/FileAttachmentView.vue'
-import FileUploadField from '../components/FileUploadField.vue'
 import FlowLog from '../components/FlowLog.vue'
 import {
   LeftOutlined, CopyOutlined,
@@ -1021,14 +1030,12 @@ const propertyProofFiles = ref<any[]>(
     percent: 100,
   }))
 )
-const propertyProofSaving = ref(false)
-function handleSavePropertyProof() {
-  propertyProofSaving.value = true
-  setTimeout(() => {
-    detail.value.propertyProof = propertyProofFiles.value.map((f: any) => f.name)
-    propertyProofSaving.value = false
-    message.success('产权证明已保存')
-  }, 600)
+watch(propertyProofFiles, (list) => {
+  detail.value.propertyProof = list.map((f: any) => f.name)
+}, { deep: true })
+function handlePropertyProofUpload(file: File) {
+  propertyProofFiles.value.push({ uid: `new-${Date.now()}`, name: (file as any).name, status: 'done', percent: 100 })
+  return false
 }
 
 const detailBodyRef = ref<HTMLElement | null>(null)
@@ -1405,6 +1412,8 @@ function submitReview(action: 'pass' | 'reject' | 'skip') {
   line-height: 22px;
   word-break: break-word;
 }
+
+
 
 .contract-block-ro {
   border: 1px solid #f0f0f0;
