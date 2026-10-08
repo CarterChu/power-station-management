@@ -175,26 +175,20 @@
                   <span style="display:inline-block"><a-button type="link" size="small" style="padding:0 4px" :style="{ pointerEvents: row.selfReviewProgress?.tech ? 'none' : 'auto' }" :disabled="!!row.selfReviewProgress?.tech" @click="handleSelfReview(row, 'tech')">技术自审</a-button></span>
                 </a-tooltip>
                 <a-button v-if="row.selfReviewProgress?.biz === 'reject' || row.selfReviewProgress?.tech === 'reject'" type="link" size="small" style="padding:0 4px" @click="handleEdit(row)">修改</a-button>
+                <a-button v-if="row.policyType === 'nonstandard'" type="link" size="small" style="padding:0 4px" @click="handleEditPaymentRatio(row)">付款比例</a-button>
               </div>
             </div>
           </template>
 
-          <!-- 编辑付款比例：建档节点 + 非标政策 + 非建档中/审核通过 -->
-          <a-button
-            v-if="row.nodeStatus === 'filing' && row.policyType === 'nonstandard' && !['filing', 'filing_approved'].includes(row.filingStatus)"
-            type="link"
-            size="small"
-            style="padding:0 4px"
-            @click="handleEditPaymentRatio(row)"
-          >编辑付款比例</a-button>
 
           <!-- 建档审核通过 -->
           <a-button v-if="row.filingStatus === 'filing_approved'" type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
 
-          <!-- 建档自审不通过 / 建档审核不通过：详情 + 修改 -->
+          <!-- 建档自审不通过 / 建档审核不通过：详情 + 修改 + 付款比例 -->
           <template v-if="row.filingStatus === 'filing_self_rejected' || row.filingStatus === 'filing_platform_rejected'">
             <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
             <a-button type="link" size="small" style="padding:0 4px" @click="handleEdit(row)">修改</a-button>
+            <a-button v-if="row.policyType === 'nonstandard'" type="link" size="small" style="padding:0 4px" @click="handleEditPaymentRatio(row)">付款比例</a-button>
           </template>
 
           <!-- 建档平台审核中：两行布局 -->
@@ -208,6 +202,7 @@
               </div>
               <div style="display:flex">
                 <a-button v-if="row.platformReviewProgress?.biz === 'reject' || row.platformReviewProgress?.tech === 'reject'" type="link" size="small" style="padding:0 4px" @click="handleEdit(row)">修改</a-button>
+                <a-button v-if="row.policyType === 'nonstandard'" type="link" size="small" style="padding:0 4px" @click="handleEditPaymentRatio(row)">付款比例</a-button>
               </div>
             </div>
           </template>
