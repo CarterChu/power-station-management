@@ -600,6 +600,7 @@ function syncCardFromNodeFilter(val: string[]) {
 }
 
 function onTableSearch(params: any) {
+  if (activeNodeCard.value !== null) return
   syncCardFromNodeFilter(params?.params?.nodeStatus ?? [])
 }
 
