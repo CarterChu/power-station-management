@@ -674,7 +674,8 @@ const columns = computed(() => {
     : BASE_COLUMNS.filter(c => c.key !== 'nodeStatus')
   if (activeNodeCard.value === 'filing') {
     const idx = base.findIndex(c => c.key === 'createdAt')
-    return [...base.slice(0, idx), REVIEW_PROGRESS_COLUMN, ...base.slice(idx)]
+    const cols = [...base.slice(0, idx), REVIEW_PROGRESS_COLUMN, ...base.slice(idx)]
+    return cols.map(col => col.key === 'action' ? { ...col, width: 200 } : col)
   }
   return base
 })
