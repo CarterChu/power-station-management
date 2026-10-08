@@ -588,6 +588,8 @@
             <!-- ──────── 合同付款比例 TAB（非标专属）──────── -->
             <a-tab-pane v-if="props.policyType === 'nonstandard'" key="payment" tab="合同付款比例">
               <div class="tab-body">
+                <!-- 合同信息 -->
+                <div class="info-section-title">合同信息</div>
                 <div v-for="(contract, idx) in detailPaymentContracts" :key="idx" class="payment-contract-card">
                   <div class="payment-contract-header">
                     <div class="payment-contract-type">{{ contract.type }}</div>
@@ -636,7 +638,16 @@
                     </tbody>
                   </table>
                 </div>
-                <div style="display:flex;justify-content:flex-end;padding-top:4px">
+                <!-- 租金信息 -->
+                <a-divider style="margin: 28px 0 20px" />
+                <div class="info-section-title">租金信息</div>
+                <div class="info-grid">
+                  <div class="info-item"><span class="info-label">屋顶面积（㎡）</span><span class="info-value">{{ detail.commercial?.rentInfo?.roofArea != null ? detail.commercial.rentInfo.roofArea : '—' }}</span></div>
+                  <div class="info-item"><span class="info-label">租金（元/㎡/年）</span><span class="info-value">{{ detail.commercial?.rentInfo?.rentPrice != null ? detail.commercial.rentInfo.rentPrice : '—' }}</span></div>
+                  <div class="info-item"><span class="info-label">付款周期</span><span class="info-value">{{ detail.commercial?.rentInfo?.paymentCycle || '—' }}</span></div>
+                  <div class="info-item"><span class="info-label">付款方式</span><span class="info-value">{{ detail.commercial?.rentInfo?.paymentMethod || '—' }}</span></div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;padding-top:20px">
                   <a-button type="primary" :loading="paymentSubmitting" @click="handlePaymentSubmit">提交付款比例</a-button>
                 </div>
               </div>
@@ -859,6 +870,7 @@ const detail = ref({
     designContract: { contractNo: 'DS-2026-0001', paymentCategory: '应付款项', partyA: '正泰安能数字能源（浙江）股份有限公司', partyB: '浙江华电开发有限公司', amount: 50000, signDate: '2026-03-25', remark: '', files: [] },
     jianliContract: { contractNo: 'JL-2026-0001', paymentCategory: '应付款项', partyA: '杭州光伏资产管理有限公司', partyB: '浙江工程监理有限公司', amount: 30000, signDate: '2026-03-28', remark: '', files: [] },
     otherContracts: [],
+    rentInfo: { roofArea: 1200, rentPrice: 8.50, paymentCycle: '年付', paymentMethod: '预付' },
   },
   // 勘察
   gridMode: 'surplus',
@@ -890,8 +902,8 @@ const detail = ref({
   electricityFiles: ['用电情况报告.pdf'],
   approvalFiles: ['接入批复文件.pdf'],
   scenes: [
-    { type: '屋顶', blocks: 560, tiltAngle: 10, specialPlan: null },
-    { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null },
+    { type: '屋顶', blocks: 560, tiltAngle: 10, specialPlan: null, specialPlanBlocks: null },
+    { type: '车棚', blocks: 220, tiltAngle: 5,  specialPlan: null, specialPlanBlocks: null },
   ],
   photos: {
     exterior: Array.from({ length: 10 }, (_, i) => 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48cmVjdCB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iI2QwZGNlOCIgcng9IjQiLz48dGV4dCB4PSI4MCIgeT0iODYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9InJnYmEoMCwwLDAsMC4zNSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj7njrDlnLrnhafniYc8L3RleHQ+PC9zdmc+'),
@@ -1020,7 +1032,7 @@ const canVoid = computed(() => detail.value.filingStatus === 'filing')
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
 
-const activeTab = ref('survey')
+const activeTab = ref(props.initRow?.initialTab ?? 'survey')
 
 const propertyProofFiles = ref<any[]>(
   (detail.value.propertyProof ?? []).map((name: string, i: number) => ({
@@ -1119,6 +1131,7 @@ const sceneColumns = [
   { title: '应用场景块数', dataIndex: 'blocks', key: 'blocks', width: 120 },
   { title: '倾角',       dataIndex: 'tiltAngle', key: 'tiltAngle', width: 100, customRender: ({ text }: { text: number | null }) => text != null ? text + '°' : '—' },
   { title: '特殊方案',   dataIndex: 'specialPlan', key: 'specialPlan', width: 160, customRender: ({ text }: { text: string | null }) => text || '—' },
+  { title: '特殊方案块数', dataIndex: 'specialPlanBlocks', key: 'specialPlanBlocks', width: 120, customRender: ({ text }: { text: number | null }) => text != null ? String(text) : '—' },
 ]
 const jiagongReadonlyColumns = [
   { title: '序号',     key: 'index',    width: 52,  customRender: ({ index }: { index: number }) => index + 1 },

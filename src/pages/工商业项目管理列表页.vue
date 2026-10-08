@@ -179,6 +179,15 @@
             </div>
           </template>
 
+          <!-- 编辑付款比例：建档节点 + 非标政策 + 非建档中/审核通过 -->
+          <a-button
+            v-if="row.nodeStatus === 'filing' && row.policyType === 'nonstandard' && !['filing', 'filing_approved'].includes(row.filingStatus)"
+            type="link"
+            size="small"
+            style="padding:0 4px"
+            @click="handleEditPaymentRatio(row)"
+          >编辑付款比例</a-button>
+
           <!-- 建档审核通过 -->
           <a-button v-if="row.filingStatus === 'filing_approved'" type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
 
@@ -870,6 +879,10 @@ const handleDetail = (row: any) => {
 
 const handleReview = (row: any, role: string) => {
   emit('navigate', 'start-detail-b', { id: row.id, filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, reviewRole: role })
+}
+
+const handleEditPaymentRatio = (row: any) => {
+  emit('navigate', 'detail', { filingStatus: row.filingStatus, policyType: row.policyType, stationNo: row.stationNo, projectName: row.projectName, agentName: row.agentName, selfReviewProgress: row.selfReviewProgress ?? null, platformReviewProgress: row.platformReviewProgress ?? null, initialTab: 'payment' })
 }
 
 const handleSelfReview = (row: any, role: string) => {
