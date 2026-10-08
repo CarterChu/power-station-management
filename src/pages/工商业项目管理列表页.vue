@@ -24,7 +24,6 @@
       <AnfeProTable
       ref="tableRef"
       table-key="lnc-project-list"
-      :class="{ 'hide-node-filter': activeNodeCard !== null }"
       :columns="columns"
       :filters="filters"
       :config="tableConfig"
@@ -691,12 +690,12 @@ const filters = computed(() => [
   { label: '代理商名称', key: 'agentName',      component: 'input',  placeholder: '请输入代理商名称' },
   { label: '项目公司',   key: 'projectCompany', component: 'input',  placeholder: '请输入项目公司名称' },
   { label: '项目地址',   key: 'address',        component: 'input',  placeholder: '请输入项目地址关键词' },
-  {
+  ...(activeNodeCard.value === null ? [{
     label: '电站节点',
     key: 'nodeStatus',
     component: 'select',
     placeholder: '请选择电站节点',
-    props: { mode: 'multiple', showArrow: true, class: 'filter-node-status' },
+    props: { mode: 'multiple', showArrow: true },
     options: [
       { label: '建档', value: 'filing' },
       { label: '开工', value: 'start' },
@@ -706,7 +705,7 @@ const filters = computed(() => [
       { label: '并网', value: 'grid' },
       { label: '竣工', value: 'done' },
     ],
-  },
+  }] : []),
   {
     label: '电站状态',
     key: 'filingStatus',
@@ -758,6 +757,11 @@ const tableConfig = {
     const { params: filterParams = {}, pageIndex, pageRows } = params
 
     const query: Record<string, any> = { ...filterParams, pageIndex, pageRows }
+
+    // 节点卡片选中时直接注入，不依赖 filter 参数（filter 此时已隐藏）
+    if (activeNodeCard.value) {
+      query.nodeStatus = [activeNodeCard.value]
+    }
 
     // 日期范围解包（rangePicker 返回 Dayjs[]）
     if (query.createdAtRange?.length === 2) {
@@ -1292,7 +1296,5 @@ async function voidProject(_id: string) {
   background: #fafafa !important;
   z-index: 5 !important;
 }
-.hide-node-filter :deep(.ant-form-item:has(.filter-node-status)) {
-  display: none;
-}
+
 </style>
