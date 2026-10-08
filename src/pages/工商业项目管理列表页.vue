@@ -24,6 +24,7 @@
       <AnfeProTable
       ref="tableRef"
       table-key="lnc-project-list"
+      :class="{ 'hide-node-filter': activeNodeCard !== null }"
       :columns="columns"
       :filters="filters"
       :config="tableConfig"
@@ -583,7 +584,10 @@ async function confirmFiling() {
 
 const NODE_KEYS = ['filing', 'start', 'stock', 'complete', 'grid', 'done']
 
+let _suppressCardSync = false
+
 function syncCardFromNodeFilter(val: string[]) {
+  if (_suppressCardSync) return
   if (!val?.length || val.length >= NODE_KEYS.length) {
     activeNodeCard.value = null
     nodeMultiSelect.value = false
@@ -621,11 +625,13 @@ onMounted(async () => {
 })
 
 function selectNodeCard(nodeKey: string | null) {
+  _suppressCardSync = true
   activeNodeCard.value = nodeKey
   nodeMultiSelect.value = false
   sessionStorage.setItem(_NODE_CARD_KEY, nodeKey ?? 'null')
   tableRef.value?.setDefaultValue('nodeStatus', nodeKey ? [nodeKey] : [])
   tableRef.value?.onSearch(1)
+  nextTick(() => { _suppressCardSync = false })
 }
 
 // ─── 表格列 ───────────────────────────────────────────────────────────────────
@@ -644,6 +650,7 @@ const BASE_COLUMNS = [
   { title: '项目公司',   dataIndex: 'projectCompany', key: 'projectCompany', width: 180, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '代理商名称', dataIndex: 'agentName',      key: 'agentName',      width: 160, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
   { title: '项目地址',   dataIndex: 'address',        key: 'address',        width: 200, ellipsis: true, customRender: ({ text }: any) => tipCell(text) },
+  { title: '设计容量',   dataIndex: 'designCapacity', key: 'designCapacity', width: 120, customRender: ({ text }: any) => text != null ? `${text} kW` : '—' },
   { title: '电站节点',   dataIndex: 'nodeStatus',     key: 'nodeStatus',     width: 120, component: 'custom', slotName: 'nodeStatusSlot' },
   { title: '电站状态',   dataIndex: 'filingStatus',   key: 'filingStatus',   width: 130, component: 'custom', slotName: 'filingStatusSlot' },
   { title: '创建时间',   dataIndex: 'createdAt',      key: 'createdAt',      width: 180, customRender: ({ text }: any) => tipCell(text) },
@@ -653,11 +660,14 @@ const BASE_COLUMNS = [
 const REVIEW_PROGRESS_COLUMN = { title: '审核状态', dataIndex: 'reviewProgress', key: 'reviewProgress', width: 130, component: 'custom', slotName: 'reviewProgressSlot' }
 
 const columns = computed(() => {
+  const base = activeNodeCard.value === null
+    ? BASE_COLUMNS
+    : BASE_COLUMNS.filter(c => c.key !== 'nodeStatus')
   if (activeNodeCard.value === 'filing') {
-    const idx = BASE_COLUMNS.findIndex(c => c.key === 'createdAt')
-    return [...BASE_COLUMNS.slice(0, idx), REVIEW_PROGRESS_COLUMN, ...BASE_COLUMNS.slice(idx)]
+    const idx = base.findIndex(c => c.key === 'createdAt')
+    return [...base.slice(0, idx), REVIEW_PROGRESS_COLUMN, ...base.slice(idx)]
   }
-  return BASE_COLUMNS
+  return base
 })
 
 // ─── 筛选项（key 非 field；日期用 rangePicker 组件，参考 repurchase-preview） ──
@@ -686,7 +696,7 @@ const filters = computed(() => [
     key: 'nodeStatus',
     component: 'select',
     placeholder: '请选择电站节点',
-    props: { mode: 'multiple', showArrow: true },
+    props: { mode: 'multiple', showArrow: true, class: 'filter-node-status' },
     options: [
       { label: '建档', value: 'filing' },
       { label: '开工', value: 'start' },
@@ -723,6 +733,16 @@ const filters = computed(() => [
       { label: '完工审核中',         value: 'reviewing_complete' },
       { label: '完工审核不通过',     value: 'complete_rejected' },
       { label: '已完工',             value: 'completed' },
+    ],
+  },
+  {
+    label: '政策类型',
+    key: 'policyType',
+    component: 'select',
+    placeholder: '请选择政策类型',
+    options: [
+      { label: '标准政策',   value: 'standard' },
+      { label: '非标准政策', value: 'nonstandard' },
     ],
   },
   { label: '创建时间', key: 'createdAtRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
@@ -869,13 +889,13 @@ const handleVoid = async (row: any) => {
 
 const MOCK_LIST = [
   // ── 建档节点 × 15 ── 前3条每状态各一，其余随机
-  { id: 'f01', stationNo: 'LNC-2026-0001', projectName: '杭州市滨江区某商业综合体屋顶光伏项目', projectCompany: '杭州光伏资产管理有限公司',   agentName: '浙江绿能科技有限公司',         address: '浙江省杭州市滨江区滨盛路18号',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-10 14:32' },
+  { id: 'f01', stationNo: 'LNC-2026-0001', projectName: '杭州市滨江区某商业综合体屋顶光伏项目', projectCompany: '杭州光伏资产管理有限公司',   agentName: '浙江绿能科技有限公司',         address: '浙江省杭州市滨江区滨盛路18号',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-10 14:32', designCapacity: 300 },
   { id: 'f02', stationNo: 'LNC-2026-0002', projectName: '宁波市鄞州区工业园区分布式光伏项目', projectCompany: '宁波新能源股份有限公司',       agentName: '宁波蓝天能源有限公司',         address: '浙江省宁波市鄞州区集士港工业园',     nodeStatus: 'filing', filingStatus: 'pending_review', policyType: 'standard',    createdAt: '2026-08-10 10:05', platformReviewProgress: { biz: null, tech: null } },
   { id: 'f14', stationNo: 'LNC-2026-0003', projectName: '金华市婺城区五金制造厂屋顶光伏',     projectCompany: '金华绿源光伏有限公司',       agentName: '金华阳光能源技术有限公司',     address: '浙江省金华市婺城区银海路128号',     nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-08-09 09:45', selfReviewProgress: { biz: 'reject', tech: null } },
-  { id: 'f03', stationNo: 'LNC-2026-0004', projectName: '南京市江宁区物流仓库屋顶光伏',       projectCompany: '南京绿色能源科技有限公司',   agentName: '南京清洁能源有限公司',         address: '江苏省南京市江宁区科学园路88号',     nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-08 16:40' },
-  { id: 'f04', stationNo: 'LNC-2026-0005', projectName: '无锡市惠山区工业厂房屋顶光伏',       projectCompany: '无锡惠山光伏有限公司',       agentName: '无锡泰阳能源科技有限公司',     address: '江苏省无锡市惠山区前洲工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-07 10:22' },
+  { id: 'f03', stationNo: 'LNC-2026-0004', projectName: '南京市江宁区物流仓库屋顶光伏',       projectCompany: '南京绿色能源科技有限公司',   agentName: '南京清洁能源有限公司',         address: '江苏省南京市江宁区科学园路88号',     nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-08 16:40', designCapacity: 1000 },
+  { id: 'f04', stationNo: 'LNC-2026-0005', projectName: '无锡市惠山区工业厂房屋顶光伏',       projectCompany: '无锡惠山光伏有限公司',       agentName: '无锡泰阳能源科技有限公司',     address: '江苏省无锡市惠山区前洲工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-07 10:22', designCapacity: 1500 },
   { id: 'f05', stationNo: 'LNC-2026-0006', projectName: '苏州市相城区冷链物流园光伏项目',     projectCompany: '苏州相城光伏资产有限公司',   agentName: '苏州阳光新能源技术有限公司',   address: '江苏省苏州市相城区澄阳路138号',     nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-08-06 09:15', selfReviewProgress: { biz: null, tech: null } },
-  { id: 'f06', stationNo: 'LNC-2026-0007', projectName: '常州市武进区钢结构厂房屋顶光伏',     projectCompany: '常州新能源产业发展有限公司', agentName: '常州晴天能源有限公司',         address: '江苏省常州市武进区湟里工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-05 14:00' },
+  { id: 'f06', stationNo: 'LNC-2026-0007', projectName: '常州市武进区钢结构厂房屋顶光伏',     projectCompany: '常州新能源产业发展有限公司', agentName: '常州晴天能源有限公司',         address: '江苏省常州市武进区湟里工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-05 14:00', designCapacity: 3000 },
   { id: 'f07', stationNo: 'LNC-2026-0008', projectName: '镇江市丹徒区食品加工厂屋顶光伏',     projectCompany: '镇江绿源光伏投资有限公司',   agentName: '镇江安能新能源有限公司',       address: '江苏省镇江市丹徒区宜城工业园',       nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-08-04 11:30', selfReviewProgress: { biz: null, tech: 'reject' } },
   { id: 'f16', stationNo: 'LNC-2026-0055', projectName: '南京市高淳区农业大棚屋顶光伏',       projectCompany: '南京高淳光伏资产有限公司',   agentName: '南京绿能科技有限公司',         address: '江苏省南京市高淳区经济开发区',       nodeStatus: 'filing', filingStatus: 'pending_review', policyType: 'standard',    createdAt: '2026-08-04 09:00', platformReviewProgress: { biz: 'reject', tech: null } },
   { id: 'f17', stationNo: 'LNC-2026-0056', projectName: '苏州市吴江区纺织工厂屋顶光伏',       projectCompany: '苏州吴江光伏投资有限公司',   agentName: '苏州蓝天能源有限公司',         address: '江苏省苏州市吴江区盛泽工业区',       nodeStatus: 'filing', filingStatus: 'pending_review', policyType: 'nonstandard', createdAt: '2026-08-03 14:20', platformReviewProgress: { biz: null, tech: 'reject' } },
@@ -890,75 +910,75 @@ const MOCK_LIST = [
   { id: 'f26', stationNo: 'LNC-2026-0065', projectName: '宁波市慈溪市家电制造业屋顶光伏',       projectCompany: '慈溪光伏投资管理有限公司',   agentName: '宁波蓝日能源科技有限公司',     address: '浙江省宁波市慈溪市工业园区',         nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-07-23 11:00', selfReviewProgress: { biz: null, tech: 'pass' } },
   { id: 'f27', stationNo: 'LNC-2026-0066', projectName: '杭州市余杭区电商仓储园屋顶光伏',       projectCompany: '余杭清洁能源有限公司',       agentName: '杭州晴天新能源技术有限公司',   address: '浙江省杭州市余杭区仓前工业园',       nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'nonstandard', createdAt: '2026-07-22 15:00', selfReviewProgress: { biz: 'pass', tech: 'reject' } },
   { id: 'f28', stationNo: 'LNC-2026-0067', projectName: '绍兴市诸暨市针织企业屋顶光伏',         projectCompany: '诸暨光伏资产运营有限公司',   agentName: '绍兴绿源能源有限公司',         address: '浙江省绍兴市诸暨市大唐工业区',       nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-07-21 10:30', selfReviewProgress: { biz: 'reject', tech: 'pass' } },
-  { id: 'f08', stationNo: 'LNC-2026-0009', projectName: '扬州市广陵区纺织企业屋顶光伏',       projectCompany: '扬州光伏能源管理有限公司',   agentName: '扬州新日能源科技有限公司',     address: '江苏省扬州市广陵区江都路209号',     nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-03 15:45' },
+  { id: 'f08', stationNo: 'LNC-2026-0009', projectName: '扬州市广陵区纺织企业屋顶光伏',       projectCompany: '扬州光伏能源管理有限公司',   agentName: '扬州新日能源科技有限公司',     address: '江苏省扬州市广陵区江都路209号',     nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-08-03 15:45', designCapacity: 300 },
   { id: 'f09', stationNo: 'LNC-2026-0010', projectName: '嘉兴市南湖区电子制造工厂屋顶光伏',   projectCompany: '嘉兴新能源发展有限公司',     agentName: '嘉兴蓝日能源技术有限公司',     address: '浙江省嘉兴市南湖区大桥镇工业区',   nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-08-02 09:00', selfReviewProgress: { biz: null, tech: null } },
-  { id: 'f10', stationNo: 'LNC-2026-0011', projectName: '湖州市吴兴区建材企业屋顶光伏',       projectCompany: '湖州清洁能源有限公司',       agentName: '湖州联合新能源有限公司',       address: '浙江省湖州市吴兴区织里工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-01 13:20' },
+  { id: 'f10', stationNo: 'LNC-2026-0011', projectName: '湖州市吴兴区建材企业屋顶光伏',       projectCompany: '湖州清洁能源有限公司',       agentName: '湖州联合新能源有限公司',       address: '浙江省湖州市吴兴区织里工业园',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-08-01 13:20', designCapacity: 2500 },
   { id: 'f11', stationNo: 'LNC-2026-0012', projectName: '绍兴市越城区印染厂屋顶光伏项目',     projectCompany: '绍兴光伏资产运营有限公司',   agentName: '绍兴阳光能源有限公司',         address: '浙江省绍兴市越城区东浦工业区',       nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'standard',    createdAt: '2026-07-31 16:10', selfReviewProgress: { biz: null, tech: null } },
-  { id: 'f12', stationNo: 'LNC-2026-0013', projectName: '温州市瓯海区鞋业园区屋顶光伏',       projectCompany: '温州新能源有限公司',         agentName: '温州绿岛能源科技有限公司',     address: '浙江省温州市瓯海区瓯海大道868号',   nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-07-30 10:30' },
+  { id: 'f12', stationNo: 'LNC-2026-0013', projectName: '温州市瓯海区鞋业园区屋顶光伏',       projectCompany: '温州新能源有限公司',         agentName: '温州绿岛能源科技有限公司',     address: '浙江省温州市瓯海区瓯海大道868号',   nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'standard',    createdAt: '2026-07-30 10:30', designCapacity: 2000 },
   { id: 'f13', stationNo: 'LNC-2026-0014', projectName: '台州市椒江区汽配企业屋顶光伏',       projectCompany: '台州光伏管理有限公司',       agentName: '台州绿能科技有限公司',         address: '浙江省台州市椒江区云健工业区',       nodeStatus: 'filing', filingStatus: 'self_reviewing', policyType: 'nonstandard', createdAt: '2026-07-29 14:00', selfReviewProgress: { biz: null, tech: null } },
-  { id: 'f15', stationNo: 'LNC-2026-0015', projectName: '衢州市柯城区橡胶厂屋顶光伏项目',     projectCompany: '衢州清洁能源有限公司',       agentName: '衢州新日能源有限公司',         address: '浙江省衢州市柯城区花园工业区',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-07-28 11:00' },
+  { id: 'f15', stationNo: 'LNC-2026-0015', projectName: '衢州市柯城区橡胶厂屋顶光伏项目',     projectCompany: '衢州清洁能源有限公司',       agentName: '衢州新日能源有限公司',         address: '浙江省衢州市柯城区花园工业区',       nodeStatus: 'filing', filingStatus: 'filing',         policyType: 'nonstandard', createdAt: '2026-07-28 11:00', designCapacity: 2000 },
 
   // ── 开工节点 × 10 ── 前4条每状态各一，其余随机
-  { id: 's01', stationNo: 'LNC-2026-0016', projectName: '上海市嘉定区汽车配件厂屋顶光伏',   projectCompany: '上海新能源发展有限公司',       agentName: '上海晴天能源科技有限公司',     address: '上海市嘉定区嘉松北路2000号',         nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'standard',    createdAt: '2026-07-25 08:30' },
+  { id: 's01', stationNo: 'LNC-2026-0016', projectName: '上海市嘉定区汽车配件厂屋顶光伏',   projectCompany: '上海新能源发展有限公司',       agentName: '上海晴天能源科技有限公司',     address: '上海市嘉定区嘉松北路2000号',         nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'standard',    createdAt: '2026-07-25 08:30', designCapacity: 1500 },
   { id: 's04', stationNo: 'LNC-2026-0017', projectName: '芜湖市鸠江区装备制造厂屋顶光伏',   projectCompany: '芜湖清洁能源有限公司',         agentName: '芜湖联合能源技术有限公司',     address: '安徽省芜湖市鸠江区机械工业园',       nodeStatus: 'start', filingStatus: 'applying_start', policyType: 'standard',    createdAt: '2026-07-24 09:00', reviewProgress: { biz: null, tech: null, eng: null } },
-  { id: 's07', stationNo: 'LNC-2026-0018', projectName: '徐州市铜山区钢铁加工厂屋顶光伏',   projectCompany: '徐州光伏管理有限公司',         agentName: '徐州绿能科技有限公司',         address: '江苏省徐州市铜山区工业新区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-22 08:45' },
-  { id: 's09', stationNo: 'LNC-2026-0019', projectName: '泰州市姜堰区电气制造企业光伏',     projectCompany: '泰州清洁能源科技有限公司',     agentName: '泰州蓝天能源有限公司',         address: '江苏省泰州市姜堰区工业集中区',       nodeStatus: 'start', filingStatus: 'started',        policyType: 'standard',    createdAt: '2026-07-21 10:30' },
-  { id: 's02', stationNo: 'LNC-2026-0020', projectName: '上海市奉贤区化工仓储屋顶光伏',     projectCompany: '上海奉贤光伏资产有限公司',     agentName: '上海绿电能源科技有限公司',     address: '上海市奉贤区庄行工业区',             nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-20 14:00' },
+  { id: 's07', stationNo: 'LNC-2026-0018', projectName: '徐州市铜山区钢铁加工厂屋顶光伏',   projectCompany: '徐州光伏管理有限公司',         agentName: '徐州绿能科技有限公司',         address: '江苏省徐州市铜山区工业新区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-22 08:45', designCapacity: 500 },
+  { id: 's09', stationNo: 'LNC-2026-0019', projectName: '泰州市姜堰区电气制造企业光伏',     projectCompany: '泰州清洁能源科技有限公司',     agentName: '泰州蓝天能源有限公司',         address: '江苏省泰州市姜堰区工业集中区',       nodeStatus: 'start', filingStatus: 'started',        policyType: 'standard',    createdAt: '2026-07-21 10:30', designCapacity: 250 },
+  { id: 's02', stationNo: 'LNC-2026-0020', projectName: '上海市奉贤区化工仓储屋顶光伏',     projectCompany: '上海奉贤光伏资产有限公司',     agentName: '上海绿电能源科技有限公司',     address: '上海市奉贤区庄行工业区',             nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-20 14:00', designCapacity: 500 },
   { id: 's03', stationNo: 'LNC-2026-0021', projectName: '合肥市肥东县物流园区屋顶光伏',     projectCompany: '合肥光伏资产运营有限公司',     agentName: '合肥蓝天新能源有限公司',       address: '安徽省合肥市肥东县经济开发区',       nodeStatus: 'start', filingStatus: 'applying_start', policyType: 'standard',    createdAt: '2026-07-18 10:15', reviewProgress: { biz: 'pass', tech: null, eng: null } },
-  { id: 's05', stationNo: 'LNC-2026-0022', projectName: '南通市如皋市造纸厂屋顶光伏',       projectCompany: '南通绿源光伏投资有限公司',     agentName: '南通阳光能源科技有限公司',     address: '江苏省南通市如皋市长江工业园',       nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-15 15:30' },
-  { id: 's06', stationNo: 'LNC-2026-0023', projectName: '盐城市大丰区纺织工厂屋顶光伏',     projectCompany: '盐城新能源发展有限公司',       agentName: '盐城晴天能源有限公司',         address: '江苏省盐城市大丰区经济开发区',       nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-12 11:20' },
-  { id: 's10', stationNo: 'LNC-2026-0025', projectName: '扬州市江都区机械制造企业屋顶光伏', projectCompany: '扬州光伏资产有限公司',         agentName: '扬州新能源联合有限公司',       address: '江苏省扬州市江都区仙女工业区',       nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-08 09:30' },
+  { id: 's05', stationNo: 'LNC-2026-0022', projectName: '南通市如皋市造纸厂屋顶光伏',       projectCompany: '南通绿源光伏投资有限公司',     agentName: '南通阳光能源科技有限公司',     address: '江苏省南通市如皋市长江工业园',       nodeStatus: 'start', filingStatus: 'waiting_start',  policyType: 'nonstandard', createdAt: '2026-07-15 15:30', designCapacity: 250 },
+  { id: 's06', stationNo: 'LNC-2026-0023', projectName: '盐城市大丰区纺织工厂屋顶光伏',     projectCompany: '盐城新能源发展有限公司',       agentName: '盐城晴天能源有限公司',         address: '江苏省盐城市大丰区经济开发区',       nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-12 11:20', designCapacity: 600 },
+  { id: 's10', stationNo: 'LNC-2026-0025', projectName: '扬州市江都区机械制造企业屋顶光伏', projectCompany: '扬州光伏资产有限公司',         agentName: '扬州新能源联合有限公司',       address: '江苏省扬州市江都区仙女工业区',       nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',    createdAt: '2026-07-08 09:30', designCapacity: 500 },
   { id: 's08', stationNo: 'LNC-2026-0024', projectName: '连云港市赣榆区冷冻食品厂光伏',     projectCompany: '连云港绿源能源有限公司',       agentName: '连云港新日能源科技有限公司',   address: '江苏省连云港市赣榆区海州工业区',     nodeStatus: 'start', filingStatus: 'applying_start',  policyType: 'nonstandard', createdAt: '2026-07-10 13:00', reviewProgress: { biz: 'pass', tech: 'pass', eng: null } },
-  { id: 's11', stationNo: 'LNC-2026-0029', projectName: '淮安市清江浦区食品加工园光伏',     projectCompany: '淮安光伏资产运营有限公司',     agentName: '淮安阳光能源技术有限公司',     address: '江苏省淮安市清江浦区工业北区',       nodeStatus: 'start', filingStatus: 'start_rejected',  policyType: 'standard',    createdAt: '2026-07-08 09:15' },
-  { id: 's13', stationNo: 'LNC-2026-0031', projectName: '镇江市丹阳市眼镜配件厂屋顶光伏',   projectCompany: '镇江丹阳光伏资产有限公司',     agentName: '镇江新能源科技有限公司',       address: '江苏省镇江市丹阳市工业园区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',   createdAt: '2026-07-06 14:00' },
-  { id: 's14', stationNo: 'LNC-2026-0032', projectName: '泰州市海陵区机电设备厂屋顶光伏',   projectCompany: '泰州海陵光伏资产有限公司',     agentName: '泰州新能源发展有限公司',       address: '江苏省泰州市海陵区工业园区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',   createdAt: '2026-07-05 09:00' },
-  { id: 's12', stationNo: 'LNC-2026-0030', projectName: '宿迁市宿城区纺织服装工厂屋顶光伏', projectCompany: '宿迁清洁能源发展有限公司',     agentName: '宿迁晴天能源有限公司',         address: '江苏省宿迁市宿城区经济开发区',       nodeStatus: 'start', filingStatus: 'started',         policyType: 'standard',    createdAt: '2026-07-07 10:00' },
+  { id: 's11', stationNo: 'LNC-2026-0029', projectName: '淮安市清江浦区食品加工园光伏',     projectCompany: '淮安光伏资产运营有限公司',     agentName: '淮安阳光能源技术有限公司',     address: '江苏省淮安市清江浦区工业北区',       nodeStatus: 'start', filingStatus: 'start_rejected',  policyType: 'standard',    createdAt: '2026-07-08 09:15', designCapacity: 150 },
+  { id: 's13', stationNo: 'LNC-2026-0031', projectName: '镇江市丹阳市眼镜配件厂屋顶光伏',   projectCompany: '镇江丹阳光伏资产有限公司',     agentName: '镇江新能源科技有限公司',       address: '江苏省镇江市丹阳市工业园区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',   createdAt: '2026-07-06 14:00', designCapacity: 1000 },
+  { id: 's14', stationNo: 'LNC-2026-0032', projectName: '泰州市海陵区机电设备厂屋顶光伏',   projectCompany: '泰州海陵光伏资产有限公司',     agentName: '泰州新能源发展有限公司',       address: '江苏省泰州市海陵区工业园区',         nodeStatus: 'start', filingStatus: 'start_rejected',      policyType: 'standard',   createdAt: '2026-07-05 09:00', designCapacity: 2500 },
+  { id: 's12', stationNo: 'LNC-2026-0030', projectName: '宿迁市宿城区纺织服装工厂屋顶光伏', projectCompany: '宿迁清洁能源发展有限公司',     agentName: '宿迁晴天能源有限公司',         address: '江苏省宿迁市宿城区经济开发区',       nodeStatus: 'start', filingStatus: 'started',         policyType: 'standard',    createdAt: '2026-07-07 10:00', designCapacity: 200 },
 
   // ── 到货节点 × 6 ── 每条对应一个子状态，按流程顺序排列
-  { id: 'g01', stationNo: 'LNC-2026-0026', projectName: '苏州市吴中区精密仪器厂屋顶光伏',       projectCompany: '苏州精密光伏有限公司',         agentName: '苏州绿岛能源科技有限公司',     address: '江苏省苏州市吴中区东吴工业园',             nodeStatus: 'stock', filingStatus: 'waiting_stock',          policyType: 'standard',    createdAt: '2026-07-05 14:20' },
-  { id: 'g02', stationNo: 'LNC-2026-0027', projectName: '杭州市余杭区电商仓储园区光伏',         projectCompany: '杭州余杭光伏资产有限公司',       agentName: '杭州新能源联合有限公司',       address: '浙江省杭州市余杭区仓前工业区',             nodeStatus: 'stock', filingStatus: 'reviewing_stock',        policyType: 'nonstandard', createdAt: '2026-07-03 09:30' },
-  { id: 'g09', stationNo: 'LNC-2026-0028', projectName: '镇江市句容市农光互补屋顶光伏',         projectCompany: '镇江句容光伏资产有限公司',       agentName: '镇江绿能科技有限公司',         address: '江苏省镇江市句容市开发区工业园',           nodeStatus: 'stock', filingStatus: 'partial_stock_rejected', policyType: 'standard',    createdAt: '2026-07-01 16:00' },
-  { id: 'g10', stationNo: 'LNC-2026-0029', projectName: '扬州市仪征市化工企业屋顶光伏',         projectCompany: '扬州仪征光伏管理有限公司',       agentName: '扬州阳光能源技术有限公司',     address: '江苏省扬州市仪征市化工园区',               nodeStatus: 'stock', filingStatus: 'full_stock_rejected',    policyType: 'nonstandard', createdAt: '2026-06-28 10:30' },
-  { id: 'g04', stationNo: 'LNC-2026-0030', projectName: '南京市浦口区汽车零部件厂光伏',         projectCompany: '南京浦口光伏管理有限公司',       agentName: '南京绿能科技有限公司',         address: '江苏省南京市浦口区高新技术开发区',         nodeStatus: 'stock', filingStatus: 'partial_stock',          policyType: 'standard',    createdAt: '2026-06-25 15:00' },
-  { id: 'g06', stationNo: 'LNC-2026-0031', projectName: '常州市新北区轨道交通零件厂光伏',       projectCompany: '常州新北光伏资产有限公司',       agentName: '常州新日能源科技有限公司',     address: '江苏省常州市新北区高新技术园',             nodeStatus: 'stock', filingStatus: 'full_stock',             policyType: 'standard',    createdAt: '2026-06-22 08:30' },
-  { id: 'g07', stationNo: 'LNC-2026-0032', projectName: '嘉兴市平湖市箱包制造厂屋顶光伏',       projectCompany: '嘉兴平湖清洁能源有限公司',       agentName: '嘉兴阳光能源技术有限公司',     address: '浙江省嘉兴市平湖市独山港镇工业区',         nodeStatus: 'stock', filingStatus: 'waiting_stock',          policyType: 'standard',    createdAt: '2026-06-20 13:10' },
-  { id: 'g08', stationNo: 'LNC-2026-0033', projectName: '湖州市德清县农业园区屋顶光伏',         projectCompany: '湖州德清光伏有限公司',           agentName: '湖州绿源能源科技有限公司',     address: '浙江省湖州市德清县青山工业园',             nodeStatus: 'stock', filingStatus: 'reviewing_stock',        policyType: 'nonstandard', createdAt: '2026-06-18 09:00' },
-  { id: 'g03', stationNo: 'LNC-2026-0034', projectName: '宁波市北仑区港口仓储屋顶光伏',         projectCompany: '宁波北仑清洁能源有限公司',       agentName: '宁波晴天能源科技有限公司',     address: '浙江省宁波市北仑区大碶经济开发区',         nodeStatus: 'stock', filingStatus: 'partial_stock',          policyType: 'standard',    createdAt: '2026-06-16 11:00' },
-  { id: 'g05', stationNo: 'LNC-2026-0035', projectName: '无锡市锡山区家用电器厂光伏',           projectCompany: '无锡锡山光伏投资有限公司',       agentName: '无锡联合能源有限公司',         address: '江苏省无锡市锡山区东港工业园',             nodeStatus: 'stock', filingStatus: 'full_stock',             policyType: 'nonstandard', createdAt: '2026-06-14 10:45' },
+  { id: 'g01', stationNo: 'LNC-2026-0026', projectName: '苏州市吴中区精密仪器厂屋顶光伏',       projectCompany: '苏州精密光伏有限公司',         agentName: '苏州绿岛能源科技有限公司',     address: '江苏省苏州市吴中区东吴工业园',             nodeStatus: 'stock', filingStatus: 'waiting_stock',          policyType: 'standard',    createdAt: '2026-07-05 14:20', designCapacity: 200 },
+  { id: 'g02', stationNo: 'LNC-2026-0027', projectName: '杭州市余杭区电商仓储园区光伏',         projectCompany: '杭州余杭光伏资产有限公司',       agentName: '杭州新能源联合有限公司',       address: '浙江省杭州市余杭区仓前工业区',             nodeStatus: 'stock', filingStatus: 'reviewing_stock',        policyType: 'nonstandard', createdAt: '2026-07-03 09:30', designCapacity: 1500 },
+  { id: 'g09', stationNo: 'LNC-2026-0028', projectName: '镇江市句容市农光互补屋顶光伏',         projectCompany: '镇江句容光伏资产有限公司',       agentName: '镇江绿能科技有限公司',         address: '江苏省镇江市句容市开发区工业园',           nodeStatus: 'stock', filingStatus: 'partial_stock_rejected', policyType: 'standard',    createdAt: '2026-07-01 16:00', designCapacity: 600 },
+  { id: 'g10', stationNo: 'LNC-2026-0029', projectName: '扬州市仪征市化工企业屋顶光伏',         projectCompany: '扬州仪征光伏管理有限公司',       agentName: '扬州阳光能源技术有限公司',     address: '江苏省扬州市仪征市化工园区',               nodeStatus: 'stock', filingStatus: 'full_stock_rejected',    policyType: 'nonstandard', createdAt: '2026-06-28 10:30', designCapacity: 600 },
+  { id: 'g04', stationNo: 'LNC-2026-0030', projectName: '南京市浦口区汽车零部件厂光伏',         projectCompany: '南京浦口光伏管理有限公司',       agentName: '南京绿能科技有限公司',         address: '江苏省南京市浦口区高新技术开发区',         nodeStatus: 'stock', filingStatus: 'partial_stock',          policyType: 'standard',    createdAt: '2026-06-25 15:00', designCapacity: 100 },
+  { id: 'g06', stationNo: 'LNC-2026-0031', projectName: '常州市新北区轨道交通零件厂光伏',       projectCompany: '常州新北光伏资产有限公司',       agentName: '常州新日能源科技有限公司',     address: '江苏省常州市新北区高新技术园',             nodeStatus: 'stock', filingStatus: 'full_stock',             policyType: 'standard',    createdAt: '2026-06-22 08:30', designCapacity: 500 },
+  { id: 'g07', stationNo: 'LNC-2026-0032', projectName: '嘉兴市平湖市箱包制造厂屋顶光伏',       projectCompany: '嘉兴平湖清洁能源有限公司',       agentName: '嘉兴阳光能源技术有限公司',     address: '浙江省嘉兴市平湖市独山港镇工业区',         nodeStatus: 'stock', filingStatus: 'waiting_stock',          policyType: 'standard',    createdAt: '2026-06-20 13:10', designCapacity: 1500 },
+  { id: 'g08', stationNo: 'LNC-2026-0033', projectName: '湖州市德清县农业园区屋顶光伏',         projectCompany: '湖州德清光伏有限公司',           agentName: '湖州绿源能源科技有限公司',     address: '浙江省湖州市德清县青山工业园',             nodeStatus: 'stock', filingStatus: 'reviewing_stock',        policyType: 'nonstandard', createdAt: '2026-06-18 09:00', designCapacity: 500 },
+  { id: 'g03', stationNo: 'LNC-2026-0034', projectName: '宁波市北仑区港口仓储屋顶光伏',         projectCompany: '宁波北仑清洁能源有限公司',       agentName: '宁波晴天能源科技有限公司',     address: '浙江省宁波市北仑区大碶经济开发区',         nodeStatus: 'stock', filingStatus: 'partial_stock',          policyType: 'standard',    createdAt: '2026-06-16 11:00', designCapacity: 400 },
+  { id: 'g05', stationNo: 'LNC-2026-0035', projectName: '无锡市锡山区家用电器厂光伏',           projectCompany: '无锡锡山光伏投资有限公司',       agentName: '无锡联合能源有限公司',         address: '江苏省无锡市锡山区东港工业园',             nodeStatus: 'stock', filingStatus: 'full_stock',             policyType: 'nonstandard', createdAt: '2026-06-14 10:45', designCapacity: 3000 },
 
   // ── 完工节点 × 12 ──
-  { id: 'c01', stationNo: 'LNC-2026-0036', projectName: '绍兴市诸暨市纺织企业屋顶光伏',   projectCompany: '绍兴诸暨光伏资产有限公司',   agentName: '绍兴新能源发展有限公司',       address: '浙江省绍兴市诸暨市大唐工业区',       nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-06-15 14:30' },
-  { id: 'c02', stationNo: 'LNC-2026-0037', projectName: '温州市乐清市电气企业屋顶光伏',   projectCompany: '温州乐清清洁能源有限公司',   agentName: '温州蓝天能源有限公司',           address: '浙江省温州市乐清市柳市工业区',       nodeStatus: 'complete', filingStatus: 'complete_rejected',  policyType: 'standard',    createdAt: '2026-06-12 10:00' },
-  { id: 'c03', stationNo: 'LNC-2026-0038', projectName: '台州市黄岩区模具企业屋顶光伏',   projectCompany: '台州黄岩光伏管理有限公司',   agentName: '台州晴天能源科技有限公司',       address: '浙江省台州市黄岩区工业园区',         nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-06-10 09:15' },
-  { id: 'c04', stationNo: 'LNC-2026-0039', projectName: '合肥市庐江县农业大棚屋顶光伏',   projectCompany: '合肥庐江光伏投资有限公司',   agentName: '合肥绿源能源技术有限公司',       address: '安徽省合肥市庐江县工业经济区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-06-08 15:45' },
-  { id: 'c05', stationNo: 'LNC-2026-0040', projectName: '芜湖市繁昌区冶金企业屋顶光伏',   projectCompany: '芜湖繁昌光伏资产有限公司',   agentName: '芜湖新日能源有限公司',           address: '安徽省芜湖市繁昌区工业集中区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'nonstandard', createdAt: '2026-06-05 11:30' },
-  { id: 'c06', stationNo: 'LNC-2026-0041', projectName: '南通市海安市家具制造厂光伏',     projectCompany: '南通海安光伏有限公司',       agentName: '南通联合能源科技有限公司',       address: '江苏省南通市海安市工业新区',         nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-06-02 08:00' },
-  { id: 'c07', stationNo: 'LNC-2026-0042', projectName: '盐城市东台市建材工厂屋顶光伏',   projectCompany: '盐城东台光伏管理有限公司',   agentName: '盐城阳光能源科技有限公司',       address: '江苏省盐城市东台市工业园区',         nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-05-28 14:20' },
-  { id: 'c08', stationNo: 'LNC-2026-0043', projectName: '徐州市贾汪区煤化工厂光伏',       projectCompany: '徐州贾汪清洁能源有限公司',   agentName: '徐州绿能科技有限公司',           address: '江苏省徐州市贾汪区工业集中区',       nodeStatus: 'complete', filingStatus: 'complete_rejected',  policyType: 'standard',    createdAt: '2026-05-25 10:10' },
-  { id: 'c09', stationNo: 'LNC-2026-0044', projectName: '苏州市太仓市港口物流屋顶光伏',   projectCompany: '苏州太仓光伏资产有限公司',   agentName: '苏州新能源联合有限公司',         address: '江苏省苏州市太仓市港区工业园',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-05-22 09:00' },
-  { id: 'c10', stationNo: 'LNC-2026-0045', projectName: '杭州市临安区木制品加工厂光伏',   projectCompany: '杭州临安光伏投资有限公司',   agentName: '杭州蓝天能源有限公司',           address: '浙江省杭州市临安区板桥工业区',       nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-05-20 15:00' },
-  { id: 'c11', stationNo: 'LNC-2026-0046', projectName: '宁波市象山县水产加工厂光伏',     projectCompany: '宁波象山清洁能源有限公司',   agentName: '宁波晴天能源科技有限公司',       address: '浙江省宁波市象山县爵溪工业区',       nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-05-18 11:30' },
-  { id: 'c12', stationNo: 'LNC-2026-0047', projectName: '南京市溧水区航空零件厂光伏',     projectCompany: '南京溧水光伏管理有限公司',   agentName: '南京绿源能源技术有限公司',       address: '江苏省南京市溧水区经济开发区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-05-15 08:45' },
+  { id: 'c01', stationNo: 'LNC-2026-0036', projectName: '绍兴市诸暨市纺织企业屋顶光伏',   projectCompany: '绍兴诸暨光伏资产有限公司',   agentName: '绍兴新能源发展有限公司',       address: '浙江省绍兴市诸暨市大唐工业区',       nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-06-15 14:30', designCapacity: 2500 },
+  { id: 'c02', stationNo: 'LNC-2026-0037', projectName: '温州市乐清市电气企业屋顶光伏',   projectCompany: '温州乐清清洁能源有限公司',   agentName: '温州蓝天能源有限公司',           address: '浙江省温州市乐清市柳市工业区',       nodeStatus: 'complete', filingStatus: 'complete_rejected',  policyType: 'standard',    createdAt: '2026-06-12 10:00', designCapacity: 2500 },
+  { id: 'c03', stationNo: 'LNC-2026-0038', projectName: '台州市黄岩区模具企业屋顶光伏',   projectCompany: '台州黄岩光伏管理有限公司',   agentName: '台州晴天能源科技有限公司',       address: '浙江省台州市黄岩区工业园区',         nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-06-10 09:15', designCapacity: 200 },
+  { id: 'c04', stationNo: 'LNC-2026-0039', projectName: '合肥市庐江县农业大棚屋顶光伏',   projectCompany: '合肥庐江光伏投资有限公司',   agentName: '合肥绿源能源技术有限公司',       address: '安徽省合肥市庐江县工业经济区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-06-08 15:45', designCapacity: 150 },
+  { id: 'c05', stationNo: 'LNC-2026-0040', projectName: '芜湖市繁昌区冶金企业屋顶光伏',   projectCompany: '芜湖繁昌光伏资产有限公司',   agentName: '芜湖新日能源有限公司',           address: '安徽省芜湖市繁昌区工业集中区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'nonstandard', createdAt: '2026-06-05 11:30', designCapacity: 200 },
+  { id: 'c06', stationNo: 'LNC-2026-0041', projectName: '南通市海安市家具制造厂光伏',     projectCompany: '南通海安光伏有限公司',       agentName: '南通联合能源科技有限公司',       address: '江苏省南通市海安市工业新区',         nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-06-02 08:00', designCapacity: 300 },
+  { id: 'c07', stationNo: 'LNC-2026-0042', projectName: '盐城市东台市建材工厂屋顶光伏',   projectCompany: '盐城东台光伏管理有限公司',   agentName: '盐城阳光能源科技有限公司',       address: '江苏省盐城市东台市工业园区',         nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-05-28 14:20', designCapacity: 500 },
+  { id: 'c08', stationNo: 'LNC-2026-0043', projectName: '徐州市贾汪区煤化工厂光伏',       projectCompany: '徐州贾汪清洁能源有限公司',   agentName: '徐州绿能科技有限公司',           address: '江苏省徐州市贾汪区工业集中区',       nodeStatus: 'complete', filingStatus: 'complete_rejected',  policyType: 'standard',    createdAt: '2026-05-25 10:10', designCapacity: 250 },
+  { id: 'c09', stationNo: 'LNC-2026-0044', projectName: '苏州市太仓市港口物流屋顶光伏',   projectCompany: '苏州太仓光伏资产有限公司',   agentName: '苏州新能源联合有限公司',         address: '江苏省苏州市太仓市港区工业园',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-05-22 09:00', designCapacity: 300 },
+  { id: 'c10', stationNo: 'LNC-2026-0045', projectName: '杭州市临安区木制品加工厂光伏',   projectCompany: '杭州临安光伏投资有限公司',   agentName: '杭州蓝天能源有限公司',           address: '浙江省杭州市临安区板桥工业区',       nodeStatus: 'complete', filingStatus: 'reviewing_complete', policyType: 'standard',    createdAt: '2026-05-20 15:00', designCapacity: 1500 },
+  { id: 'c11', stationNo: 'LNC-2026-0046', projectName: '宁波市象山县水产加工厂光伏',     projectCompany: '宁波象山清洁能源有限公司',   agentName: '宁波晴天能源科技有限公司',       address: '浙江省宁波市象山县爵溪工业区',       nodeStatus: 'complete', filingStatus: 'completed',          policyType: 'standard',    createdAt: '2026-05-18 11:30', designCapacity: 200 },
+  { id: 'c12', stationNo: 'LNC-2026-0047', projectName: '南京市溧水区航空零件厂光伏',     projectCompany: '南京溧水光伏管理有限公司',   agentName: '南京绿源能源技术有限公司',       address: '江苏省南京市溧水区经济开发区',       nodeStatus: 'complete', filingStatus: 'waiting_complete',   policyType: 'standard',    createdAt: '2026-05-15 08:45', designCapacity: 500 },
 
   // ── 派工节点（方案B专有）──
-  { id: 'dp01', stationNo: 'LNC-2026-0048a', projectName: '无锡市江阴市精密零件厂屋顶光伏',     projectCompany: '无锡江阴精工能源有限公司',       agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区A区',     nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'standard',    createdAt: '2026-05-08 09:00' },
-  { id: 'dp02', stationNo: 'LNC-2026-0048b', projectName: '无锡市江阴市电气设备厂屋顶光伏',     projectCompany: '无锡江阴电气清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区B区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-05-06 14:00' },
-  { id: 'dp03', stationNo: 'LNC-2026-0048c', projectName: '无锡市江阴市汽车配件厂屋顶光伏',     projectCompany: '无锡江阴汽配清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区C区',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-05-04 10:00' },
-  { id: 'dp04', stationNo: 'LNC-2026-0049a', projectName: '苏州市吴江区纺织印染厂屋顶光伏',     projectCompany: '苏州吴江清洁能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区盛泽镇工业园',       nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'nonstandard', createdAt: '2026-05-03 11:30' },
-  { id: 'dp05', stationNo: 'LNC-2026-0049b', projectName: '苏州市吴江区电子元器件厂屋顶光伏',   projectCompany: '苏州吴江电子能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区震泽镇工业区',       nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'nonstandard', createdAt: '2026-05-01 09:00' },
-  { id: 'dp06', stationNo: 'LNC-2026-0050a', projectName: '南京市江宁区智能制造产业园屋顶光伏', projectCompany: '南京江宁智慧能源有限公司',       agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区麒麟科技创新园',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-04-28 15:00' },
-  { id: 'dp07', stationNo: 'LNC-2026-0050b', projectName: '南京市江宁区新能源装备厂屋顶光伏',   projectCompany: '南京江宁清洁能源科技有限公司', agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区禄口经济开发区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-04-25 10:30' },
+  { id: 'dp01', stationNo: 'LNC-2026-0048a', projectName: '无锡市江阴市精密零件厂屋顶光伏',     projectCompany: '无锡江阴精工能源有限公司',       agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区A区',     nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'standard',    createdAt: '2026-05-08 09:00', designCapacity: 100 },
+  { id: 'dp02', stationNo: 'LNC-2026-0048b', projectName: '无锡市江阴市电气设备厂屋顶光伏',     projectCompany: '无锡江阴电气清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区B区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-05-06 14:00', designCapacity: 200 },
+  { id: 'dp03', stationNo: 'LNC-2026-0048c', projectName: '无锡市江阴市汽车配件厂屋顶光伏',     projectCompany: '无锡江阴汽配清洁能源有限公司',   agentName: '无锡联合能源有限公司',     address: '江苏省无锡市江阴市临港工业区C区',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-05-04 10:00', designCapacity: 500 },
+  { id: 'dp04', stationNo: 'LNC-2026-0049a', projectName: '苏州市吴江区纺织印染厂屋顶光伏',     projectCompany: '苏州吴江清洁能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区盛泽镇工业园',       nodeStatus: 'dispatch', filingStatus: 'waiting_dispatch', policyType: 'nonstandard', createdAt: '2026-05-03 11:30', designCapacity: 300 },
+  { id: 'dp05', stationNo: 'LNC-2026-0049b', projectName: '苏州市吴江区电子元器件厂屋顶光伏',   projectCompany: '苏州吴江电子能源有限公司',       agentName: '苏州绿岛能源科技有限公司', address: '江苏省苏州市吴江区震泽镇工业区',       nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'nonstandard', createdAt: '2026-05-01 09:00', designCapacity: 300 },
+  { id: 'dp06', stationNo: 'LNC-2026-0050a', projectName: '南京市江宁区智能制造产业园屋顶光伏', projectCompany: '南京江宁智慧能源有限公司',       agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区麒麟科技创新园',     nodeStatus: 'dispatch', filingStatus: 'dispatched',       policyType: 'standard',    createdAt: '2026-04-28 15:00', designCapacity: 1200 },
+  { id: 'dp07', stationNo: 'LNC-2026-0050b', projectName: '南京市江宁区新能源装备厂屋顶光伏',   projectCompany: '南京江宁清洁能源科技有限公司', agentName: '南京绿能科技有限公司',     address: '江苏省南京市江宁区禄口经济开发区',     nodeStatus: 'dispatch', filingStatus: 'dispatching',      policyType: 'standard',    createdAt: '2026-04-25 10:30', designCapacity: 100 },
 
   // ── 并网节点 × 4 ── filingStatus 待补充
-  { id: 'p01', stationNo: 'LNC-2026-0048', projectName: '无锡市江阴市钢铁企业屋顶光伏', projectCompany: '无锡江阴光伏资产有限公司', agentName: '无锡联合能源有限公司', address: '江苏省无锡市江阴市临港工业区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-05-10 14:00' },
-  { id: 'p02', stationNo: 'LNC-2026-0049', projectName: '常州市金坛区蓄电池工厂屋顶光伏', projectCompany: '常州金坛光伏有限公司', agentName: '常州新日能源科技有限公司', address: '江苏省常州市金坛区工业新区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'nonstandard', createdAt: '2026-05-05 10:30' },
-  { id: 'p03', stationNo: 'LNC-2026-0050', projectName: '苏州市昆山市电子制造企业光伏', projectCompany: '苏州昆山光伏投资有限公司', agentName: '苏州阳光新能源技术有限公司', address: '江苏省苏州市昆山市开发区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-28 09:00' },
-  { id: 'p04', stationNo: 'LNC-2026-0051', projectName: '嘉兴市桐乡市纺织品工厂光伏', projectCompany: '嘉兴桐乡清洁能源有限公司', agentName: '嘉兴蓝日能源技术有限公司', address: '浙江省嘉兴市桐乡市振东工业区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-20 15:20' },
+  { id: 'p01', stationNo: 'LNC-2026-0048', projectName: '无锡市江阴市钢铁企业屋顶光伏', projectCompany: '无锡江阴光伏资产有限公司', agentName: '无锡联合能源有限公司', address: '江苏省无锡市江阴市临港工业区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-05-10 14:00', designCapacity: 1200 },
+  { id: 'p02', stationNo: 'LNC-2026-0049', projectName: '常州市金坛区蓄电池工厂屋顶光伏', projectCompany: '常州金坛光伏有限公司', agentName: '常州新日能源科技有限公司', address: '江苏省常州市金坛区工业新区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'nonstandard', createdAt: '2026-05-05 10:30', designCapacity: 2500 },
+  { id: 'p03', stationNo: 'LNC-2026-0050', projectName: '苏州市昆山市电子制造企业光伏', projectCompany: '苏州昆山光伏投资有限公司', agentName: '苏州阳光新能源技术有限公司', address: '江苏省苏州市昆山市开发区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-28 09:00', designCapacity: 600 },
+  { id: 'p04', stationNo: 'LNC-2026-0051', projectName: '嘉兴市桐乡市纺织品工厂光伏', projectCompany: '嘉兴桐乡清洁能源有限公司', agentName: '嘉兴蓝日能源技术有限公司', address: '浙江省嘉兴市桐乡市振东工业区', nodeStatus: 'grid', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-20 15:20', designCapacity: 250 },
 
   // ── 竣工节点 × 3 ── filingStatus 待补充
-  { id: 'd01', stationNo: 'LNC-2026-0052', projectName: '杭州市萧山区化纤工厂屋顶光伏', projectCompany: '杭州萧山光伏资产有限公司', agentName: '浙江绿能科技有限公司', address: '浙江省杭州市萧山区义蓬工业区', nodeStatus: 'done', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-10 10:00' },
-  { id: 'd02', stationNo: 'LNC-2026-0053', projectName: '南京市栖霞区生物医药厂屋顶光伏', projectCompany: '南京栖霞光伏管理有限公司', agentName: '南京清洁能源有限公司', address: '江苏省南京市栖霞区仙林科技城', nodeStatus: 'done', filingStatus: undefined, policyType: 'nonstandard', createdAt: '2026-03-25 14:30' },
-  { id: 'd03', stationNo: 'LNC-2026-0054', projectName: '苏州市虎丘区光学镜片厂光伏', projectCompany: '苏州虎丘光伏投资有限公司', agentName: '苏州阳光新能源技术有限公司', address: '江苏省苏州市虎丘区工业园区', nodeStatus: 'done', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-03-15 09:00' },
+  { id: 'd01', stationNo: 'LNC-2026-0052', projectName: '杭州市萧山区化纤工厂屋顶光伏', projectCompany: '杭州萧山光伏资产有限公司', agentName: '浙江绿能科技有限公司', address: '浙江省杭州市萧山区义蓬工业区', nodeStatus: 'done', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-04-10 10:00', designCapacity: 2000 },
+  { id: 'd02', stationNo: 'LNC-2026-0053', projectName: '南京市栖霞区生物医药厂屋顶光伏', projectCompany: '南京栖霞光伏管理有限公司', agentName: '南京清洁能源有限公司', address: '江苏省南京市栖霞区仙林科技城', nodeStatus: 'done', filingStatus: undefined, policyType: 'nonstandard', createdAt: '2026-03-25 14:30', designCapacity: 300 },
+  { id: 'd03', stationNo: 'LNC-2026-0054', projectName: '苏州市虎丘区光学镜片厂光伏', projectCompany: '苏州虎丘光伏投资有限公司', agentName: '苏州阳光新能源技术有限公司', address: '江苏省苏州市虎丘区工业园区', nodeStatus: 'done', filingStatus: undefined, policyType: 'standard',    createdAt: '2026-03-15 09:00', designCapacity: 500 },
 ]
 
 async function getProjectList(params: any): Promise<{ list: any[]; total: number }> {
@@ -1000,6 +1020,7 @@ async function getProjectList(params: any): Promise<{ list: any[]; total: number
   if (params.agentName)            list = list.filter(r => r.agentName.includes(params.agentName))
   if (params.projectCompany)       list = list.filter(r => r.projectCompany.includes(params.projectCompany))
   if (params.address)              list = list.filter(r => r.address.includes(params.address))
+  if (params.policyType)           list = list.filter(r => r.policyType === params.policyType)
 
   const total = list.length
   const page  = params.pageIndex ?? 1
@@ -1270,5 +1291,8 @@ async function voidProject(_id: string) {
 .ant-table-thead > tr > .ant-table-cell-fix-right {
   background: #fafafa !important;
   z-index: 5 !important;
+}
+.hide-node-filter :deep(.ant-form-item:has(.filter-node-status)) {
+  display: none;
 }
 </style>
