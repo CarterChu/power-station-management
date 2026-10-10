@@ -61,7 +61,7 @@
           </a-col>
           <a-col :span="6">
             <a-form-item label="项目名称">
-              <a-input v-model:value="form.projectName" placeholder="请输入项目名称" />
+              <a-input v-model:value="form.projectName" placeholder="请输入项目名称" :disabled="isEdit" />
             </a-form-item>
           </a-col>
           <a-col :span="6">
