@@ -250,7 +250,42 @@ const formData = reactive({
   status: props.initRow?.status ?? 'draft',
 })
 
-const stationList = ref<any[]>(props.initRow?.stations ?? [])
+const MOCK_POOL_STATIONS = [
+  { stationId: 'ps01', stationNo: 'FJZ-2025-001001', owner: '张三', address: '浙江省杭州市余杭区未来科技城', agent: '杭州阳光新能源科技有限公司', exclusiveBatch: null },
+  { stationId: 'ps02', stationNo: 'FJZ-2025-001002', owner: '李四', address: '浙江省宁波市鄞州区', agent: '宁波绿能电力安装有限公司', exclusiveBatch: 'FJB-2026-004' },
+  { stationId: 'ps03', stationNo: 'FJZ-2025-001003', owner: '王五', address: '江苏省苏州市工业园区', agent: '苏州工业光伏集成商', exclusiveBatch: null },
+  { stationId: 'ps04', stationNo: 'FJZ-2025-001004', owner: '赵六', address: '安徽省合肥市蜀山区', agent: '合肥绿色能源技术有限公司', exclusiveBatch: null },
+  { stationId: 'ps05', stationNo: 'FJZ-2025-001005', owner: '孙七', address: '浙江省温州市鹿城区', agent: '温州光能工程技术有限公司', exclusiveBatch: 'FJB-2026-004' },
+  { stationId: 'ps06', stationNo: 'FJZ-2025-001006', owner: '周八', address: '江苏省南京市江宁区', agent: '南京太阳能科技有限公司', exclusiveBatch: null },
+  { stationId: 'ps07', stationNo: 'FJZ-2025-001007', owner: '吴九', address: '浙江省杭州市萧山区', agent: '杭州阳光新能源科技有限公司', exclusiveBatch: null },
+  { stationId: 'ps08', stationNo: 'FJZ-2025-001008', owner: '郑十', address: '安徽省芜湖市弋江区', agent: '芜湖清洁能源发展有限公司', exclusiveBatch: null },
+  { stationId: 'ps09', stationNo: 'FJZ-2025-001009', owner: '冯一', address: '浙江省宁波市江北区', agent: '宁波绿能电力安装有限公司', exclusiveBatch: null },
+  { stationId: 'ps10', stationNo: 'FJZ-2025-001010', owner: '陈二', address: '江苏省苏州市虎丘区', agent: '苏州工业光伏集成商', exclusiveBatch: null },
+  { stationId: 'ps11', stationNo: 'FJZ-2025-001011', owner: '褚三', address: '浙江省金华市婺城区', agent: '金华光伏建设集团有限公司', exclusiveBatch: null },
+  { stationId: 'ps12', stationNo: 'FJZ-2025-001012', owner: '卫四', address: '安徽省合肥市包河区', agent: '合肥绿色能源技术有限公司', exclusiveBatch: null },
+  { stationId: 'ps13', stationNo: 'FJZ-2025-001013', owner: '蒋五', address: '浙江省嘉兴市南湖区', agent: '嘉兴绿能光伏安装有限公司', exclusiveBatch: null },
+  { stationId: 'ps14', stationNo: 'FJZ-2025-001014', owner: '沈六', address: '江苏省无锡市惠山区', agent: '无锡新能源科技开发有限公司', exclusiveBatch: null },
+  { stationId: 'ps15', stationNo: 'FJZ-2025-001015', owner: '韩七', address: '安徽省芜湖市鸠江区', agent: '芜湖清洁能源发展有限公司', exclusiveBatch: null },
+  { stationId: 'ps16', stationNo: 'FJZ-2025-001016', owner: '杨八', address: '浙江省绍兴市越城区', agent: '绍兴阳光光伏工程有限公司', exclusiveBatch: null },
+  { stationId: 'ps17', stationNo: 'FJZ-2025-001017', owner: '朱九', address: '江苏省常州市武进区', agent: '常州绿色能源技术有限公司', exclusiveBatch: null },
+  { stationId: 'ps18', stationNo: 'FJZ-2025-001018', owner: '秦十', address: '浙江省台州市椒江区', agent: '台州光能工程技术有限公司', exclusiveBatch: null },
+  { stationId: 'ps19', stationNo: 'FJZ-2025-001019', owner: '尤一', address: '安徽省蚌埠市蚌山区', agent: '蚌埠新能源发展有限公司', exclusiveBatch: null },
+  { stationId: 'ps20', stationNo: 'FJZ-2025-001020', owner: '许二', address: '江苏省扬州市广陵区', agent: '扬州太阳能科技有限公司', exclusiveBatch: null },
+]
+
+// 编辑模式下根据 stationCount 自动填充 stationList（仅当 initRow 未携带 stations 时）
+function buildInitStations(row: any): any[] {
+  if (!row || row.stationCount == null || row.stationCount === 0) return []
+  const engIds = ['eng01', 'eng02', 'eng03', 'eng04', 'eng05']
+  const engNames = ['赵飞', '刘海', '黄磊', '周斌', '吴杰']
+  return MOCK_POOL_STATIONS.slice(0, row.stationCount).map((s, i) => ({
+    ...s,
+    engineerId: i % 3 === 2 ? undefined : engIds[i % engIds.length],
+    engineerName: i % 3 === 2 ? '' : engNames[i % engNames.length],
+  }))
+}
+
+const stationList = ref<any[]>(props.initRow?.stations ?? buildInitStations(props.initRow))
 const savingDraft = ref(false)
 const submitting = ref(false)
 const addStationVisible = ref(false)
@@ -267,21 +302,6 @@ const stationColumns = [
   { title: '地址', dataIndex: 'address', key: 'address', ellipsis: true },
   { title: '飞检工程师', key: 'engineer', width: 150 },
   { title: '操作', key: 'action', width: 80, fixed: 'right' as const },
-]
-
-const MOCK_POOL_STATIONS = [
-  { stationId: 'ps01', stationNo: 'FJZ-2025-001001', owner: '张三', address: '浙江省杭州市余杭区未来科技城', agent: '杭州阳光新能源科技有限公司', exclusiveBatch: null },
-  { stationId: 'ps02', stationNo: 'FJZ-2025-001002', owner: '李四', address: '浙江省宁波市鄞州区', agent: '宁波绿能电力安装有限公司', exclusiveBatch: 'FJB-2026-004' },
-  { stationId: 'ps03', stationNo: 'FJZ-2025-001003', owner: '王五', address: '江苏省苏州市工业园区', agent: '苏州工业光伏集成商', exclusiveBatch: null },
-  { stationId: 'ps04', stationNo: 'FJZ-2025-001004', owner: '赵六', address: '安徽省合肥市蜀山区', agent: '合肥绿色能源技术有限公司', exclusiveBatch: null },
-  { stationId: 'ps05', stationNo: 'FJZ-2025-001005', owner: '孙七', address: '浙江省温州市鹿城区', agent: '温州光能工程技术有限公司', exclusiveBatch: 'FJB-2026-004' },
-  { stationId: 'ps06', stationNo: 'FJZ-2025-001006', owner: '周八', address: '江苏省南京市江宁区', agent: '南京太阳能科技有限公司', exclusiveBatch: null },
-  { stationId: 'ps07', stationNo: 'FJZ-2025-001007', owner: '吴九', address: '浙江省杭州市萧山区', agent: '杭州阳光新能源科技有限公司', exclusiveBatch: null },
-  { stationId: 'ps08', stationNo: 'FJZ-2025-001008', owner: '郑十', address: '安徽省芜湖市弋江区', agent: '芜湖清洁能源发展有限公司', exclusiveBatch: null },
-  { stationId: 'ps09', stationNo: 'FJZ-2025-001009', owner: '冯一', address: '浙江省宁波市江北区', agent: '宁波绿能电力安装有限公司', exclusiveBatch: null },
-  { stationId: 'ps10', stationNo: 'FJZ-2025-001010', owner: '陈二', address: '江苏省苏州市虎丘区', agent: '苏州工业光伏集成商', exclusiveBatch: null },
-  { stationId: 'ps11', stationNo: 'FJZ-2025-001011', owner: '褚三', address: '浙江省金华市婺城区', agent: '金华光伏建设集团有限公司', exclusiveBatch: null },
-  { stationId: 'ps12', stationNo: 'FJZ-2025-001012', owner: '卫四', address: '安徽省合肥市包河区', agent: '合肥绿色能源技术有限公司', exclusiveBatch: null },
 ]
 
 // ── 选人弹窗 ──────────────────────────────────────────────────────────────
