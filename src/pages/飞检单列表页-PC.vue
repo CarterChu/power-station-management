@@ -46,10 +46,9 @@
             <a-button
               v-if="row.checkStatus === 'pending'"
               type="link" size="small"
-              style="color:#fa8c16"
               @click="handleStartCheck(row)"
-            >开始飞检</a-button>
-            <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+            >执行飞检</a-button>
+            <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
           </a-space>
         </template>
       </AnfeProTable>
@@ -102,7 +101,7 @@ const columns: any[] = [
   { title: '缺陷统计', key: 'defects', width: 180, component: 'custom', slotName: 'defectsSlot' },
   { title: '检查状态', key: 'checkStatus', width: 110, component: 'custom', slotName: 'checkStatusSlot' },
   { title: '整改状态', key: 'rectifyStatus', width: 110, component: 'custom', slotName: 'rectifyStatusSlot' },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 100, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 150, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
