@@ -22,18 +22,39 @@
       <!-- 左栏：基本信息 -->
       <div class="sidebar-info">
         <div class="info-card">
-          <div class="info-card-title">基本信息</div>
-          <div class="info-row"><span class="il">飞检单号</span><span class="iv">{{ sheet.sheetNo }}</span></div>
-          <div class="info-row"><span class="il">所属批次</span><span class="iv">{{ sheet.batchNo }}</span></div>
-          <div class="info-row"><span class="il">电站编号</span><span class="iv">{{ sheet.stationNo }}</span></div>
-          <div class="info-row"><span class="il">业主</span><span class="iv">{{ sheet.owner }}</span></div>
-          <div class="info-row"><span class="il">代理商</span><span class="iv ellipsis">{{ sheet.agent }}</span></div>
-          <div class="info-row"><span class="il">飞检工程师</span><span class="iv">{{ sheet.engineer }}</span></div>
-          <div class="info-row"><span class="il">飞检日期</span><span class="iv">{{ sheet.checkDate }}</span></div>
+          <div class="card-section-title">基本信息</div>
+          <div class="form-item">
+            <div class="form-label">飞检单号</div>
+            <div class="form-value">{{ sheet.sheetNo }}</div>
+          </div>
+          <div class="form-item">
+            <div class="form-label">所属批次</div>
+            <div class="form-value">{{ sheet.batchNo }}</div>
+          </div>
+          <div class="form-item">
+            <div class="form-label">电站编号</div>
+            <div class="form-value">{{ sheet.stationNo }}</div>
+          </div>
+          <div class="form-item">
+            <div class="form-label">业主</div>
+            <div class="form-value">{{ sheet.owner }}</div>
+          </div>
+          <div class="form-item">
+            <div class="form-label">代理商</div>
+            <div class="form-value ellipsis">{{ sheet.agent }}</div>
+          </div>
+          <div class="form-item">
+            <div class="form-label">飞检工程师</div>
+            <div class="form-value">{{ sheet.engineer }}</div>
+          </div>
+          <div class="form-item" style="margin-bottom:0">
+            <div class="form-label">飞检日期</div>
+            <div class="form-value">{{ sheet.checkDate }}</div>
+          </div>
         </div>
         <!-- 缺陷实时统计 -->
         <div class="info-card defect-live">
-          <div class="info-card-title">缺陷统计（实时）</div>
+          <div class="card-section-title">缺陷统计（实时）</div>
           <div class="defect-stat-row">
             <div class="ds-item cr"><div class="dsi-num">{{ crLive }}</div><div class="dsi-label">CR 严重</div></div>
             <div class="ds-item ma"><div class="dsi-num">{{ maLive }}</div><div class="dsi-label">MA 主要</div></div>
@@ -213,13 +234,13 @@ async function handleSubmit() {
 .page-body { display: flex; gap: 14px; padding: 14px; flex: 1; overflow: hidden; }
 
 /* 左栏 */
-.sidebar-info { width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.info-card { background: #fff; border-radius: 8px; padding: 14px 16px; }
-.info-card-title { font-size: 14px; font-weight: 600; color: #262626; margin-bottom: 12px; }
-.info-row { display: flex; gap: 8px; font-size: 13px; margin-bottom: 8px; }
-.il { color: rgba(0,0,0,.45); white-space: nowrap; width: 72px; flex-shrink: 0; }
-.iv { color: #262626; flex: 1; }
-.iv.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-info { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.info-card { background: #fff; border-radius: 8px; padding: 18px 16px; }
+.card-section-title { font-size: 15px; font-weight: 600; color: #262626; margin-bottom: 20px; }
+.form-item { margin-bottom: 16px; }
+.form-label { font-size: 13px; color: rgba(0,0,0,.45); margin-bottom: 4px; }
+.form-value { font-size: 14px; color: #262626; }
+.form-value.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .defect-stat-row { display: flex; gap: 8px; }
 .ds-item { flex: 1; text-align: center; padding: 8px 4px; border-radius: 6px; border: 1px solid; }
