@@ -88,9 +88,16 @@
               >
                 <a-sub-menu v-for="group in menuGroups" :key="group.domain" :title="group.domain">
                   <template #icon><component :is="group.icon" /></template>
-                  <a-menu-item v-for="item in group.items" :key="item.key">
-                    {{ item.label }}
-                  </a-menu-item>
+                  <template v-for="item in group.items" :key="item.key">
+                    <a-sub-menu v-if="item.children" :key="item.key" :title="item.label">
+                      <a-menu-item v-for="child in item.children" :key="child.key">
+                        {{ child.label }}
+                      </a-menu-item>
+                    </a-sub-menu>
+                    <a-menu-item v-else :key="item.key">
+                      {{ item.label }}
+                    </a-menu-item>
+                  </template>
                 </a-sub-menu>
               </a-menu>
 
@@ -138,7 +145,15 @@
 
           <!-- 页面内容 -->
           <div class="app-content">
-            <LncProjectList v-if="activeTabKey === 'list'" @navigate="handleNavigate" />
+            <!-- 飞检功能页面 -->
+            <FjBatchList v-if="activeTabKey === 'fj-batch-list'" :pending-new-batch="fjPendingNewBatch" @navigate="handleNavigate" @batch-added="fjPendingNewBatch = null" />
+            <FjBatchEdit v-else-if="activeTabKey === 'fj-batch-edit'" :init-mode="fjBatchEditMode" :init-type="fjBatchEditType" :init-row="fjBatchEditRow" @back="handleBackFromFjBatchEdit" @submitted="handleFjBatchSubmitted" @navigate="handleNavigate" />
+            <FjBatchDetail v-else-if="activeTabKey === 'fj-batch-detail'" :init-row="fjBatchDetailRow" @back="handleBackFromFjBatchDetail" @navigate="handleNavigate" />
+            <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" @navigate="handleNavigate" />
+            <FjRectifyList v-else-if="activeTabKey === 'fj-rectify-list'" @navigate="handleNavigate" />
+            <FjConfig v-else-if="activeTabKey === 'fj-config'" />
+            <!-- 原有页面 -->
+            <LncProjectList v-else-if="activeTabKey === 'list'" @navigate="handleNavigate" />
             <LncProjectList v-else-if="activeTabKey === 'list-b'" variant="B" @navigate="handleNavigate" />
             <FilingStandard v-else-if="activeTabKey === 'filing-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromFiling" />
             <FilingNonStandard v-else-if="activeTabKey === 'filing-non-standard'" :edit-id="editingId" :init-status="filingInitStatus" :init-data="filingInitData" @back="handleBackFromNonStandardFiling" />
@@ -177,6 +192,12 @@ import NavIconOperation from './components/nav-icons/NavIconOperation.vue'
 import NavIconSupply from './components/nav-icons/NavIconSupply.vue'
 import NavIconFinance from './components/nav-icons/NavIconFinance.vue'
 import NavIconOther from './components/nav-icons/NavIconOther.vue'
+import FjBatchList from './pages/飞检批次单列表页.vue'
+import FjBatchEdit from './pages/批次编辑页.vue'
+import FjBatchDetail from './pages/批次详情页.vue'
+import FjSheetList from './pages/飞检单列表页-PC.vue'
+import FjRectifyList from './pages/整改单列表页-PC.vue'
+import FjConfig from './pages/飞检配置页.vue'
 import LncProjectList from './pages/工商业项目管理列表页.vue'
 import FilingStandard from './pages/建档申请页-标准政策.vue'
 import FilingNonStandard from './pages/建档申请页-非标政策.vue'
@@ -200,9 +221,10 @@ import { submitStartReview } from './stores/stationStatus'
 interface Tab { key: string; label: string; closable?: boolean }
 
 const tabs = ref<Tab[]>([
-  { key: 'list', label: '电站列表', closable: false },
+  { key: 'list-b', label: '电站列表（方案B）', closable: false },
+  { key: 'fj-batch-list', label: '飞检批次单', closable: false },
 ])
-const activeTabKey = ref('list')
+const activeTabKey = ref('list-b')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -230,12 +252,19 @@ const dispatchApplyInitData   = ref<any>(null)
 const dispatchApplyInitStatus = ref<string | null>(null)
 const dispatchDetailRow       = ref<Record<string, any>>({})
 
+// ── 飞检功能状态 ──
+const fjBatchEditMode   = ref<'create' | 'edit'>('create')
+const fjBatchEditType   = ref<string>('daily')
+const fjBatchEditRow    = ref<any>(null)
+const fjBatchDetailRow  = ref<any>(null)
+const fjPendingNewBatch  = ref<any>(null)
+
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
 
 // ── sessionStorage 状态持久化（刷新保留当前页） ──
-const _SS_KEY = 'lnc-app-state-v3'
-const _SS_VER = 3
+const _SS_KEY = 'lnc-app-state-v5'
+const _SS_VER = 4
 function _saveState() {
   try {
     sessionStorage.setItem(_SS_KEY, JSON.stringify({
@@ -370,7 +399,12 @@ const menuGroups = [
       { key: 'nav-财务管理', label: '财务管理' },
       { key: 'nav-整改中心', label: '整改中心' },
       { key: 'nav-审核中心', label: '审核中心' },
-      { key: 'nav-电站项目管理', label: '电站项目管理' },
+      { key: 'fj-parent', label: '电站飞检', children: [
+        { key: 'fj-batch-list', label: '飞检批次单' },
+        { key: 'fj-sheet-list', label: '飞检单' },
+        { key: 'fj-rectify-list', label: '整改单' },
+        { key: 'fj-config', label: '飞检配置' },
+      ]},
       { key: 'nav-施工安全管理', label: '施工安全管理' },
       { key: 'nav-施工资源管理', label: '施工资源管理' },
       { key: 'nav-电站项目管控', label: '电站项目管控' },
@@ -417,13 +451,23 @@ const menuGroups = [
 ]
 
 function getMenuGroupDomain(key: string): string {
-  return menuGroups.find((g) => g.items.some((i) => i.key === key))?.domain ?? ''
+  for (const g of menuGroups) {
+    for (const item of g.items) {
+      if (item.key === key) return g.domain
+      if ((item as any).children?.some((c: any) => c.key === key)) return g.domain
+    }
+  }
+  return ''
 }
 
 const activeMenuKey = computed(() => {
   if (['list', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail'].includes(page.value)) return 'biz-list'
   if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
   if (page.value === 'bill-query') return 'fin-bill-query'
+  if (['fj-batch-list', 'fj-batch-edit', 'fj-batch-detail'].includes(page.value)) return 'fj-batch-list'
+  if (page.value === 'fj-sheet-list') return 'fj-sheet-list'
+  if (page.value === 'fj-rectify-list') return 'fj-rectify-list'
+  if (page.value === 'fj-config') return 'fj-config'
   return ''
 })
 
@@ -441,7 +485,13 @@ const searchResults = computed(() => {
   const results: Array<{ key: string; label: string; domain: string }> = []
   for (const group of menuGroups) {
     for (const item of group.items) {
-      if (item.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
+      if ((item as any).children) {
+        for (const child of (item as any).children) {
+          if (child.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
+            results.push({ key: child.key, label: child.label, domain: group.domain })
+          }
+        }
+      } else if (item.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
         results.push({ key: item.key, label: item.label, domain: group.domain })
       }
     }
@@ -450,19 +500,56 @@ const searchResults = computed(() => {
 })
 
 function handleMenuClick({ key }: { key: string }) {
-  if (key === 'biz-list') openTab('list', '电站列表', false)
-  else if (key === 'biz-dashboard') openTab('list', '电站列表', false)
+  if (key === 'biz-list') openTab('list', '电站列表')
+  else if (key === 'biz-dashboard') openTab('list', '电站列表')
   else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
-  else if (key === 'fin-bill-query') openTab('bill-query', '电站账单查询', false)
+  else if (key === 'fin-bill-query') openTab('bill-query', '电站账单查询')
+  // 飞检功能
+  else if (key === 'fj-batch-list') openTab('fj-batch-list', '飞检批次单', false)
+  else if (key === 'fj-sheet-list') openTab('fj-sheet-list', '飞检单')
+  else if (key === 'fj-rectify-list') openTab('fj-rectify-list', '整改单')
+  else if (key === 'fj-config') openTab('fj-config', '飞检配置')
   const domain = getMenuGroupDomain(key)
-  if (domain && !menuOpenKeys.value.includes(domain)) {
-    menuOpenKeys.value = [domain]
-  }
+  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  const openKeys: string[] = domain ? [domain] : [...menuOpenKeys.value]
+  if (fjChildKeys.includes(key) && !openKeys.includes('fj-parent')) openKeys.push('fj-parent')
+  if (openKeys.length) menuOpenKeys.value = openKeys
 }
+
+// ── tab 切换时同步侧边栏展开状态 ──
+watch(activeMenuKey, (menuKey) => {
+  if (!menuKey) return
+  const domain = getMenuGroupDomain(menuKey)
+  const keys: string[] = domain ? [domain] : [...menuOpenKeys.value]
+  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  if (fjChildKeys.includes(menuKey) && !keys.includes('fj-parent')) keys.push('fj-parent')
+  menuOpenKeys.value = keys
+})
+
+// ── 飞检功能导航 ──
+const handleBackFromFjBatchEdit  = () => closeTab('fj-batch-edit')
+const handleFjBatchSubmitted = (batch: any) => { fjPendingNewBatch.value = batch; closeTab('fj-batch-edit') }
+const handleBackFromFjBatchDetail = () => closeTab('fj-batch-detail')
 
 // ── 导航 ──
 const handleNavigate = (target: string, payload?: any) => {
   editingId.value = payload?.editId ?? null
+  // 飞检功能
+  if (target === 'fj-batch-edit') {
+    fjBatchEditMode.value = payload?.mode ?? 'create'
+    fjBatchEditType.value = payload?.type ?? 'daily'
+    fjBatchEditRow.value  = payload?.row ?? null
+    const label = payload?.mode === 'edit' ? '编辑批次' : payload?.type === 'special' ? '新增专项飞检' : '新增日常飞检'
+    openTab('fj-batch-edit', label)
+    return
+  }
+  if (target === 'fj-batch-detail') {
+    fjBatchDetailRow.value = payload?.row ?? null
+    openTab('fj-batch-detail', `批次详情`)
+    return
+  }
+  if (target === 'fj-sheet-list') { openTab('fj-sheet-list', '飞检单'); return }
+  if (target === 'fj-rectify-list') { openTab('fj-rectify-list', '整改单'); return }
   if (target === 'detail') {
     if (payload?.filingStatus) detailStatus.value = payload.filingStatus
     if (payload?.policyType) detailPolicyType.value = payload.policyType

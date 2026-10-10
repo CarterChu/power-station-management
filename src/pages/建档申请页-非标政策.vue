@@ -582,6 +582,9 @@
                     <a-select-option v-for="opt in SPECIAL_PLAN_OPTIONS" :key="opt" :value="opt">{{ opt }}</a-select-option>
                   </a-select>
                 </template>
+                <template v-if="column.key === 'specialPlanBlocks'">
+                  <a-input-number v-model:value="record.specialPlanBlocks" :min="1" :precision="0" style="width:100%" placeholder="0" :disabled="!record.specialPlan" />
+                </template>
                 <template v-if="column.key === 'action'">
                   <a-button v-if="design.scenes.length > 1" type="link" danger size="small" @click="removeScene(index)">删除</a-button>
                 </template>
@@ -1040,6 +1043,8 @@
               message="项目已开工，付款比例信息不可再编辑"
               style="margin-bottom:20px" />
 
+            <!-- 合同信息模块 -->
+            <div class="section-sub-title" style="margin-bottom:16px">合同信息</div>
             <div v-for="(contract, idx) in paymentContracts" :key="idx" class="payment-contract-card">
               <div class="payment-contract-header">
                 <div class="payment-contract-type">{{ contract.type }}</div>
@@ -1108,6 +1113,38 @@
                 </tbody>
               </table>
             </div>
+
+            <!-- 租金信息模块 -->
+            <a-divider style="margin: 28px 0 20px" />
+            <div class="section-sub-title" style="margin-bottom:20px">租金信息</div>
+            <a-form layout="vertical" :colon="false">
+              <a-row :gutter="[24, 0]">
+                <a-col :span="6">
+                  <a-form-item label="屋顶面积（㎡）">
+                    <a-input-number v-model:value="rentInfo.roofArea" :min="0" :max="10000000" :precision="2" style="width:100%" placeholder="请输入" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="6">
+                  <a-form-item label="租金（元/㎡/年）">
+                    <a-input-number v-model:value="rentInfo.rentPrice" :min="0" :max="10000000" :precision="2" style="width:100%" placeholder="请输入" />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="6">
+                  <a-form-item label="付款周期">
+                    <a-select v-model:value="rentInfo.paymentCycle" placeholder="请选择" allow-clear style="width:100%">
+                      <a-select-option v-for="opt in RENT_PAYMENT_CYCLES" :key="opt" :value="opt">{{ opt }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="6">
+                  <a-form-item label="付款方式">
+                    <a-select v-model:value="rentInfo.paymentMethod" placeholder="请选择" allow-clear style="width:100%">
+                      <a-select-option v-for="opt in RENT_PAYMENT_METHODS" :key="opt" :value="opt">{{ opt }}</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </a-form>
 
           </div>
         </a-tab-pane>
@@ -1367,7 +1404,7 @@ const design = reactive({
   jiagongBom:  [] as any[],
   yigongBom:   [] as any[],
   gridMode:    null as string | null,
-  scenes: [{ type: null as string | null, blocks: null as number | null, tiltAngle: null as number | null, specialPlan: null as string | null }] as { type: string | null, blocks: number | null, tiltAngle: number | null, specialPlan: string | null }[],
+  scenes: [{ type: null as string | null, blocks: null as number | null, tiltAngle: null as number | null, specialPlan: null as string | null, specialPlanBlocks: null as number | null }] as { type: string | null, blocks: number | null, tiltAngle: number | null, specialPlan: string | null, specialPlanBlocks: number | null }[],
   designQualFiles:       [] as any[],
   electricalDesignFiles: [] as any[],
   structuralDesignFiles: [] as any[],
@@ -1375,7 +1412,7 @@ const design = reactive({
   otherAttachFiles:      [] as any[],
 })
 
-const addScene = () => { if (design.scenes.length < SCENE_TYPES.length) design.scenes.push({ type: null, blocks: null, tiltAngle: null, specialPlan: null }) }
+const addScene = () => { if (design.scenes.length < SCENE_TYPES.length) design.scenes.push({ type: null, blocks: null, tiltAngle: null, specialPlan: null, specialPlanBlocks: null }) }
 const removeScene = (idx: number) => { if (design.scenes.length > 1) design.scenes.splice(idx, 1) }
 
 const jiagongComponentQty = computed(() =>
@@ -1394,6 +1431,7 @@ const sceneColumns = [
   { title: '*应用场景块数', key: 'blocks',      width: 140 },
   { title: '*倾角',         key: 'tiltAngle',   width: 130 },
   { title: '特殊方案',      key: 'specialPlan', width: 160 },
+  { title: '特殊方案块数',  key: 'specialPlanBlocks', width: 140 },
   { title: '操作',          key: 'action',      width: 70 },
 ]
 const bomColumns = [
@@ -1644,6 +1682,16 @@ const paymentContracts = computed(() => [
 
 const paymentNodeTotal = (nodes: PaymentNodeRow[]) =>
   nodes.reduce((s, n) => s + (n.ratio ?? 0), 0)
+
+const RENT_PAYMENT_CYCLES = ['月付', '季付', '半年付', '年付', '三年付', '五年付']
+const RENT_PAYMENT_METHODS = ['预付', '后付']
+
+const rentInfo = reactive({
+  roofArea: null as number | null,
+  rentPrice: null as number | null,
+  paymentCycle: null as string | null,
+  paymentMethod: null as string | null,
+})
 
 const calcNodeAmount = (amount: number | null | undefined, ratio: number | null) => {
   if (amount == null || ratio == null) return '—'

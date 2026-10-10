@@ -697,6 +697,9 @@
                     <a-select-option v-for="opt in SPECIAL_PLAN_OPTIONS" :key="opt" :value="opt">{{ opt }}</a-select-option>
                   </a-select>
                 </template>
+                <template v-if="column.key === 'specialPlanBlocks'">
+                  <a-input-number v-model:value="record.specialPlanBlocks" :min="1" :precision="0" style="width:100%" placeholder="0" :disabled="!record.specialPlan" />
+                </template>
                 <template v-if="column.key === 'action'">
                   <a-button v-if="design.scenes.length > 1" type="link" danger size="small" @click="removeScene(index)">删除</a-button>
                 </template>
@@ -1520,14 +1523,14 @@ const design = reactive({
   jiagongBom:  [] as any[],
   yigongBom:   [] as any[],
   gridMode:   null as string | null,
-  scenes: [{ type: null as string | null, blocks: null as number | null, tiltAngle: null as number | null, specialPlan: null as string | null }] as { type: string | null, blocks: number | null, tiltAngle: number | null, specialPlan: string | null }[],
+  scenes: [{ type: null as string | null, blocks: null as number | null, tiltAngle: null as number | null, specialPlan: null as string | null, specialPlanBlocks: null as number | null }] as { type: string | null, blocks: number | null, tiltAngle: number | null, specialPlan: string | null, specialPlanBlocks: number | null }[],
   designQualFiles:      [] as any[],
   electricalDesignFiles: [] as any[],
   structuralDesignFiles: [] as any[],
   safetyAssessFiles:    [] as any[],
   otherAttachFiles:     [] as any[],
 })
-const addScene = () => { if (design.scenes.length < SCENE_TYPES.length) design.scenes.push({ type: null, blocks: null, tiltAngle: null, specialPlan: null }) }
+const addScene = () => { if (design.scenes.length < SCENE_TYPES.length) design.scenes.push({ type: null, blocks: null, tiltAngle: null, specialPlan: null, specialPlanBlocks: null }) }
 const removeScene = (idx: number) => { if (design.scenes.length > 1) design.scenes.splice(idx, 1) }
 const jiagongComponentQty = computed(() =>
   design.jiagongBom
@@ -1547,6 +1550,7 @@ const sceneColumns = [
   { title: '*应用场景块数', key: 'blocks',   width: 140 },
   { title: '*倾角',      key: 'tiltAngle',   width: 130 },
   { title: '特殊方案',   key: 'specialPlan', width: 160 },
+  { title: '特殊方案块数', key: 'specialPlanBlocks', width: 140 },
   { title: '操作',       key: 'action',      width: 70 },
 ]
 
@@ -1817,8 +1821,8 @@ async function fetchFilingDetail(_id: string) {
     addressDetail: '××路×号商业综合体楼顶', capacity: 320, gridVoltage: 'low',
     gridMode: 'surplus', ownerName: '张三', ownerPhone: '13800138000',
     scenes: [
-      { type: '彩钢瓦', blocks: 10, tiltAngle: 20, specialPlan: '车棚' },
-      { type: '阳光房', blocks: 15, tiltAngle: 30, specialPlan: 'BIPV' },
+      { type: '彩钢瓦', blocks: 10, tiltAngle: 20, specialPlan: '车棚', specialPlanBlocks: 3 },
+      { type: '阳光房', blocks: 15, tiltAngle: 30, specialPlan: 'BIPV', specialPlanBlocks: 5 },
     ],
     jiagongBom: [
       { code: 'M001', name: '单晶硅光伏组件 545W', group: '组件',   unit: '块', quantity: 560 },
