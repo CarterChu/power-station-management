@@ -42,7 +42,15 @@
 
         <!-- 行操作 -->
         <template #actionSlot="{ row }">
-          <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+          <a-space :size="0">
+            <a-button
+              v-if="row.checkStatus === 'pending'"
+              type="link" size="small"
+              style="color:#fa8c16"
+              @click="handleStartCheck(row)"
+            >开始飞检</a-button>
+            <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+          </a-space>
         </template>
       </AnfeProTable>
     </div>
@@ -136,6 +144,10 @@ const tableConfig = {
     list = list.slice(((pageIndex ?? 1) - 1) * (pageRows ?? 10), (pageIndex ?? 1) * (pageRows ?? 10))
     return { data: list, count: total }
   },
+}
+
+function handleStartCheck(row: any) {
+  emit('navigate', 'fj-sheet-check', { row })
 }
 
 function handleDetail(row: any) {

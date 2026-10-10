@@ -110,14 +110,7 @@
               </span>
             </template>
             <template v-if="column.key === 'action'">
-              <a-space :size="0">
-                <a-button
-                  v-if="record.checkStatus === 'pending'"
-                  type="link" size="small"
-                  @click="handleStartCheck(record)"
-                >开始飞检</a-button>
-                <a-button type="link" size="small" @click="handleSheetDetail(record)">查看飞检单</a-button>
-              </a-space>
+              <a-button type="link" size="small" @click="handleSheetDetail(record)">查看飞检单</a-button>
             </template>
           </template>
         </a-table>
