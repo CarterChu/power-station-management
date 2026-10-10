@@ -32,10 +32,9 @@
             <a-button
               v-if="['pending','rejected'].includes(row.status)"
               type="link" size="small"
-              style="color:#fa8c16"
               @click="handleRectify(row)"
             >去整改</a-button>
-            <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+            <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
           </a-space>
         </template>
       </AnfeProTable>
@@ -141,7 +140,7 @@ const columns: any[] = [
   { title: '整改期限', dataIndex: 'deadline', key: 'deadline', width: 130 },
   { title: '剩余天数', key: 'remainDays', width: 110, component: 'custom', slotName: 'remainDaysSlot' },
   { title: '整改状态', key: 'status', width: 110, component: 'custom', slotName: 'statusSlot' },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 100, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 130, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
