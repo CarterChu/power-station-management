@@ -6,8 +6,8 @@
         <a-button type="text" class="back-btn" @click="handleBack">
           <template #icon><LeftOutlined /></template>
         </a-button>
-        <a-tooltip :title="isEdit ? `修改建档-${oaData.projectName}` : '非标准政策建档'">
-          <span class="filing-title">{{ isEdit ? `修改建档-${oaData.projectName}` : '非标准政策建档' }}</span>
+        <a-tooltip :title="isEdit ? `修改建档-${form.projectName || oaData.projectName}` : '非标准政策建档'">
+          <span class="filing-title">{{ isEdit ? `修改建档-${form.projectName || oaData.projectName}` : '非标准政策建档' }}</span>
         </a-tooltip>
         <span class="node-dot-tag"><span class="node-dot-tag__dot" style="background:#1677ff"></span>建档</span>
         <a-tag v-if="filingStatus" :color="STATUS_COLOR[filingStatus]">
@@ -61,7 +61,7 @@
           </a-col>
           <a-col :span="6">
             <a-form-item label="项目名称">
-              <a-input :value="oaData.projectName" disabled />
+              <a-input v-model:value="form.projectName" placeholder="请输入项目名称" />
             </a-form-item>
           </a-col>
           <a-col :span="6">
@@ -1294,6 +1294,7 @@ const oaData = reactive({ ...DEFAULT_OA, ...(OA_DATA_MAP[props.initData?.oaNo ??
 
 // 可编辑字段
 const form = reactive({
+  projectName:        oaData.projectName,
   capacity:           0 as number | null,
   addressDetail:      '',
   publicBuildingType: null as string | null,
