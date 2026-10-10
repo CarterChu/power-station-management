@@ -28,7 +28,15 @@
 
         <!-- 操作 -->
         <template #actionSlot="{ row }">
-          <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+          <a-space :size="0">
+            <a-button
+              v-if="['pending','rejected'].includes(row.status)"
+              type="link" size="small"
+              style="color:#fa8c16"
+              @click="handleRectify(row)"
+            >去整改</a-button>
+            <a-button type="link" size="small" @click="handleDetail(row)">查看详情</a-button>
+          </a-space>
         </template>
       </AnfeProTable>
     </div>
@@ -118,6 +126,8 @@
 import { ref } from 'vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
+const emit = defineEmits<{ navigate: [target: string, payload?: any] }>()
+
 const tableRef = ref<any>(null)
 const detailVisible = ref(false)
 const currentRow = ref<any>(null)
@@ -165,6 +175,10 @@ const tableConfig = {
     list = list.slice(((pageIndex ?? 1) - 1) * (pageRows ?? 10), (pageIndex ?? 1) * (pageRows ?? 10))
     return { data: list, count: total }
   },
+}
+
+function handleRectify(row: any) {
+  emit('navigate', 'fj-rectify-input', { row })
 }
 
 function handleDetail(row: any) {

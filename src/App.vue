@@ -151,6 +151,8 @@
             <FjBatchDetail v-else-if="activeTabKey === 'fj-batch-detail'" :init-row="fjBatchDetailRow" @back="handleBackFromFjBatchDetail" @navigate="handleNavigate" />
             <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" @navigate="handleNavigate" />
             <FjRectifyList v-else-if="activeTabKey === 'fj-rectify-list'" @navigate="handleNavigate" />
+            <FjSheetCheck v-else-if="activeTabKey === 'fj-sheet-check'" :init-row="fjSheetCheckRow" @back="closeTab('fj-sheet-check')" @submitted="handleFjSheetCheckSubmitted" />
+            <FjRectifyInput v-else-if="activeTabKey === 'fj-rectify-input'" :init-row="fjRectifyInputRow" @back="closeTab('fj-rectify-input')" @submitted="handleFjRectifyInputSubmitted" />
             <FjConfig v-else-if="activeTabKey === 'fj-config'" />
             <!-- 原有页面 -->
             <LncProjectList v-else-if="activeTabKey === 'list'" @navigate="handleNavigate" />
@@ -198,6 +200,8 @@ import FjBatchDetail from './pages/批次详情页.vue'
 import FjSheetList from './pages/飞检单列表页-PC.vue'
 import FjRectifyList from './pages/整改单列表页-PC.vue'
 import FjConfig from './pages/飞检配置页.vue'
+import FjSheetCheck from './pages/飞检执行页-PC.vue'
+import FjRectifyInput from './pages/整改录入页-PC.vue'
 import LncProjectList from './pages/工商业项目管理列表页.vue'
 import FilingStandard from './pages/建档申请页-标准政策.vue'
 import FilingNonStandard from './pages/建档申请页-非标政策.vue'
@@ -258,6 +262,8 @@ const fjBatchEditType   = ref<string>('daily')
 const fjBatchEditRow    = ref<any>(null)
 const fjBatchDetailRow  = ref<any>(null)
 const fjPendingNewBatch  = ref<any>(null)
+const fjSheetCheckRow    = ref<any>(null)
+const fjRectifyInputRow  = ref<any>(null)
 
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
@@ -530,6 +536,8 @@ watch(activeMenuKey, (menuKey) => {
 const handleBackFromFjBatchEdit  = () => closeTab('fj-batch-edit')
 const handleFjBatchSubmitted = (batch: any) => { fjPendingNewBatch.value = batch; closeTab('fj-batch-edit') }
 const handleBackFromFjBatchDetail = () => closeTab('fj-batch-detail')
+const handleFjSheetCheckSubmitted = (_sheet: any) => { closeTab('fj-sheet-check') }
+const handleFjRectifyInputSubmitted = (_record: any) => { closeTab('fj-rectify-input') }
 
 // ── 导航 ──
 const handleNavigate = (target: string, payload?: any) => {
@@ -550,6 +558,16 @@ const handleNavigate = (target: string, payload?: any) => {
   }
   if (target === 'fj-sheet-list') { openTab('fj-sheet-list', '飞检单'); return }
   if (target === 'fj-rectify-list') { openTab('fj-rectify-list', '整改单'); return }
+  if (target === 'fj-sheet-check') {
+    fjSheetCheckRow.value = payload?.row ?? null
+    openTab('fj-sheet-check', '执行飞检')
+    return
+  }
+  if (target === 'fj-rectify-input') {
+    fjRectifyInputRow.value = payload?.row ?? null
+    openTab('fj-rectify-input', '整改录入')
+    return
+  }
   if (target === 'detail') {
     if (payload?.filingStatus) detailStatus.value = payload.filingStatus
     if (payload?.policyType) detailPolicyType.value = payload.policyType
