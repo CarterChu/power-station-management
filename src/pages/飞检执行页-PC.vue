@@ -3,7 +3,7 @@
     <!-- 顶部栏 -->
     <div class="page-header">
       <a-button type="text" @click="emit('back')" style="padding:0 8px">
-        <LeftOutlined /> 返回
+        <LeftOutlined />
       </a-button>
       <span class="page-title">执行飞检 · {{ sheet.sheetNo }}</span>
       <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
@@ -66,7 +66,7 @@
       <!-- 右栏：检查项 -->
       <div class="check-content">
         <div v-for="cat in categories" :key="cat.name" class="check-cat-block">
-          <div class="cat-header" @click="cat.expanded = !cat.expanded">
+          <div class="cat-header" :class="{ expanded: cat.expanded }" @click="cat.expanded = !cat.expanded">
             <span class="cat-name">{{ cat.name }}</span>
             <span class="cat-count">{{ cat.items.filter((i:any) => i.result !== null).length }} / {{ cat.items.length }}</span>
             <DownOutlined :class="['cat-arrow', { rotated: cat.expanded }]" />
@@ -84,18 +84,18 @@
                     class="result-btn pass-btn"
                     :class="{ active: item.result === 'pass' }"
                     @click="setResult(item, 'pass')"
-                  >✓ 合格</button>
+                  ><CheckOutlined /> 合格</button>
                   <button
                     class="result-btn fail-btn"
                     :class="{ active: item.result === 'fail' }"
                     @click="setResult(item, 'fail')"
-                  >✗ 不合格</button>
+                  ><CloseOutlined /> 不合格</button>
                 </div>
               </div>
               <!-- 不合格展开区 -->
               <div v-if="item.result === 'fail'" class="item-fail-form">
-                <div class="fail-form-row">
-                  <span class="fail-form-label">缺陷等级</span>
+                <div class="fail-form-item">
+                  <div class="fail-form-label">缺陷等级</div>
                   <div class="level-btns">
                     <button v-for="lv in ['cr','ma','mi']" :key="lv"
                       class="level-btn" :class="[lv, { active: item.level === lv }]"
@@ -103,27 +103,25 @@
                     >{{ lv.toUpperCase() }}</button>
                   </div>
                 </div>
-                <div class="fail-form-row align-top">
-                  <span class="fail-form-label">缺陷描述</span>
-                  <div class="fail-form-right">
-                    <div class="desc-templates">
-                      <span
-                        v-for="tpl in DEFECT_TEMPLATES[item.name] ?? DEFECT_TEMPLATES['default']"
-                        :key="tpl"
-                        class="desc-tpl"
-                        @click="item.reason = tpl"
-                      >{{ tpl }}</span>
-                    </div>
-                    <a-textarea
-                      v-model:value="item.reason"
-                      :rows="2"
-                      placeholder="请描述缺陷情况"
-                      style="resize:none"
-                    />
+                <div class="fail-form-item">
+                  <div class="fail-form-label">缺陷描述</div>
+                  <div class="desc-templates">
+                    <span
+                      v-for="tpl in DEFECT_TEMPLATES[item.name] ?? DEFECT_TEMPLATES['default']"
+                      :key="tpl"
+                      class="desc-tpl"
+                      @click="item.reason = tpl"
+                    >{{ tpl }}</span>
                   </div>
+                  <a-textarea
+                    v-model:value="item.reason"
+                    :rows="2"
+                    placeholder="请描述缺陷情况"
+                    style="resize:none"
+                  />
                 </div>
-                <div class="fail-form-row align-top">
-                  <span class="fail-form-label">现场照片</span>
+                <div class="fail-form-item">
+                  <div class="fail-form-label">现场照片</div>
                   <a-upload
                     list-type="picture-card"
                     :file-list="item.photos"
@@ -145,7 +143,7 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { LeftOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { LeftOutlined, DownOutlined, PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps<{ initRow?: any }>()
 const emit = defineEmits<{ back: []; submitted: [sheet: any] }>()
@@ -234,11 +232,11 @@ async function handleSubmit() {
 .page-body { display: flex; gap: 14px; padding: 14px; flex: 1; overflow: hidden; }
 
 /* 左栏 */
-.sidebar-info { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.info-card { background: #fff; border-radius: 8px; padding: 18px 16px; }
+.sidebar-info { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; }
+.info-card { background: #fff; border-radius: 8px; padding: 20px; }
 .card-section-title { font-size: 15px; font-weight: 600; color: #262626; margin-bottom: 20px; }
 .form-item { margin-bottom: 16px; }
-.form-label { font-size: 13px; color: rgba(0,0,0,.45); margin-bottom: 4px; }
+.form-label { font-size: 14px; color: rgba(0,0,0,.45); line-height: 22px; padding-bottom: 8px; }
 .form-value { font-size: 14px; color: #262626; }
 .form-value.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -254,23 +252,23 @@ async function handleSubmit() {
 .dsi-label { font-size: 11px; color: #8c8c8c; margin-top: 4px; }
 
 /* 右栏 */
-.check-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.check-content { flex: 1; overflow-y: auto; min-height: 0; }
 
-.check-cat-block { background: #fff; border-radius: 8px; overflow: hidden; }
+.check-cat-block { background: #fff; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+.check-cat-block:last-child { margin-bottom: 0; }
 .cat-header {
-  display: flex; align-items: center; padding: 14px 16px;
-  background: #fafafa; cursor: pointer; user-select: none; border-bottom: 1px solid #f0f0f0;
+  display: flex; align-items: center; padding: 14px 20px;
+  background: #fafafa; cursor: pointer; user-select: none;
 }
+.cat-header.expanded { border-bottom: 1px solid #f0f0f0; }
 .cat-name { font-size: 14px; font-weight: 600; color: #262626; }
 .cat-count { font-size: 13px; color: #8c8c8c; margin-left: 10px; }
 .cat-arrow { margin-left: auto; color: #8c8c8c; transition: transform .2s; }
 .cat-arrow.rotated { transform: rotate(180deg); }
 
-.check-item-row { border-bottom: 1px solid #f5f5f5; transition: background .15s; }
-.check-item-row.is-pass { background: rgba(82,196,26,.03); }
-.check-item-row.is-fail { background: rgba(255,77,79,.03); }
+.check-item-row { border-bottom: 1px solid #f5f5f5; }
 
-.item-main { display: flex; align-items: center; padding: 12px 16px; gap: 12px; }
+.item-main { display: flex; align-items: center; padding: 12px 20px; gap: 12px; }
 .item-name { font-size: 14px; color: #262626; flex: 1; }
 
 .item-result-btns { display: flex; gap: 8px; flex-shrink: 0; }
@@ -283,11 +281,9 @@ async function handleSubmit() {
 .fail-btn { border-color: #d9d9d9; color: #595959; }
 .fail-btn.active { border-color: #ff4d4f; color: #ff4d4f; background: rgba(255,77,79,.06); }
 
-.item-fail-form { padding: 0 16px 14px 44px; display: flex; flex-direction: column; gap: 10px; }
-.fail-form-row { display: flex; align-items: center; gap: 12px; }
-.fail-form-row.align-top { align-items: flex-start; }
-.fail-form-label { font-size: 13px; color: rgba(0,0,0,.45); width: 60px; flex-shrink: 0; padding-top: 2px; }
-.fail-form-right { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.item-fail-form { padding: 12px 20px 18px 20px; display: flex; flex-direction: column; gap: 18px; }
+.fail-form-item { display: flex; flex-direction: column; gap: 8px; }
+.fail-form-label { font-size: 14px; color: #262626; }
 
 .level-btns { display: flex; gap: 8px; }
 .level-btn {
@@ -301,9 +297,17 @@ async function handleSubmit() {
 
 .desc-templates { display: flex; flex-wrap: wrap; gap: 6px; }
 .desc-tpl {
-  font-size: 12px; color: #1677ff; background: rgba(22,119,255,.06);
-  border: 1px solid rgba(22,119,255,.2); border-radius: 4px; padding: 2px 8px;
+  font-size: 12px; color: #595959; background: #f5f5f5;
+  border-radius: 4px; padding: 6px 8px;
   cursor: pointer; transition: background .12s;
 }
-.desc-tpl:hover { background: rgba(22,119,255,.12); }
+.desc-tpl:hover { background: #ebebeb; }
+
+.item-fail-form :deep(.ant-upload-select),
+.item-fail-form :deep(.ant-upload-list-item-container) {
+  width: 64px !important; height: 64px !important;
+}
+.item-fail-form :deep(.ant-upload-list) {
+  justify-content: flex-start;
+}
 </style>

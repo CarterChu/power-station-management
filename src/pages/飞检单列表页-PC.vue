@@ -74,13 +74,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import FjSheetDetailPC from './飞检单详情页-PC.vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 import { message } from 'ant-design-vue'
 
+const props = defineProps<{ pendingUpdate?: any }>()
 const emit = defineEmits<{
   navigate: [target: string, payload?: any]
+  updateApplied: []
 }>()
 
 const tableRef = ref<any>(null)
@@ -130,7 +132,7 @@ const tableConfig = {
   request: async (params: Record<string, any>) => {
     const { params: fp = {}, pageIndex, pageRows } = params
     await new Promise(r => setTimeout(r, 200))
-    let list = [...MOCK_SHEETS]
+    let list = [...MOCK_SHEETS.value]
     if (fp.sheetNo) list = list.filter(s => s.sheetNo.includes(fp.sheetNo))
     if (fp.stationNo) list = list.filter(s => s.stationNo.includes(fp.stationNo))
     if (fp.batchNo) list = list.filter(s => s.batchNo.includes(fp.batchNo))
@@ -158,7 +160,7 @@ function handleExport() {
   message.info('导出功能接入后生效')
 }
 
-const MOCK_SHEETS = [
+const MOCK_SHEETS = ref([
   { id: 'fj001', sheetNo: 'FJD-2026-001001', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001001', owner: '张三',  agent: '杭州阳光新能源科技有限公司', firstAgent: '浙江大区代理商',     engineer: '赵飞', checkDate: '2026-09-10', crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'done' },
   { id: 'fj002', sheetNo: 'FJD-2026-001002', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001003', owner: '王五',  agent: '苏州工业光伏集成商', firstAgent: '江苏大区代理商',     engineer: '刘海', checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
   { id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001004', owner: '赵六',  agent: '合肥绿色能源技术有限公司', firstAgent: '安徽大区代理商', engineer: '黄磊', checkDate: '2026-09-10', crCount: 1, maCount: 0, miCount: 1, checkStatus: 'failed', rectifyStatus: 'rectifying' },
@@ -169,7 +171,24 @@ const MOCK_SHEETS = [
   { id: 'fj008', sheetNo: 'FJD-2026-003001', batchNo: 'FJB-2026-003', stationNo: 'FJZ-2025-001008', owner: '郑十',  agent: '芜湖清洁能源发展有限公司', firstAgent: '安徽大区代理商', engineer: '吴杰', checkDate: '2026-09-25', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
   { id: 'fj009', sheetNo: 'FJD-2026-003002', batchNo: 'FJB-2026-003', stationNo: 'FJZ-2025-001012', owner: '卫四',  agent: '合肥绿色能源技术有限公司', firstAgent: '安徽大区代理商', engineer: '刘海', checkDate: '2026-09-25', crCount: 0, maCount: 2, miCount: 0, checkStatus: 'failed', rectifyStatus: 'rectifying' },
   { id: 'fj010', sheetNo: 'FJD-2026-004001', batchNo: 'FJB-2026-004', stationNo: 'FJZ-2025-001010', owner: '陈二',  agent: '苏州工业光伏集成商', firstAgent: '江苏大区代理商',     engineer: '赵飞', checkDate: '2026-10-08', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
-]
+])
+
+watch(() => props.pendingUpdate, (update) => {
+  if (!update) return
+  const idx = MOCK_SHEETS.value.findIndex(s => s.id === update.id)
+  if (idx !== -1) {
+    MOCK_SHEETS.value[idx] = {
+      ...MOCK_SHEETS.value[idx],
+      checkStatus: update.checkStatus,
+      crCount: update.crCount,
+      maCount: update.maCount,
+      miCount: update.miCount,
+      rectifyStatus: update.checkStatus === 'failed' ? 'rectifying' : 'none',
+    }
+  }
+  tableRef.value?.onSearch(1)
+  emit('updateApplied')
+}, { immediate: true })
 </script>
 
 <style scoped>

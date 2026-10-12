@@ -149,7 +149,7 @@
             <FjBatchList v-if="activeTabKey === 'fj-batch-list'" :pending-new-batch="fjPendingNewBatch" @navigate="handleNavigate" @batch-added="fjPendingNewBatch = null" />
             <FjBatchEdit v-else-if="activeTabKey === 'fj-batch-edit'" :init-mode="fjBatchEditMode" :init-type="fjBatchEditType" :init-row="fjBatchEditRow" @back="handleBackFromFjBatchEdit" @submitted="handleFjBatchSubmitted" @navigate="handleNavigate" />
             <FjBatchDetail v-else-if="activeTabKey === 'fj-batch-detail'" :init-row="fjBatchDetailRow" @back="handleBackFromFjBatchDetail" @navigate="handleNavigate" />
-            <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" @navigate="handleNavigate" />
+            <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" :pending-update="fjPendingSheetUpdate" @navigate="handleNavigate" @update-applied="fjPendingSheetUpdate = null" />
             <FjRectifyList v-else-if="activeTabKey === 'fj-rectify-list'" @navigate="handleNavigate" />
             <FjSheetCheck v-else-if="activeTabKey === 'fj-sheet-check'" :init-row="fjSheetCheckRow" @back="closeTab('fj-sheet-check')" @submitted="handleFjSheetCheckSubmitted" />
             <FjRectifyInput v-else-if="activeTabKey === 'fj-rectify-input'" :init-row="fjRectifyInputRow" @back="closeTab('fj-rectify-input')" @submitted="handleFjRectifyInputSubmitted" />
@@ -262,8 +262,9 @@ const fjBatchEditType   = ref<string>('daily')
 const fjBatchEditRow    = ref<any>(null)
 const fjBatchDetailRow  = ref<any>(null)
 const fjPendingNewBatch  = ref<any>(null)
-const fjSheetCheckRow    = ref<any>(null)
-const fjRectifyInputRow  = ref<any>(null)
+const fjSheetCheckRow      = ref<any>(null)
+const fjRectifyInputRow    = ref<any>(null)
+const fjPendingSheetUpdate = ref<any>(null)
 
 // page 别名，供兼容
 const page = computed(() => activeTabKey.value)
@@ -536,7 +537,7 @@ watch(activeMenuKey, (menuKey) => {
 const handleBackFromFjBatchEdit  = () => closeTab('fj-batch-edit')
 const handleFjBatchSubmitted = (batch: any) => { fjPendingNewBatch.value = batch; closeTab('fj-batch-edit') }
 const handleBackFromFjBatchDetail = () => closeTab('fj-batch-detail')
-const handleFjSheetCheckSubmitted = (_sheet: any) => { closeTab('fj-sheet-check') }
+const handleFjSheetCheckSubmitted = (sheet: any) => { fjPendingSheetUpdate.value = sheet; closeTab('fj-sheet-check') }
 const handleFjRectifyInputSubmitted = (_record: any) => { closeTab('fj-rectify-input') }
 
 // ── 导航 ──
