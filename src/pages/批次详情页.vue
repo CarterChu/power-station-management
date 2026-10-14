@@ -13,9 +13,10 @@
 
     <div class="batch-detail-body">
       <div class="detail-meta-card">
+        <div class="card-section-title" style="margin-bottom:16px">基本信息</div>
         <div class="info-grid">
           <div class="info-item">
-            <div class="info-label">批次单号</div>
+            <div class="info-label">飞检批次单号</div>
             <div class="info-value">{{ batch.batchNo }}</div>
           </div>
           <div class="info-item">
@@ -26,29 +27,47 @@
               </a-tag>
             </div>
           </div>
-          <div v-if="batch.type === 'special'" class="info-item">
+          <div class="info-item">
             <div class="info-label">飞检名称</div>
             <div class="info-value">{{ batch.name || '—' }}</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">小组负责人</div>
-            <div class="info-value">{{ batch.leader }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">飞检日期</div>
             <div class="info-value">{{ batch.checkDate }}</div>
           </div>
           <div class="info-item">
+            <div class="info-label">小组负责人</div>
+            <div class="info-value">{{ batch.leader }}</div>
+          </div>
+          <div class="info-item">
             <div class="info-label">是否随机</div>
             <div class="info-value">{{ batch.random ? `是（${batch.sampleRate}%）` : '否' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">状态</div>
+            <div class="info-value">
+              <a-tag :color="statusColor[batch.status]" style="margin:0">{{ STATUS_LABEL[batch.status] }}</a-tag>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">逾期数量</div>
+            <div class="info-value">
+              <template v-if="['draft', 'done', 'deleted'].includes(batch.status)">—</template>
+              <span v-else-if="overdueCount > 0" style="color:#ff4d4f;font-weight:500">{{ overdueCount }}</span>
+              <span v-else>0</span>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">创建人</div>
+            <div class="info-value">{{ batch.createdBy || '—' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">创建时间</div>
             <div class="info-value">{{ batch.createdAt }}</div>
           </div>
-          <div v-if="batch.remark" class="info-item info-item--span2">
-            <div class="info-label">备注</div>
-            <div class="info-value">{{ batch.remark }}</div>
+          <div class="info-item info-item--span2">
+            <div class="info-label">验收备注</div>
+            <div class="info-value">{{ batch.remark || '—' }}</div>
           </div>
         </div>
       </div>
@@ -83,23 +102,21 @@
           size="small"
           row-key="id"
           :pagination="{ pageSize: 10, size: 'small' }"
-          :scroll="{ x: 1200 }"
+          :scroll="{ x: 2000 }"
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'sheetNo'">
               <span class="sheet-no-link" @click="handleSheetDetail(record)">{{ record.sheetNo }}</span>
             </template>
             <template v-if="column.key === 'checkStatus'">
-              <span class="fj-status-dot-wrap">
-                <span class="fj-status-dot" :class="`fj-dot--${record.checkStatus}`"></span>
-                {{ CHECK_STATUS_LABEL[record.checkStatus] ?? record.checkStatus }}
-              </span>
+              <a-tag :color="CHECK_STATUS_COLOR[record.checkStatus]" style="margin:0">{{ CHECK_STATUS_LABEL[record.checkStatus] ?? record.checkStatus }}</a-tag>
             </template>
             <template v-if="column.key === 'rectifyStatus'">
               <span v-if="record.checkStatus === 'pending'" style="color:#bfbfbf">—</span>
               <a-tag v-else-if="record.rectifyStatus === 'none'" color="default" style="margin:0">无缺陷</a-tag>
-              <a-tag v-else-if="record.rectifyStatus === 'rectifying'" color="warning" style="margin:0">整改中</a-tag>
-              <a-tag v-else-if="record.rectifyStatus === 'done'" color="success" style="margin:0">整改完成</a-tag>
+              <a-tag v-else-if="record.rectifyStatus === 'pending'" color="warning" style="margin:0">待整改</a-tag>
+              <a-tag v-else-if="record.rectifyStatus === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
+              <a-tag v-else-if="record.rectifyStatus === 'passed'" color="success" style="margin:0">整改通过</a-tag>
             </template>
             <template v-if="column.key === 'defects'">
               <span v-if="record.checkStatus === 'pending'" style="color:#bfbfbf">—</span>
@@ -139,6 +156,7 @@ import { ref, computed } from 'vue'
 import FjSheetDetailPC from './飞检单详情页-PC.vue'
 import { LeftOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import { MOCK_FJ_BATCHES, MOCK_FJ_SHEETS } from '../mock/fj-data'
 
 const props = defineProps<{
   initRow?: any
@@ -149,9 +167,10 @@ const emit = defineEmits<{
   navigate: [target: string, payload?: any]
 }>()
 
-const STATUS_LABEL: Record<string, string> = { draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收' }
-const statusColor: Record<string, string> = { draft: 'default', pending: 'warning', checking: 'processing', done: 'success' }
+const STATUS_LABEL: Record<string, string> = { draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除' }
+const statusColor: Record<string, string> = { draft: 'default', pending: 'warning', checking: 'processing', done: 'success', deleted: 'error' }
 const CHECK_STATUS_LABEL: Record<string, string> = { pending: '待检查', passed: '通过', failed: '不通过' }
+const CHECK_STATUS_COLOR: Record<string, string> = { pending: 'warning', passed: 'success', failed: 'error' }
 
 // 从 props 取批次数据，或用 mock
 const batch = computed(() => props.initRow ?? MOCK_BATCH_DETAIL)
@@ -164,30 +183,44 @@ const sheetDetailRow = ref<any>(null)
 const filteredSheets = computed(() =>
   sheetFilter.value ? sheets.value.filter(s => s.checkStatus === sheetFilter.value) : sheets.value
 )
+const overdueCount = computed(() => {
+  if (['draft', 'done', 'deleted'].includes(batch.value.status)) return 0
+  const checkDate = batch.value.checkDate
+  if (!checkDate) return 0
+  const days = Math.floor((Date.now() - new Date(checkDate).getTime()) / 86400000)
+  return days > 0 ? sheets.value.filter(s => s.checkStatus === 'pending').length : 0
+})
+
 const sheetStats = computed(() => {
-  const all = sheets.value
-  const passed = all.filter(s => s.checkStatus === 'passed').length
-  const failed = all.filter(s => s.checkStatus === 'failed').length
-  const pending = all.filter(s => s.checkStatus === 'pending').length
-  const rate = all.length > 0 ? Math.round(passed / all.length * 100) : null
-  return { total: all.length, passed, failed, pending, rate }
+  const b = batch.value
+  const total = b.stationCount ?? 0
+  const passed = b.passCount ?? 0
+  const failed = b.failCount ?? 0
+  const pending = b.pendingCount ?? 0
+  const rate = b.passRate ?? (total > 0 ? Math.round(passed / total * 100) : null)
+  return { total, passed, failed, pending, rate }
 })
 
 // ── 表格列 ────────────────────────────────────────────────────────────────
 const sheetColumns = [
-  { title: '飞检单号', key: 'sheetNo', dataIndex: 'sheetNo', width: 170, fixed: 'left' as const },
-  { title: '电站编号', dataIndex: 'stationNo', key: 'stationNo', width: 160, ellipsis: true },
-  { title: '业主', dataIndex: 'owner', key: 'owner', width: 100 },
-  { title: '代理商', dataIndex: 'agent', key: 'agent', width: 160, ellipsis: true },
-  { title: '飞检工程师', dataIndex: 'engineer', key: 'engineer', width: 110 },
-  { title: '缺陷统计', key: 'defects', width: 160 },
-  { title: '检查状态', key: 'checkStatus', width: 110 },
-  { title: '整改状态', key: 'rectifyStatus', width: 110 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 120 },
+  { title: '飞检单号',   dataIndex: 'sheetNo',    key: 'sheetNo',    width: 170, fixed: 'left' as const, ellipsis: true },
+  { title: '电站编号',   dataIndex: 'stationNo',  key: 'stationNo',  width: 160, ellipsis: true },
+  { title: '业主',       dataIndex: 'owner',      key: 'owner',      width: 100 },
+  { title: '装机容量',   dataIndex: 'capacity',   key: 'capacity',   width: 110 },
+  { title: '电站类型',   dataIndex: 'stationType', key: 'stationType', width: 100 },
+  { title: '电站地址',   dataIndex: 'address',    key: 'address',    width: 180, ellipsis: true },
+  { title: '一级代理商', dataIndex: 'firstAgent', key: 'firstAgent', width: 160, ellipsis: true },
+  { title: '代理商',     dataIndex: 'agent',      key: 'agent',      width: 170, ellipsis: true },
+  { title: '飞检工程师', dataIndex: 'engineer',   key: 'engineer',   width: 110 },
+  { title: '飞检日期',   dataIndex: 'checkDate',  key: 'checkDate',  width: 130 },
+  { title: '缺陷统计',   key: 'defects',          width: 180 },
+  { title: '检查状态',   key: 'checkStatus',      width: 110 },
+  { title: '整改状态',   key: 'rectifyStatus',    width: 110 },
+  { title: '操作',       key: 'action',           fixed: 'right' as const, width: 120 },
 ]
 
 function handleSheetDetail(row: any) {
-  sheetDetailRow.value = row
+  sheetDetailRow.value = { ...row, batchNo: batch.value.batchNo }
   sheetDetailVisible.value = true
 }
 
@@ -199,24 +232,9 @@ function handleExport() {
   message.info('导出功能接入后生效')
 }
 
-// ── Mock 数据 ────────────────────────────────────────────────────────────
-const MOCK_BATCH_DETAIL = {
-  id: 'b01', batchNo: 'FJB-2026-001', type: 'daily', name: '',
-  leader: '王建国', checkDate: '2026-09-10', random: true, sampleRate: 30,
-  stationCount: 12, passCount: 10, failCount: 2, pendingCount: 0, passRate: 83,
-  status: 'done', autoGenerated: true, createdAt: '2026-09-01 09:12', remark: '季度例行飞检',
-}
-
-const MOCK_SHEETS = [
-  { id: 'fj001', batchId: 'b01', sheetNo: 'FJD-2026-001001', stationNo: 'FJZ-2025-001001', owner: '张三', agent: '杭州阳光新能源', engineer: '赵飞', crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'done' },
-  { id: 'fj002', batchId: 'b01', sheetNo: 'FJD-2026-001002', stationNo: 'FJZ-2025-001003', owner: '王五', agent: '苏州工业光伏', engineer: '刘海', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj003', batchId: 'b01', sheetNo: 'FJD-2026-001003', stationNo: 'FJZ-2025-001004', owner: '赵六', agent: '合肥绿色能源', engineer: '黄磊', crCount: 1, maCount: 0, miCount: 1, checkStatus: 'failed', rectifyStatus: 'rectifying' },
-  { id: 'fj004', batchId: 'b01', sheetNo: 'FJD-2026-001004', stationNo: 'FJZ-2025-001006', owner: '周八', agent: '南京太阳能科技', engineer: '赵飞', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj005', batchId: 'b01', sheetNo: 'FJD-2026-001005', stationNo: 'FJZ-2025-001007', owner: '吴九', agent: '杭州阳光新能源', engineer: '周斌', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj006', batchId: 'b03', sheetNo: 'FJD-2026-003001', stationNo: 'FJZ-2025-001008', owner: '郑十', agent: '芜湖清洁能源', engineer: '吴杰', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
-  { id: 'fj007', batchId: 'b03', sheetNo: 'FJD-2026-003002', stationNo: 'FJZ-2025-001009', owner: '冯一', agent: '宁波绿能电力', engineer: '刘海', crCount: 0, maCount: 2, miCount: 0, checkStatus: 'failed', rectifyStatus: 'rectifying' },
-  { id: 'fj008', batchId: 'b04', sheetNo: 'FJD-2026-004001', stationNo: 'FJZ-2025-001010', owner: '陈二', agent: '苏州工业光伏', engineer: '赵飞', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
-]
+// ── Mock 数据（从共享文件引入）────────────────────────────────────────────
+const MOCK_BATCH_DETAIL = MOCK_FJ_BATCHES[0]
+const MOCK_SHEETS = MOCK_FJ_SHEETS
 </script>
 
 <style scoped>
@@ -240,8 +258,14 @@ const MOCK_SHEETS = [
 }
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
 .info-item--span2 { grid-column: span 2; }
+.info-item--span3 { grid-column: span 3; }
 .info-label { font-size: 14px; color: rgba(0,0,0,0.45); line-height: 22px; padding-bottom: 8px; white-space: nowrap; }
 .info-value { font-size: 14px; color: #262626; }
+.fj-pass-rate { display: flex; align-items: baseline; gap: 6px; }
+.fj-pass-rate-num { font-size: 14px; color: #262626; font-weight: 500; }
+.fj-pass-rate-pct { font-size: 13px; color: #52c41a; }
+.fj-pass-rate-num.is-low { color: #ff4d4f; }
+.fj-pass-rate-pct.is-low { color: #ff4d4f; }
 
 /* 统计卡片行（在飞检单列表卡片内） */
 .bstat-row { display: flex; gap: 10px; padding: 0 0 20px; }
@@ -269,11 +293,7 @@ const MOCK_SHEETS = [
 .sheet-no-link { color: #3060FF; cursor: pointer; }
 .sheet-no-link:hover { text-decoration: underline; }
 
-.fj-status-dot-wrap { display: inline-flex; align-items: center; gap: 6px; }
-.fj-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.fj-dot--pending { background: #fa8c16; }
-.fj-dot--passed { background: #52c41a; }
-.fj-dot--failed { background: #ff4d4f; }
+
 
 .defect-badge {
   display: inline-block; font-size: 11px; font-weight: 600;

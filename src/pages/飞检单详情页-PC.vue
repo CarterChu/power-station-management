@@ -17,9 +17,9 @@
             <div class="info-value">{{ sheet.checkDate }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">验收结论</div>
+            <div class="info-label">检查状态</div>
             <div class="info-value">
-              <span v-if="sheet.checkStatus === 'pending'" style="color:#8c8c8c">待检查</span>
+              <a-tag v-if="sheet.checkStatus === 'pending'" color="warning" style="margin:0">待检查</a-tag>
               <a-tag v-else-if="sheet.checkStatus === 'passed'" color="success" style="margin:0">通过</a-tag>
               <a-tag v-else color="error" style="margin:0">不通过</a-tag>
             </div>
@@ -33,12 +33,38 @@
             <div class="info-value">{{ sheet.owner }}</div>
           </div>
           <div class="info-item">
+            <div class="info-label">电站类型</div>
+            <div class="info-value">{{ sheet.stationType || '—' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">电站地址</div>
+            <div class="info-value">{{ sheet.address || '—' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">一级代理商</div>
+            <div class="info-value">{{ sheet.firstAgent || '—' }}</div>
+          </div>
+          <div class="info-item">
             <div class="info-label">代理商</div>
             <div class="info-value">{{ sheet.agent }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">飞检工程师</div>
             <div class="info-value">{{ sheet.engineer }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">整改复验人</div>
+            <div class="info-value">{{ sheet.rectifyEngineer || '—' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">整改状态</div>
+            <div class="info-value">
+              <a-tag v-if="sheet.rectifyStatus === 'none'" color="default" style="margin:0">无需整改</a-tag>
+              <a-tag v-else-if="sheet.rectifyStatus === 'pending'" color="warning" style="margin:0">待整改</a-tag>
+              <a-tag v-else-if="sheet.rectifyStatus === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
+              <a-tag v-else-if="sheet.rectifyStatus === 'passed'" color="success" style="margin:0">整改通过</a-tag>
+              <span v-else style="color:#8c8c8c">—</span>
+            </div>
           </div>
         </div>
       </div>
@@ -113,10 +139,12 @@ const props = defineProps<{
 
 
 const MOCK_SHEET = {
-  id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-2026-001',
-  stationNo: 'FJZ-2025-001004', owner: '赵六', agent: '合肥绿色能源技术有限公司',
-  engineer: '黄磊', checkDate: '2026-09-10',
-  crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'rectifying',
+  id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-20260901-001',
+  stationNo: 'GFDZ-2025-001004', owner: '赵六',
+  stationType: '工商业', address: '安徽省合肥市蜀山区科学大道128号',
+  firstAgent: '安徽大区代理商', agent: '合肥绿色能源技术有限公司',
+  engineer: '黄磊', rectifyEngineer: '吴杰', checkDate: '2026-09-10',
+  crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'reviewing',
 }
 
 const sheet = props.initRow ?? MOCK_SHEET

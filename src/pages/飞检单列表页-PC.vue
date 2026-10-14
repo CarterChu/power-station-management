@@ -3,12 +3,12 @@
     <div class="fj-main-card">
       <AnfeProTable
         ref="tableRef"
-        table-key="fj-sheet-list-pc"
+        table-key="fj-sheet-list-pc-v3"
         :columns="columns"
         :filters="filters"
         :config="tableConfig"
         :page-size="10"
-        :table-props="{ scroll: { x: 1800 } }"
+        :table-props="{ scroll: { x: 2200 } }"
       >
         <template #operationRight>
           <a-button @click="handleExport">导出</a-button>
@@ -16,18 +16,16 @@
 
         <!-- 检查状态 -->
         <template #checkStatusSlot="{ row }">
-          <span class="fj-status-dot-wrap">
-            <span class="fj-status-dot" :class="`fj-dot--${row.checkStatus}`"></span>
-            {{ CHECK_STATUS_LABEL[row.checkStatus] ?? row.checkStatus }}
-          </span>
+          <a-tag :color="CHECK_STATUS_COLOR[row.checkStatus]" style="margin:0">{{ CHECK_STATUS_LABEL[row.checkStatus] ?? row.checkStatus }}</a-tag>
         </template>
 
         <!-- 整改状态 -->
         <template #rectifyStatusSlot="{ row }">
           <span v-if="row.checkStatus === 'pending'" style="color:#bfbfbf">—</span>
           <a-tag v-else-if="row.rectifyStatus === 'none'" color="default" style="margin:0">无缺陷</a-tag>
-          <a-tag v-else-if="row.rectifyStatus === 'rectifying'" color="warning" style="margin:0">整改中</a-tag>
-          <a-tag v-else-if="row.rectifyStatus === 'done'" color="success" style="margin:0">整改完成</a-tag>
+          <a-tag v-else-if="row.rectifyStatus === 'pending'" color="warning" style="margin:0">待整改</a-tag>
+          <a-tag v-else-if="row.rectifyStatus === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
+          <a-tag v-else-if="row.rectifyStatus === 'passed'" color="success" style="margin:0">整改通过</a-tag>
         </template>
 
         <!-- 缺陷统计 -->
@@ -44,7 +42,7 @@
         <template #actionSlot="{ row }">
           <a-space :size="0">
             <a-button
-              v-if="row.checkStatus === 'pending'"
+              v-if="APP_ONLY && row.checkStatus === 'pending'"
               type="link" size="small"
               @click="handleStartCheck(row)"
             >执行飞检</a-button>
@@ -79,6 +77,9 @@ import FjSheetDetailPC from './飞检单详情页-PC.vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 import { message } from 'ant-design-vue'
 
+// APP 端功能，PC 暂不展示；需要演示时改为 true
+const APP_ONLY = false
+
 const props = defineProps<{ pendingUpdate?: any }>()
 const emit = defineEmits<{
   navigate: [target: string, payload?: any]
@@ -90,20 +91,24 @@ const detailVisible = ref(false)
 const detailRow = ref<any>(null)
 
 const CHECK_STATUS_LABEL: Record<string, string> = { pending: '待检查', passed: '通过', failed: '不通过' }
+const CHECK_STATUS_COLOR: Record<string, string> = { pending: 'warning', passed: 'success', failed: 'error' }
 
 const columns: any[] = [
   { title: '飞检单号', dataIndex: 'sheetNo', key: 'sheetNo', width: 170, fixed: 'left' as const, ellipsis: true },
+  { title: '批次单号', dataIndex: 'batchNo', key: 'batchNo', width: 155, ellipsis: true },
   { title: '电站编号', dataIndex: 'stationNo', key: 'stationNo', width: 160, ellipsis: true },
   { title: '业主', dataIndex: 'owner', key: 'owner', width: 100 },
-  { title: '批次单号', dataIndex: 'batchNo', key: 'batchNo', width: 155, ellipsis: true },
-  { title: '代理商', dataIndex: 'agent', key: 'agent', width: 170, ellipsis: true },
+  { title: '装机容量', dataIndex: 'capacity', key: 'capacity', width: 110 },
+  { title: '电站类型', dataIndex: 'stationType', key: 'stationType', width: 100 },
+  { title: '电站地址', dataIndex: 'address', key: 'address', width: 180, ellipsis: true },
   { title: '一级代理商', dataIndex: 'firstAgent', key: 'firstAgent', width: 160, ellipsis: true },
+  { title: '代理商', dataIndex: 'agent', key: 'agent', width: 170, ellipsis: true },
   { title: '飞检工程师', dataIndex: 'engineer', key: 'engineer', width: 110 },
   { title: '飞检日期', dataIndex: 'checkDate', key: 'checkDate', width: 130 },
   { title: '缺陷统计', key: 'defects', width: 180, component: 'custom', slotName: 'defectsSlot' },
   { title: '检查状态', key: 'checkStatus', width: 110, component: 'custom', slotName: 'checkStatusSlot' },
   { title: '整改状态', key: 'rectifyStatus', width: 110, component: 'custom', slotName: 'rectifyStatusSlot' },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 130, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 80, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
@@ -121,8 +126,9 @@ const filters = [
   ]},
   { label: '整改状态',   key: 'rectifyStatus', component: 'select', placeholder: '请选择', options: [
     { label: '无缺陷',   value: 'none' },
-    { label: '整改中',   value: 'rectifying' },
-    { label: '整改完成', value: 'done' },
+    { label: '待整改',   value: 'pending' },
+    { label: '待复验',   value: 'reviewing' },
+    { label: '整改通过', value: 'passed' },
   ]},
 ]
 
@@ -161,16 +167,16 @@ function handleExport() {
 }
 
 const MOCK_SHEETS = ref([
-  { id: 'fj001', sheetNo: 'FJD-2026-001001', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001001', owner: '张三',  agent: '杭州阳光新能源科技有限公司', firstAgent: '浙江大区代理商',     engineer: '赵飞', checkDate: '2026-09-10', crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'done' },
-  { id: 'fj002', sheetNo: 'FJD-2026-001002', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001003', owner: '王五',  agent: '苏州工业光伏集成商', firstAgent: '江苏大区代理商',     engineer: '刘海', checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001004', owner: '赵六',  agent: '合肥绿色能源技术有限公司', firstAgent: '安徽大区代理商', engineer: '黄磊', checkDate: '2026-09-10', crCount: 1, maCount: 0, miCount: 1, checkStatus: 'failed', rectifyStatus: 'rectifying' },
-  { id: 'fj004', sheetNo: 'FJD-2026-001004', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001006', owner: '周八',  agent: '南京太阳能科技有限公司', firstAgent: '江苏大区代理商',   engineer: '赵飞', checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj005', sheetNo: 'FJD-2026-001005', batchNo: 'FJB-2026-001', stationNo: 'FJZ-2025-001007', owner: '吴九',  agent: '杭州阳光新能源科技有限公司', firstAgent: '浙江大区代理商', engineer: '周斌', checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj006', sheetNo: 'FJD-2026-002001', batchNo: 'FJB-2026-002', stationNo: 'FJZ-2025-001009', owner: '冯一',  agent: '宁波绿能电力安装有限公司', firstAgent: '浙江大区代理商',  engineer: '赵飞', checkDate: '2026-09-18', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed', rectifyStatus: 'none' },
-  { id: 'fj007', sheetNo: 'FJD-2026-002002', batchNo: 'FJB-2026-002', stationNo: 'FJZ-2025-001011', owner: '褚三',  agent: '金华光伏建设集团有限公司', firstAgent: '浙江大区代理商',  engineer: '刘海', checkDate: '2026-09-18', crCount: 0, maCount: 1, miCount: 0, checkStatus: 'failed', rectifyStatus: 'done' },
-  { id: 'fj008', sheetNo: 'FJD-2026-003001', batchNo: 'FJB-2026-003', stationNo: 'FJZ-2025-001008', owner: '郑十',  agent: '芜湖清洁能源发展有限公司', firstAgent: '安徽大区代理商', engineer: '吴杰', checkDate: '2026-09-25', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
-  { id: 'fj009', sheetNo: 'FJD-2026-003002', batchNo: 'FJB-2026-003', stationNo: 'FJZ-2025-001012', owner: '卫四',  agent: '合肥绿色能源技术有限公司', firstAgent: '安徽大区代理商', engineer: '刘海', checkDate: '2026-09-25', crCount: 0, maCount: 2, miCount: 0, checkStatus: 'failed', rectifyStatus: 'rectifying' },
-  { id: 'fj010', sheetNo: 'FJD-2026-004001', batchNo: 'FJB-2026-004', stationNo: 'FJZ-2025-001010', owner: '陈二',  agent: '苏州工业光伏集成商', firstAgent: '江苏大区代理商',     engineer: '赵飞', checkDate: '2026-10-08', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
+  { id: 'fj001', sheetNo: 'FJD-2026-001001', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001001', owner: '张三',  capacity: '15.4kWp', stationType: '户用',   address: '浙江省杭州市余杭区未来科技城', firstAgent: '浙江大区代理商', agent: '杭州阳光新能源科技有限公司', engineer: '赵飞', rectifyEngineer: '吴杰', checkDate: '2026-09-10', crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed',  rectifyStatus: 'passed' },
+  { id: 'fj002', sheetNo: 'FJD-2026-001002', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001003', owner: '王五',  capacity: '8.8kWp',  stationType: '户用',   address: '江苏省苏州市工业园区星湖街',   firstAgent: '江苏大区代理商', agent: '苏州工业光伏集成商',         engineer: '刘海', rectifyEngineer: '',      checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed',  rectifyStatus: 'none' },
+  { id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001004', owner: '赵六',  capacity: '30.0kWp', stationType: '工商业', address: '安徽省合肥市蜀山区科学大道',   firstAgent: '安徽大区代理商', agent: '合肥绿色能源技术有限公司',   engineer: '黄磊', rectifyEngineer: '吴杰', checkDate: '2026-09-10', crCount: 1, maCount: 0, miCount: 1, checkStatus: 'failed',  rectifyStatus: 'reviewing' },
+  { id: 'fj004', sheetNo: 'FJD-2026-001004', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001006', owner: '周八',  capacity: '12.0kWp', stationType: '户用',   address: '江苏省南京市江宁区将军大道',   firstAgent: '江苏大区代理商', agent: '南京太阳能科技有限公司',     engineer: '赵飞', rectifyEngineer: '',      checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed',  rectifyStatus: 'none' },
+  { id: 'fj005', sheetNo: 'FJD-2026-001005', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001007', owner: '吴九',  capacity: '6.6kWp',  stationType: '户用',   address: '浙江省杭州市萧山区金城路',     firstAgent: '浙江大区代理商', agent: '杭州阳光新能源科技有限公司', engineer: '周斌', rectifyEngineer: '',      checkDate: '2026-09-10', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed',  rectifyStatus: 'none' },
+  { id: 'fj006', sheetNo: 'FJD-2026-002001', batchNo: 'FJB-20260905-002', stationNo: 'GFDZ-2025-002001', owner: '冯一',  capacity: '9.9kWp',  stationType: '户用',   address: '浙江省宁波市江北区庄桥街道',   firstAgent: '浙江大区代理商', agent: '宁波绿能电力安装有限公司',   engineer: '赵飞', rectifyEngineer: '',      checkDate: '2026-09-18', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'passed',  rectifyStatus: 'none' },
+  { id: 'fj007', sheetNo: 'FJD-2026-002002', batchNo: 'FJB-20260905-002', stationNo: 'GFDZ-2025-002002', owner: '褚三',  capacity: '50.0kWp', stationType: '工商业', address: '浙江省金华市婺城区宾虹路',     firstAgent: '浙江大区代理商', agent: '金华光伏建设集团有限公司',   engineer: '刘海', rectifyEngineer: '周斌', checkDate: '2026-09-18', crCount: 0, maCount: 1, miCount: 0, checkStatus: 'failed',  rectifyStatus: 'passed' },
+  { id: 'fj008', sheetNo: 'FJD-2026-003001', batchNo: 'FJB-20260910-003', stationNo: 'GFDZ-2025-003001', owner: '郑十',  capacity: '11.0kWp', stationType: '户用',   address: '安徽省芜湖市弋江区九华中路',   firstAgent: '安徽大区代理商', agent: '芜湖清洁能源发展有限公司',   engineer: '吴杰', rectifyEngineer: '',      checkDate: '2026-09-25', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
+  { id: 'fj009', sheetNo: 'FJD-2026-003002', batchNo: 'FJB-20260910-003', stationNo: 'GFDZ-2025-003002', owner: '冯一',  capacity: '25.0kWp', stationType: '户用',   address: '浙江省宁波市江北区',           firstAgent: '浙江大区代理商', agent: '宁波绿能电力安装有限公司',   engineer: '刘海', rectifyEngineer: '',      checkDate: '2026-09-25', crCount: 0, maCount: 2, miCount: 0, checkStatus: 'failed',  rectifyStatus: 'pending' },
+  { id: 'fj010', sheetNo: 'FJD-2026-004001', batchNo: 'FJB-20260920-004', stationNo: 'GFDZ-2025-004001', owner: '陈二',  capacity: '7.7kWp',  stationType: '户用',   address: '江苏省苏州市虎丘区科技城',     firstAgent: '江苏大区代理商', agent: '苏州工业光伏集成商',         engineer: '赵飞', rectifyEngineer: '',      checkDate: '2026-10-08', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
 ])
 
 watch(() => props.pendingUpdate, (update) => {
@@ -183,7 +189,7 @@ watch(() => props.pendingUpdate, (update) => {
       crCount: update.crCount,
       maCount: update.maCount,
       miCount: update.miCount,
-      rectifyStatus: update.checkStatus === 'failed' ? 'rectifying' : 'none',
+      rectifyStatus: update.checkStatus === 'failed' ? 'pending' : 'none',
     }
   }
   tableRef.value?.onSearch(1)
@@ -195,11 +201,6 @@ watch(() => props.pendingUpdate, (update) => {
 .fj-sheet-list-page { padding: 16px; }
 .fj-main-card { background: #fff; border-radius: 8px; overflow: hidden; }
 .fj-main-card :deep(.anfe-pro-table) { background: transparent !important; border-radius: 0 !important; box-shadow: none !important; }
-.fj-status-dot-wrap { display: inline-flex; align-items: center; gap: 6px; }
-.fj-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.fj-dot--pending { background: #fa8c16; }
-.fj-dot--passed { background: #52c41a; }
-.fj-dot--failed { background: #ff4d4f; }
 .defect-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
 .defect-badge.cr { background: rgba(255,77,79,0.1); color: #ff4d4f; }
 .defect-badge.ma { background: rgba(250,140,22,0.1); color: #fa8c16; }
