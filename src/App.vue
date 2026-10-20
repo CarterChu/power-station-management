@@ -173,6 +173,10 @@
             <DispatchApply v-else-if="activeTabKey === 'dispatch-apply'" :init-status="dispatchApplyInitStatus" :init-data="dispatchApplyInitData" @back="handleBackFromDispatchApply" />
             <DispatchDetail v-else-if="activeTabKey === 'dispatch-detail'" :init-row="dispatchDetailRow" @back="handleBackFromDispatchDetail" @edit="handleEditFromDispatchDetail" />
             <BillQuery v-else-if="activeTabKey === 'bill-query'" />
+            <AgentTodo v-else-if="activeTabKey === 'agent-todo'" />
+            <AgentReconcileSummary v-else-if="activeTabKey === 'agent-reconcile-summary'" />
+            <AgentReconcileList v-else-if="activeTabKey === 'agent-reconcile-list'" @navigate="handleNavigate" />
+            <AgentReconcileDetail v-else-if="activeTabKey === 'agent-reconcile-detail'" :row="agentReconcileDetailRow" @navigate="handleNavigate" />
           </div>
         </div>
 
@@ -219,6 +223,10 @@ import StartDetailB from './pages/开工详情页-B.vue'
 import DispatchApply from './pages/派工申请页.vue'
 import DispatchDetail from './pages/派工详情页.vue'
 import BillQuery from './pages/电站账单查询页.vue'
+import AgentTodo from './pages/代理商结算-待办事项页.vue'
+import AgentReconcileSummary from './pages/代理商结算-对账汇总页.vue'
+import AgentReconcileList from './pages/代理商结算-对账单列表页.vue'
+import AgentReconcileDetail from './pages/代理商结算-对账单详情页.vue'
 import { submitStartReview } from './stores/stationStatus'
 
 // ── Tab 路由状态 ──
@@ -255,6 +263,9 @@ const startDetailBRow        = ref<Record<string, any>>({})
 const dispatchApplyInitData   = ref<any>(null)
 const dispatchApplyInitStatus = ref<string | null>(null)
 const dispatchDetailRow       = ref<Record<string, any>>({})
+
+// 代理商结算
+const agentReconcileDetailRow = ref<Record<string, any> | null>(null)
 
 // ── 飞检功能状态 ──
 const fjBatchEditMode   = ref<'create' | 'edit'>('create')
@@ -446,6 +457,11 @@ const menuGroups = [
       { key: 'nav-供应链金融管理', label: '供应链金融管理' },
       { key: 'nav-综合服务办理', label: '综合服务办理' },
       { key: 'fin-bill-query', label: '电站账单查询' },
+      { key: 'agent-settlement', label: '代理商结算', children: [
+        { key: 'agent-todo', label: '待办事项' },
+        { key: 'agent-reconcile-summary', label: '对账汇总' },
+        { key: 'agent-reconcile-list', label: '对账单' },
+      ]},
     ],
   },
   {
@@ -471,6 +487,9 @@ const activeMenuKey = computed(() => {
   if (['list', 'detail', 'filing-standard', 'filing-non-standard', 'start-apply', 'start-detail'].includes(page.value)) return 'biz-list'
   if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
   if (page.value === 'bill-query') return 'fin-bill-query'
+  if (page.value === 'agent-todo') return 'agent-todo'
+  if (page.value === 'agent-reconcile-summary') return 'agent-reconcile-summary'
+  if (['agent-reconcile-list', 'agent-reconcile-detail'].includes(page.value)) return 'agent-reconcile-list'
   if (['fj-batch-list', 'fj-batch-edit', 'fj-batch-detail'].includes(page.value)) return 'fj-batch-list'
   if (page.value === 'fj-sheet-list') return 'fj-sheet-list'
   if (page.value === 'fj-rectify-list') return 'fj-rectify-list'
@@ -511,6 +530,9 @@ function handleMenuClick({ key }: { key: string }) {
   else if (key === 'biz-dashboard') openTab('list', '电站列表')
   else if (key === 'biz-list-b') openTab('list-b', '电站列表（方案B）', false)
   else if (key === 'fin-bill-query') openTab('bill-query', '电站账单查询')
+  else if (key === 'agent-todo') openTab('agent-todo', '待办事项')
+  else if (key === 'agent-reconcile-summary') openTab('agent-reconcile-summary', '对账汇总')
+  else if (key === 'agent-reconcile-list') openTab('agent-reconcile-list', '对账单')
   // 飞检功能
   else if (key === 'fj-batch-list') openTab('fj-batch-list', '飞检批次单', false)
   else if (key === 'fj-sheet-list') openTab('fj-sheet-list', '飞检单')
@@ -518,8 +540,10 @@ function handleMenuClick({ key }: { key: string }) {
   else if (key === 'fj-config') openTab('fj-config', '飞检配置')
   const domain = getMenuGroupDomain(key)
   const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  const agentChildKeys = ['agent-todo', 'agent-reconcile-summary', 'agent-reconcile-list']
   const openKeys: string[] = domain ? [domain] : [...menuOpenKeys.value]
   if (fjChildKeys.includes(key) && !openKeys.includes('fj-parent')) openKeys.push('fj-parent')
+  if (agentChildKeys.includes(key) && !openKeys.includes('agent-settlement')) openKeys.push('agent-settlement')
   if (openKeys.length) menuOpenKeys.value = openKeys
 }
 
@@ -529,7 +553,9 @@ watch(activeMenuKey, (menuKey) => {
   const domain = getMenuGroupDomain(menuKey)
   const keys: string[] = domain ? [domain] : [...menuOpenKeys.value]
   const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  const agentChildKeys = ['agent-todo', 'agent-reconcile-summary', 'agent-reconcile-list']
   if (fjChildKeys.includes(menuKey) && !keys.includes('fj-parent')) keys.push('fj-parent')
+  if (agentChildKeys.includes(menuKey) && !keys.includes('agent-settlement')) keys.push('agent-settlement')
   menuOpenKeys.value = keys
 })
 
@@ -643,6 +669,11 @@ const handleNavigate = (target: string, payload?: any) => {
   } else if (target === 'dispatch-detail') {
     dispatchDetailRow.value = payload ?? {}
     openTab('dispatch-detail', '派工详情')
+  } else if (target === 'agent-reconcile-detail') {
+    agentReconcileDetailRow.value = payload?.row ?? null
+    openTab('agent-reconcile-detail', '对账单详情')
+  } else if (target === 'agent-reconcile-list') {
+    openTab('agent-reconcile-list', '对账单')
   }
 }
 
