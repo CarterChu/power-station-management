@@ -59,14 +59,14 @@
         </template>
 
         <template #actionSlot="{ row }">
-          <a-space :size="4" wrap>
-            <a-button type="link" size="small" @click="handleView(row)">查看</a-button>
-            <a-button v-if="row.status === '对账文件生成失败'" type="link" size="small" @click="handleRegenerate(row)">重新生成</a-button>
-            <a-button v-if="row.status === '待代理商确认'" type="link" size="small" danger @click="handleReject(row)">退回</a-button>
-            <a-button v-if="row.status === '待代理商确认'" type="link" size="small" @click="handleSign(row)">签署</a-button>
-            <a-button v-if="row.status === '退回安能确认'" type="link" size="small" @click="handleResubmit(row)">重新提交</a-button>
-            <a-button v-if="row.status === '待代理商上传'" type="link" size="small" @click="handleUpload(row)">上传</a-button>
-            <a-button v-if="row.status === '待安能审核'" type="link" size="small" @click="handleAudit(row)">审核</a-button>
+          <a-space :size="0">
+            <a-button type="link" size="small" style="padding:0 4px" @click="handleView(row)">查看</a-button>
+            <a-button v-if="row.status === '对账文件生成失败'" type="link" size="small" style="padding:0 4px" @click="handleRegenerate(row)">重新生成</a-button>
+            <a-button v-if="row.status === '待代理商确认'" type="link" size="small" style="padding:0 4px" danger @click="handleReject(row)">退回</a-button>
+            <a-button v-if="row.status === '待代理商确认'" type="link" size="small" style="padding:0 4px" @click="handleSign(row)">签署</a-button>
+            <a-button v-if="row.status === '退回安能确认'" type="link" size="small" style="padding:0 4px" @click="handleResubmit(row)">重新提交</a-button>
+            <a-button v-if="row.status === '待代理商上传'" type="link" size="small" style="padding:0 4px" @click="handleUpload(row)">上传</a-button>
+            <a-button v-if="row.status === '待安能审核'" type="link" size="small" style="padding:0 4px" @click="handleAudit(row)">审核</a-button>
           </a-space>
         </template>
       </AnfeProTable>
