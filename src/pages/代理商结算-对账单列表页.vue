@@ -20,7 +20,7 @@
 
         <template #operationRight>
           <a-space>
-            <AnfeTemplate title="下载模板" template-code="SETTLEMENT_NO_IMPORT" :request="fileRequest" />
+            <a-button @click="handleDownloadTemplate">下载模板</a-button>
             <a-button @click="importModalVisible = true">导入</a-button>
             <AnfeFileExport
               title="导出"
@@ -98,7 +98,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { AnfeProTable, AnfeFileImport, AnfeFileExport, AnfeTemplate, AnfeQuickInputControls } from '@anfe/vue-pro-components'
+import { AnfeProTable, AnfeFileImport, AnfeFileExport, AnfeQuickInputControls } from '@anfe/vue-pro-components'
 
 const emit = defineEmits<{ navigate: [payload: { target: string; row: any }] }>()
 
@@ -134,7 +134,7 @@ const columns = [
   { title: '对账附件',  dataIndex: 'hasAttachment', key: 'attachment', width: 110, component: 'custom', slotName: 'attachmentSlot' },
   { title: '对账状态',  dataIndex: 'status',       key: 'status',      width: 130, component: 'custom', slotName: 'statusSlot' },
   { title: '确认时间',  dataIndex: 'confirmTime',  key: 'confirmTime', width: 160 },
-  { title: '操作',     dataIndex: 'action',         key: 'action',              width: 200, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作',     dataIndex: 'action',         key: 'action',              width: 155, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
@@ -213,6 +213,7 @@ function handleSign(row: any) { message.info(`发起签署：${row.reconcileNo}`
 function handleResubmit(row: any) { message.info(`重新提交：${row.reconcileNo}`) }
 function handleUpload(row: any) { message.info(`上传确认函：${row.reconcileNo}`) }
 function handleAudit(row: any) { message.info(`审核对账单：${row.reconcileNo}`) }
+function handleDownloadTemplate() { message.info('正在下载导入模板') }
 </script>
 
 <style scoped>
