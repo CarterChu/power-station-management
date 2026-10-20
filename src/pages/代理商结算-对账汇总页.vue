@@ -1,313 +1,178 @@
 <template>
   <div class="reconcile-summary-page">
-    <!-- 统计卡片 -->
-    <div class="stat-cards">
-      <div class="stat-card">
-        <div class="stat-label">本期应结金额（万元）</div>
-        <div class="stat-value">{{ stats.totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</div>
-        <div class="stat-sub">较上期 <span class="up">↑ 12.3%</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">代理商数量</div>
-        <div class="stat-value">{{ stats.agentCount }}</div>
-        <div class="stat-sub">本结算周期</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">账单总条数</div>
-        <div class="stat-value">{{ stats.billCount.toLocaleString() }}</div>
-        <div class="stat-sub">已核对 <span class="ok">{{ stats.checkedCount.toLocaleString() }}</span> 条</div>
-      </div>
-      <div class="stat-card warn">
-        <div class="stat-label">异常账单数量</div>
-        <div class="stat-value warn-val">{{ stats.anomalyCount }}</div>
-        <div class="stat-sub">需人工核对</div>
-      </div>
-    </div>
-
-    <!-- 异常提示 -->
-    <div v-if="hasAnomalies" class="anomaly-banner">
-      <ExclamationCircleOutlined class="banner-icon" />
-      <span>本周期存在 <strong>{{ stats.anomalyCount }}</strong> 条异常账单，请及时处理。</span>
-      <a-button size="small" type="link" @click="filterAnomalies">仅看异常</a-button>
-      <a-button size="small" type="link" @click="clearFilter" style="color:rgba(0,0,0,0.45)">清除筛选</a-button>
-    </div>
-
-    <!-- 主卡 -->
+    <a-alert
+      message="数据统计日期为截止昨日23:59:59；数据更新时间为每天早上17:00"
+      type="warning"
+      show-icon
+      :closable="false"
+      style="margin-bottom:12px"
+    />
     <div class="slist-main-card">
-      <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <a-select v-model:value="filterPeriod" style="width:160px" placeholder="结算周期">
-            <a-select-option value="">全部周期</a-select-option>
-            <a-select-option value="2026-09">2026年9月</a-select-option>
-            <a-select-option value="2026-08">2026年8月</a-select-option>
-            <a-select-option value="2026-07">2026年7月</a-select-option>
-          </a-select>
-          <a-select v-model:value="filterBrand" style="width:120px" placeholder="全部品牌">
-            <a-select-option value="">全部品牌</a-select-option>
-            <a-select-option value="安能">安能</a-select-option>
-            <a-select-option value="光伏星">光伏星</a-select-option>
-          </a-select>
-          <a-input
-            v-model:value="filterAgent"
-            placeholder="代理商名称/编码"
-            style="width:200px"
-            allow-clear
-          />
-          <!-- 分组维度 -->
-          <span class="dim-label">汇总维度</span>
-          <div class="seg-ctrl">
-            <span
-              v-for="d in DIM_OPTIONS"
-              :key="d.value"
-              class="seg-ctrl-item"
-              :class="{ 'is-active': activeDim === d.value }"
-              @click="activeDim = d.value"
-            >{{ d.label }}</span>
-          </div>
-          <a-button type="primary" @click="doQuery">查询</a-button>
-        </div>
-        <div class="toolbar-right">
-          <a-button @click="handleExport">
-            <template #icon><DownloadOutlined /></template>
-            导出
-          </a-button>
-        </div>
-      </div>
-
-      <!-- 表格 -->
-      <a-table
-        :data-source="displayRows"
-        :columns="tableColumns"
-        :pagination="false"
-        :scroll="{ x: 1100 }"
-        row-key="id"
-        size="middle"
-        :loading="loading"
-        :row-class-name="rowClass"
+      <AnfeProTable
+        ref="tableRef"
+        table-key="agent-reconcile-summary"
+        :columns="columns"
+        :filters="filters"
+        :config="tableConfig"
+        :page-size="20"
+        :table-props="{ scroll: { x: 1800 } }"
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'agent'">
-            <div class="agent-cell">
-              <span class="agent-avatar" :style="{ background: record.color }">{{ record.agentName[0] }}</span>
-              <div class="agent-info">
-                <div class="agent-name">{{ record.agentName }}</div>
-                <div class="agent-code">{{ record.agentCode }}</div>
-              </div>
-            </div>
-          </template>
-          <template v-else-if="column.key === 'amount'">
-            <span class="amount-val">{{ record.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-          </template>
-          <template v-else-if="column.key === 'anomaly'">
-            <a-tag v-if="record.anomalyCount > 0" color="error">{{ record.anomalyCount }} 条异常</a-tag>
-            <span v-else class="text-muted">—</span>
-          </template>
-          <template v-else-if="column.key === 'status'">
-            <a-badge :status="statusColor(record.status)" :text="record.status" />
-          </template>
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="handleViewDetail(record)">查看明细</a-button>
-          </template>
+        <template #operationRight>
+          <AnfeFileExport
+            title="导出"
+            template-code="RECONCILE_SUMMARY_EXPORT"
+            :request="fileRequest"
+          />
         </template>
-        <template #summary>
-          <a-table-summary-row>
-            <a-table-summary-cell :index="0" :col-span="3">
-              <strong>合计（{{ filteredRows.length }} 家代理商）</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="3">
-              <strong>{{ totalBillCount.toLocaleString() }}</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="4">
-              <strong class="amount-val">{{ totalAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="5">
-              <strong>{{ totalDeduct.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="6">
-              <strong class="amount-val">{{ totalNetAmount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</strong>
-            </a-table-summary-cell>
-            <a-table-summary-cell :index="7" :col-span="3"></a-table-summary-cell>
-          </a-table-summary-row>
+
+        <template #settleObjSlot="{ row }">
+          <div>
+            <span>{{ row.settleObj }}</span>
+            <a-tag v-if="row.isAgent" color="blue" style="margin-left:6px;font-size:11px">代理商</a-tag>
+          </div>
         </template>
-      </a-table>
-      <div class="table-footer">
-        <a-pagination
-          v-model:current="page"
-          v-model:page-size="pageSize"
-          :total="filteredRows.length"
-          :page-size-options="['10','20','50']"
-          show-size-changer show-quick-jumper
-          :show-total="t => `共 ${t} 条`"
-          size="small"
-        />
+
+        <template #invoiceAmtSlot="{ row }">
+          <span>¥{{ row.invoiceAmt }}</span>
+        </template>
+        <template #payableAmtSlot="{ row }">
+          <span>¥{{ row.payableAmt }}</span>
+        </template>
+        <template #paidAmtSlot="{ row }">
+          <span>¥{{ row.paidAmt }}</span>
+        </template>
+        <template #deductedAmtSlot="{ row }">
+          <span>¥{{ row.deductedAmt }}</span>
+        </template>
+        <template #unpaidAmtSlot="{ row }">
+          <span :style="parseFloat(row.unpaidAmt) > 0 ? 'color:#ff4d4f;font-weight:500' : ''">
+            ¥{{ row.unpaidAmt }}
+          </span>
+        </template>
+      </AnfeProTable>
+
+      <!-- 汇总行 -->
+      <div class="summary-band">
+        <span class="summary-total-label">合计（{{ summaryInfo.count }} 条结算对象）</span>
+        <span class="summary-amt-item">应开票金额 <strong>{{ summaryInfo.invoiceAmt }}</strong></span>
+        <span class="summary-amt-item">应付金额 <strong>{{ summaryInfo.payableAmt }}</strong></span>
+        <span class="summary-amt-item">已付金额 <strong>{{ summaryInfo.paidAmt }}</strong></span>
+        <span class="summary-amt-item">已抵扣金额 <strong>{{ summaryInfo.deductedAmt }}</strong></span>
+        <span class="summary-amt-item">未付金额 <strong style="color:#ff4d4f">{{ summaryInfo.unpaidAmt }}</strong></span>
+        <span class="summary-unit-hint">单位：万元</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { message } from 'ant-design-vue'
-import { DownloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue'
+import { ref } from 'vue'
+import { AnfeProTable, AnfeFileExport } from '@anfe/vue-pro-components'
 
-const filterPeriod = ref('2026-09')
-const filterBrand = ref('')
-const filterAgent = ref('')
-const activeDim = ref('agent')
-const loading = ref(false)
-const page = ref(1)
-const pageSize = ref(20)
-const showAnomaly = ref(false)
+const tableRef = ref<any>(null)
+const fileRequest = { fetch: () => Promise.resolve({ code: 0, data: {} }), token: '' }
 
-const DIM_OPTIONS = [
-  { label: '代理商', value: 'agent' },
-  { label: '品牌', value: 'brand' },
-  { label: '分公司', value: 'region' },
-]
-
-const tableColumns = [
-  { title: '代理商', key: 'agent', fixed: 'left', width: 220 },
-  { title: '品牌', dataIndex: 'brand', key: 'brand', width: 90 },
-  { title: '分公司', dataIndex: 'region', key: 'region', width: 110 },
-  { title: '账单条数', dataIndex: 'billCount', key: 'billCount', width: 100, align: 'right' },
-  { title: '应结金额（万元）', key: 'amount', width: 160, align: 'right' },
-  { title: '抵扣合计（万元）', dataIndex: 'deductTotal', key: 'deductTotal', width: 150, align: 'right' },
-  { title: '实结金额（万元）', key: 'netAmount', dataIndex: 'netAmount', width: 160, align: 'right' },
-  { title: '异常账单', key: 'anomaly', width: 120, align: 'center' },
-  { title: '结算状态', key: 'status', width: 130 },
-  { title: '操作', key: 'action', fixed: 'right', width: 90 },
-]
-
-interface ReconcileRow {
-  id: number; agentName: string; agentCode: string; brand: string; region: string; color: string
-  billCount: number; amount: number; deductTotal: number; netAmount: number
-  anomalyCount: number; status: string
-}
-
-const MOCK_DATA: ReconcileRow[] = [
-  { id: 1, agentName: '华东新能源科技有限公司', agentCode: 'DL20240001', brand: '安能', region: '华东分公司', color: '#1677ff', billCount: 2341, amount: 183.50, deductTotal: 21.60, netAmount: 161.90, anomalyCount: 3, status: '已开票' },
-  { id: 2, agentName: '阳光光伏服务有限公司', agentCode: 'DL20240023', brand: '光伏星', region: '华南分公司', color: '#fa8c16', billCount: 1876, amount: 156.20, deductTotal: 18.40, netAmount: 137.80, anomalyCount: 0, status: '结算中' },
-  { id: 3, agentName: '北方绿能电力有限公司', agentCode: 'DL20240046', brand: '安能', region: '华北分公司', color: '#13c2c2', billCount: 1540, amount: 124.80, deductTotal: 14.20, netAmount: 110.60, anomalyCount: 7, status: '待审核' },
-  { id: 4, agentName: '江南新能科技发展有限公司', agentCode: 'DL20240087', brand: '安能', region: '华东分公司', color: '#722ed1', billCount: 2105, amount: 198.60, deductTotal: 23.10, netAmount: 175.50, anomalyCount: 0, status: '已完成' },
-  { id: 5, agentName: '西部光能发展有限公司', agentCode: 'DL20240112', brand: '光伏星', region: '西南分公司', color: '#eb2f96', billCount: 987, amount: 89.30, deductTotal: 11.20, netAmount: 78.10, anomalyCount: 2, status: '结算中' },
-  { id: 6, agentName: '绿色新能源技术有限公司', agentCode: 'DL20240134', brand: '安能', region: '华中分公司', color: '#52c41a', billCount: 1632, amount: 142.90, deductTotal: 16.80, netAmount: 126.10, anomalyCount: 0, status: '已开票' },
-  { id: 7, agentName: '中原清洁电力有限公司', agentCode: 'DL20240156', brand: '光伏星', region: '华中分公司', color: '#faad14', billCount: 843, amount: 76.40, deductTotal: 8.90, netAmount: 67.50, anomalyCount: 5, status: '待审核' },
-]
-
-const stats = computed(() => ({
-  totalAmount: MOCK_DATA.reduce((s, r) => s + r.amount, 0),
-  agentCount: MOCK_DATA.length,
-  billCount: MOCK_DATA.reduce((s, r) => s + r.billCount, 0),
-  checkedCount: MOCK_DATA.reduce((s, r) => s + Math.floor(r.billCount * 0.95), 0),
-  anomalyCount: MOCK_DATA.reduce((s, r) => s + r.anomalyCount, 0),
-}))
-
-const hasAnomalies = computed(() => stats.value.anomalyCount > 0)
-
-const filteredRows = computed(() => {
-  return MOCK_DATA.filter(row => {
-    if (filterBrand.value && row.brand !== filterBrand.value) return false
-    if (filterAgent.value && !row.agentName.includes(filterAgent.value) && !row.agentCode.includes(filterAgent.value)) return false
-    if (showAnomaly.value && row.anomalyCount === 0) return false
-    return true
-  })
+const summaryInfo = ref({
+  count: 0,
+  invoiceAmt: '¥0.00万',
+  payableAmt: '¥0.00万',
+  paidAmt: '¥0.00万',
+  deductedAmt: '¥0.00万',
+  unpaidAmt: '¥0.00万',
 })
 
-const displayRows = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  return filteredRows.value.slice(start, start + pageSize.value)
-})
+const columns = [
+  { title: '品牌',       dataIndex: 'brand',          key: 'brand',          width: 90 },
+  { title: '区域公司',   dataIndex: 'regionCompany',   key: 'regionCompany',  width: 120 },
+  { title: '结算对象类型', dataIndex: 'settleObjType', key: 'settleObjType',  width: 120 },
+  { title: '结算对象',   dataIndex: 'settleObj',       key: 'settleObj',      width: 200, component: 'custom', slotName: 'settleObjSlot' },
+  { title: 'EPC',       dataIndex: 'epc',             key: 'epc',            width: 180 },
+  { title: '实际付款主体', dataIndex: 'paymentEntity', key: 'paymentEntity',  width: 200 },
+  { title: '应开票金额', dataIndex: 'invoiceAmt',      key: 'invoiceAmt',     width: 130, component: 'custom', slotName: 'invoiceAmtSlot' },
+  { title: '应付金额',   dataIndex: 'payableAmt',      key: 'payableAmt',     width: 120, component: 'custom', slotName: 'payableAmtSlot' },
+  { title: '已付金额',   dataIndex: 'paidAmt',         key: 'paidAmt',        width: 120, component: 'custom', slotName: 'paidAmtSlot' },
+  { title: '已抵扣金额', dataIndex: 'deductedAmt',     key: 'deductedAmt',    width: 120, component: 'custom', slotName: 'deductedAmtSlot' },
+  { title: '未付金额',   dataIndex: 'unpaidAmt',       key: 'unpaidAmt',      width: 120, component: 'custom', slotName: 'unpaidAmtSlot', fixed: 'right' as const },
+]
 
-const totalBillCount = computed(() => filteredRows.value.reduce((s, r) => s + r.billCount, 0))
-const totalAmount = computed(() => filteredRows.value.reduce((s, r) => s + r.amount, 0))
-const totalDeduct = computed(() => filteredRows.value.reduce((s, r) => s + r.deductTotal, 0))
-const totalNetAmount = computed(() => filteredRows.value.reduce((s, r) => s + r.netAmount, 0))
+const filters = [
+  { label: '品牌', key: 'brand', component: 'select', placeholder: '全部品牌',
+    options: [{ label: '安能', value: '安能' }, { label: '光伏星', value: '光伏星' }] },
+  { label: '结算对象类型', key: 'settleObjType', component: 'select', placeholder: '全部类型',
+    options: [
+      { label: '代理商', value: '代理商' }, { label: '开发商', value: '开发商' },
+      { label: '施工方', value: '施工方' }, { label: '监理方', value: '监理方' },
+      { label: '设计院', value: '设计院' }, { label: '设备采购方', value: '设备采购方' },
+    ] },
+  { label: '结算对象', key: 'settleObj', component: 'input', placeholder: '模糊搜索结算对象' },
+  { label: '实际付款主体', key: 'paymentEntity', component: 'input', placeholder: '模糊搜索付款主体' },
+  { label: '结算单类型', key: 'settlementType', component: 'select', placeholder: '全部类型（多选）',
+    props: { mode: 'multiple', showArrow: true },
+    options: [
+      { label: '代理商结算单', value: '代理商结算单' }, { label: '施工方结算单', value: '施工方结算单' },
+      { label: '监理方结算单', value: '监理方结算单' }, { label: '设计院结算单', value: '设计院结算单' },
+    ] },
+  { label: '结算单创建时间', key: 'createTimeRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
+  { label: '付款/抵扣完成时间', key: 'paymentTimeRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
+]
 
-function doQuery() { page.value = 1 }
-function handleExport() { message.info('导出功能待接入') }
-function filterAnomalies() { showAnomaly.value = true }
-function clearFilter() { showAnomaly.value = false }
-function handleViewDetail(row: ReconcileRow) {
-  message.info(`查看 ${row.agentName} 的账单明细`)
+interface SummaryRow { brand: string; regionCompany: string; settleObjType: string; settleObj: string; isAgent: boolean; epc: string; paymentEntity: string; invoiceAmt: string; payableAmt: string; paidAmt: string; deductedAmt: string; unpaidAmt: string }
+
+const MOCK_DATA: SummaryRow[] = [
+  { brand:'安能', regionCompany:'华东大区', settleObjType:'代理商', settleObj:'华东新能源科技有限公司', isAgent:true, epc:'正泰安能数字能源', paymentEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:'2,637,000.00', payableAmt:'2,479,200.00', paidAmt:'1,650,000.00', deductedAmt:'285,000.00', unpaidAmt:'544,200.00' },
+  { brand:'光伏星', regionCompany:'华北大区', settleObjType:'代理商', settleObj:'阳光光伏服务有限公司', isAgent:true, epc:'正泰安能数字能源', paymentEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:'1,649,700.00', payableAmt:'1,558,400.00', paidAmt:'1,080,000.00', deductedAmt:'168,000.00', unpaidAmt:'310,400.00' },
+  { brand:'安能', regionCompany:'西南大区', settleObjType:'代理商', settleObj:'北方绿能电力有限公司', isAgent:true, epc:'正泰安能数字能源', paymentEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:'1,192,400.00', payableAmt:'1,131,300.00', paidAmt:'720,000.00', deductedAmt:'95,000.00', unpaidAmt:'316,300.00' },
+  { brand:'安能', regionCompany:'华南大区', settleObjType:'施工方', settleObj:'浙江建工集团有限公司', isAgent:false, epc:'正泰安能数字能源', paymentEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:'980,000.00', payableAmt:'920,000.00', paidAmt:'680,000.00', deductedAmt:'50,000.00', unpaidAmt:'190,000.00' },
+  { brand:'光伏星', regionCompany:'华东大区', settleObjType:'设计院', settleObj:'上海设计研究院', isAgent:false, epc:'光伏星能源', paymentEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:'560,000.00', payableAmt:'540,000.00', paidAmt:'480,000.00', deductedAmt:'0.00', unpaidAmt:'60,000.00' },
+]
+
+function toWan(s: string) {
+  const n = parseFloat(s.replace(/,/g, ''))
+  return `¥${(n / 10000).toFixed(2)}万`
 }
 
-function statusColor(status: string) {
-  const map: Record<string, string> = {
-    '已完成': 'success', '已开票': 'processing', '结算中': 'warning', '待审核': 'error',
-  }
-  return map[status] ?? 'default'
-}
-
-function rowClass(record: ReconcileRow) {
-  return record.anomalyCount > 0 ? 'row-anomaly' : ''
+const tableConfig = {
+  rowKey: 'id',
+  searchOnLoad: true,
+  request: async (params: Record<string, any>) => {
+    const { params: fp = {}, pageIndex, pageRows } = params
+    await new Promise(r => setTimeout(r, 200))
+    let data = MOCK_DATA.filter(row => {
+      if (fp.brand && row.brand !== fp.brand) return false
+      if (fp.settleObjType && row.settleObjType !== fp.settleObjType) return false
+      if (fp.settleObj && !row.settleObj.includes(fp.settleObj)) return false
+      if (fp.paymentEntity && !row.paymentEntity.includes(fp.paymentEntity)) return false
+      return true
+    })
+    // compute summary across full result set
+    const toN = (s: string) => parseFloat(s.replace(/,/g, ''))
+    const sum = (f: keyof SummaryRow) => data.reduce((s, r) => s + toN(r[f] as string), 0)
+    summaryInfo.value = {
+      count: data.length,
+      invoiceAmt: toWan(String(sum('invoiceAmt'))),
+      payableAmt: toWan(String(sum('payableAmt'))),
+      paidAmt: toWan(String(sum('paidAmt'))),
+      deductedAmt: toWan(String(sum('deductedAmt'))),
+      unpaidAmt: toWan(String(sum('unpaidAmt'))),
+    }
+    const dataWithId = data.map((r, i) => ({ ...r, id: i + 1 }))
+    const start = ((pageIndex ?? 1) - 1) * (pageRows ?? 20)
+    return { data: dataWithId.slice(start, start + (pageRows ?? 20)), count: dataWithId.length }
+  },
 }
 </script>
 
 <style scoped>
 .reconcile-summary-page { padding: 16px; height: 100%; box-sizing: border-box; overflow: auto; }
 .slist-main-card { background: #fff; border-radius: 8px; }
-
-/* 统计卡片 */
-.stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
-.stat-card {
-  background: #fff; border-radius: 8px; padding: 16px 20px;
-  border: 1px solid #f0f0f0;
-}
-.stat-card.warn { border-color: #fff1f0; }
-.stat-label { font-size: 13px; color: rgba(0,0,0,0.45); margin-bottom: 6px; }
-.stat-value { font-size: 26px; font-weight: 700; color: rgba(0,0,0,0.88); line-height: 1.2; }
-.stat-value.warn-val { color: #cf1322; }
-.stat-sub { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 4px; }
-.up { color: #389e0d; }
-.ok { color: #389e0d; }
-
-/* 异常提示 */
-.anomaly-banner {
-  background: #fff7e6; border: 1px solid #ffd591; border-radius: 8px;
-  padding: 10px 16px; margin-bottom: 12px;
-  display: flex; align-items: center; gap: 8px;
+.summary-band {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 10px 16px; border-top: 1px solid #f0f0f0;
+  background: #fafafa; border-radius: 0 0 8px 8px;
   font-size: 13px;
 }
-.banner-icon { color: #fa8c16; font-size: 15px; }
-
-/* 工具栏 */
-.toolbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid #f0f0f0; gap: 8px;
-}
-.toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.dim-label { font-size: 13px; color: rgba(0,0,0,0.45); white-space: nowrap; }
-
-/* seg-ctrl */
-.seg-ctrl { display: inline-flex; background: rgba(0,0,0,.06); border-radius: 6px; padding: 2px; }
-.seg-ctrl-item {
-  padding: 4px 12px; border-radius: 4px; font-size: 13px; cursor: pointer;
-  color: rgba(0,0,0,0.65); transition: all .12s;
-}
-.seg-ctrl-item.is-active { background: #fff; color: rgba(0,0,0,0.88); font-weight: 500; }
-
-/* 金额 */
-.amount-val { font-weight: 600; color: rgba(0,0,0,0.88); }
-.text-muted { color: rgba(0,0,0,0.25); }
-
-/* 代理商单元格 */
-.agent-cell { display: flex; align-items: center; gap: 8px; }
-.agent-avatar {
-  width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 13px; font-weight: 600;
-}
-.agent-name { font-size: 13px; color: rgba(0,0,0,0.88); }
-.agent-code { font-size: 11px; color: rgba(0,0,0,0.35); }
-
-/* 分页 */
-.table-footer {
-  display: flex; justify-content: flex-end;
-  padding: 12px 16px; border-top: 1px solid #f0f0f0;
-}
-
-/* 异常行高亮 */
-:deep(.row-anomaly td) { background: #fff9f9 !important; }
+.summary-total-label { color: rgba(0,0,0,0.65); font-weight: 500; margin-right: 4px; }
+.summary-amt-item { color: rgba(0,0,0,0.55); }
+.summary-amt-item strong { color: rgba(0,0,0,0.88); font-weight: 600; }
+.summary-unit-hint { margin-left: auto; color: rgba(0,0,0,0.35); font-size: 12px; }
 </style>

@@ -1,392 +1,342 @@
 <template>
   <div class="reconcile-detail-page">
-    <!-- 顶部蓝色 header -->
-    <div class="detail-header">
-      <div class="header-main">
-        <a-button type="text" class="back-btn" @click="emit('navigate', 'agent-reconcile-list')">
-          <template #icon><LeftOutlined /></template>
-          返回列表
-        </a-button>
-        <div class="header-info">
-          <div class="bill-no">{{ detail.billNo }}</div>
-          <a-tag :color="statusTagColor(detail.status)">{{ detail.status }}</a-tag>
+    <!-- 顶部操作行 -->
+    <div class="top-actions">
+      <a-button @click="handleBack">
+        <template #icon><ArrowLeftOutlined /></template>
+        返回对账单列表
+      </a-button>
+      <a-button @click="handleDownloadPdf">
+        <template #icon><DownloadOutlined /></template>
+        下载PDF
+      </a-button>
+    </div>
+
+    <!-- 蓝色头部信息卡 -->
+    <div class="header-card">
+      <div class="header-left">
+        <div class="header-title-row">
+          <span class="reconcile-no">{{ reconcileNo }}</span>
+          <a-tag :color="STATUS_COLOR[currentStatus]" style="margin-left:12px">{{ currentStatus }}</a-tag>
         </div>
-        <div class="header-meta">
-          <span>代理商：{{ detail.agentName }}</span>
-          <span class="sep">·</span>
-          <span>结算周期：{{ detail.period }}</span>
-          <span class="sep">·</span>
-          <span>应结金额：<strong>¥ {{ detail.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }} 万元</strong></span>
+        <div class="header-sub">{{ row?.year ?? '2026' }}年{{ row?.month ?? '09' }}月 对账单</div>
+        <div class="header-info-grid">
+          <div class="info-item">
+            <span class="info-key">结算对象类型：</span>
+            <span class="info-val">{{ row?.settleObjType ?? '代理商' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">经营方：</span>
+            <span class="info-val">{{ row?.settleObj ?? '华东新能源科技有限公司' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">EPC：</span>
+            <span class="info-val">正泰安能数字能源</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">实际付款主体：</span>
+            <span class="info-val">正泰安能数字能源（浙江）股份有限公司</span>
+          </div>
+          <div class="info-item">
+            <span class="info-key">代理账号：</span>
+            <span class="info-val">DL20260062</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-amounts">
+        <div class="amount-box">
+          <div class="amount-label">应开票金额</div>
+          <div class="amount-val">¥892,300.00</div>
+        </div>
+        <div class="amount-box">
+          <div class="amount-label">应付 6%</div>
+          <div class="amount-val">¥245,000.00</div>
+        </div>
+        <div class="amount-box">
+          <div class="amount-label">应付 9%</div>
+          <div class="amount-val">¥312,800.00</div>
+        </div>
+        <div class="amount-box">
+          <div class="amount-label">应付 13%</div>
+          <div class="amount-val">¥334,500.00</div>
+        </div>
+        <div class="amount-box amount-box--primary">
+          <div class="amount-label">应付金额</div>
+          <div class="amount-val">¥845,000.00</div>
         </div>
       </div>
     </div>
 
-    <!-- 内容区 -->
-    <div class="detail-body">
-      <a-tabs v-model:activeKey="activeTab" class="detail-tabs">
-        <!-- Tab1: 对账明细 -->
-        <a-tab-pane key="bills" tab="对账明细">
-          <div class="tab-content">
-            <div class="section-toolbar">
-              <a-input v-model:value="billSearch" placeholder="搜索账单号/电站名" style="width:220px" allow-clear />
-              <a-button type="primary" size="small" @click="billSearch = ''">重置</a-button>
-              <a-button size="small" @click="handleExportBills">
-                <template #icon><DownloadOutlined /></template>
-                导出明细
-              </a-button>
-            </div>
-            <a-table
-              :data-source="filteredBills"
-              :columns="billColumns"
-              :pagination="{ pageSize: 10, size: 'small', showTotal: t => `共 ${t} 条` }"
-              row-key="id"
-              size="small"
-              :scroll="{ x: 1000 }"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'amount'">
-                  <span :class="{ 'neg': record.amount < 0 }">{{ record.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</span>
-                </template>
-                <template v-else-if="column.key === 'billType'">
-                  <a-tag :color="record.billType === '正数' ? 'blue' : 'orange'" size="small">{{ record.billType }}</a-tag>
-                </template>
+    <!-- 账单明细 / 罚单明细 Tabs -->
+    <div class="detail-card">
+      <a-tabs v-model:activeKey="activeTab" size="middle">
+        <a-tab-pane key="bills" :tab="`账单明细（${MOCK_BILLS.length}）`">
+          <a-table
+            :columns="billColumns"
+            :data-source="MOCK_BILLS"
+            :pagination="false"
+            :scroll="{ x: 800 }"
+            size="middle"
+            row-key="billNo"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'billNo'">
+                <a class="link-cell">{{ record.billNo }}</a>
               </template>
-            </a-table>
-          </div>
+              <template v-else-if="column.key === 'billType'">
+                <a-tag :color="BILL_TYPE_COLOR[record.billType] ?? 'default'" style="margin:0">{{ record.billType }}</a-tag>
+              </template>
+              <template v-else-if="column.key === 'payableAmt'">
+                <span>¥{{ record.payableAmt }}</span>
+              </template>
+            </template>
+            <template #summary>
+              <a-table-summary-row>
+                <a-table-summary-cell :index="0" :col-span="4">
+                  <strong>合计（{{ MOCK_BILLS.length }} 条）</strong>
+                </a-table-summary-cell>
+                <a-table-summary-cell :index="4">
+                  <strong>¥{{ billTotal }}</strong>
+                </a-table-summary-cell>
+              </a-table-summary-row>
+            </template>
+          </a-table>
         </a-tab-pane>
 
-        <!-- Tab2: 抵扣台账 -->
-        <a-tab-pane key="deduct" tab="抵扣台账">
-          <div class="tab-content">
-            <a-table
-              :data-source="MOCK_DEDUCTS"
-              :columns="deductColumns"
-              :pagination="false"
-              row-key="id"
-              size="small"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'amount'">
-                  <span class="neg">-{{ record.amount.toFixed(2) }}</span>
-                </template>
+        <a-tab-pane key="penalties" :tab="`罚单明细（${MOCK_PENALTIES.length}）`">
+          <a-table
+            :columns="penaltyColumns"
+            :data-source="MOCK_PENALTIES"
+            :pagination="false"
+            :scroll="{ x: 600 }"
+            size="middle"
+            row-key="penaltyNo"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'penaltyNo'">
+                <a class="link-cell">{{ record.penaltyNo }}</a>
               </template>
-              <template #summary>
-                <a-table-summary-row>
-                  <a-table-summary-cell :index="0" :col-span="3"><strong>抵扣合计</strong></a-table-summary-cell>
-                  <a-table-summary-cell :index="3" align="right">
-                    <span class="neg"><strong>-{{ MOCK_DEDUCTS.reduce((s, r) => s + r.amount, 0).toFixed(2) }}</strong></span>
-                  </a-table-summary-cell>
-                  <a-table-summary-cell :index="4" :col-span="2"></a-table-summary-cell>
-                </a-table-summary-row>
+              <template v-else-if="column.key === 'penaltyAmt'">
+                <span style="color:#ff4d4f">¥{{ record.penaltyAmt }}</span>
               </template>
-            </a-table>
-          </div>
-        </a-tab-pane>
-
-        <!-- Tab3: 对账文件 -->
-        <a-tab-pane key="files" tab="对账文件">
-          <div class="tab-content">
-            <div v-if="detail.status === '待生成对账文件'" class="empty-hint">
-              <FileOutlined style="font-size:40px;color:#d9d9d9" />
-              <div>对账文件生成中，请稍候…</div>
-            </div>
-            <div v-else class="file-list">
-              <div v-for="f in MOCK_FILES" :key="f.id" class="file-item">
-                <div class="file-icon">
-                  <FileExcelOutlined v-if="f.type === 'excel'" style="color:#52c41a;font-size:24px" />
-                  <FilePdfOutlined v-else style="color:#ff4d4f;font-size:24px" />
-                </div>
-                <div class="file-info">
-                  <div class="file-name">{{ f.name }}</div>
-                  <div class="file-meta">{{ f.size }} · {{ f.uploadedAt }}</div>
-                </div>
-                <a-button type="link" size="small" @click="handleDownload(f)">下载</a-button>
-              </div>
-            </div>
-          </div>
-        </a-tab-pane>
-
-        <!-- Tab4: 操作日志 -->
-        <a-tab-pane key="logs" tab="操作日志">
-          <div class="tab-content">
-            <a-timeline>
-              <a-timeline-item v-for="log in MOCK_LOGS" :key="log.id" :color="log.color">
-                <div class="log-item">
-                  <div class="log-action">{{ log.action }}</div>
-                  <div class="log-meta">{{ log.operator }} · {{ log.time }}</div>
-                  <div v-if="log.remark" class="log-remark">{{ log.remark }}</div>
-                </div>
-              </a-timeline-item>
-            </a-timeline>
-          </div>
+            </template>
+            <template #summary>
+              <a-table-summary-row>
+                <a-table-summary-cell :index="0" :col-span="2">
+                  <strong>合计（{{ MOCK_PENALTIES.length }} 条）</strong>
+                </a-table-summary-cell>
+                <a-table-summary-cell :index="2">
+                  <strong style="color:#ff4d4f">¥{{ penaltyTotal }}</strong>
+                </a-table-summary-cell>
+              </a-table-summary-row>
+            </template>
+          </a-table>
         </a-tab-pane>
       </a-tabs>
     </div>
 
-    <!-- 底部操作栏 -->
-    <div v-if="hasBottomActions" class="detail-footer">
-      <div class="footer-info">
-        <span>账单共 {{ MOCK_BILLS.length }} 条</span>
-        <span class="sep">·</span>
-        <span>应结金额 <strong>¥{{ detail.amount.toFixed(2) }} 万元</strong></span>
-        <span class="sep">·</span>
-        <span>抵扣 <strong class="neg">-¥{{ MOCK_DEDUCTS.reduce((s, r) => s + r.amount, 0).toFixed(2) }} 万元</strong></span>
-        <span class="sep">·</span>
-        <span>实结 <strong>¥{{ (detail.amount - MOCK_DEDUCTS.reduce((s, r) => s + r.amount, 0)).toFixed(2) }} 万元</strong></span>
+    <!-- 对账文件 -->
+    <div class="section-card">
+      <div class="section-title">
+        <span>对账文件</span>
+        <span class="section-count">共 2 个文件</span>
       </div>
-      <div class="footer-actions">
-        <!-- 签署：待代理商确认 AND 结算对象=代理商 -->
-        <a-button
-          v-if="detail.status === '待代理商确认'"
-          type="primary"
-          @click="handleSign"
-        >签署确认</a-button>
-        <!-- 退回：待代理商确认 -->
-        <a-button
-          v-if="detail.status === '待代理商确认'"
-          danger
-          @click="showReturnModal = true"
-        >退回</a-button>
-        <!-- 上传确认函：待代理商上传 -->
-        <a-button
-          v-if="detail.status === '待代理商上传'"
-          type="primary"
-          @click="showUploadModal = true"
-        >上传确认函</a-button>
-        <!-- 审核：待安能审核 -->
-        <a-button
-          v-if="detail.status === '待安能审核'"
-          type="primary"
-          @click="handleAudit"
-        >审核通过</a-button>
-        <!-- 重新提交：退回安能确认 -->
-        <a-button
-          v-if="detail.status === '退回安能确认'"
-          type="primary"
-          @click="showResubmitModal = true"
-        >重新提交</a-button>
-        <!-- 重新生成：对账文件生成失败 -->
-        <a-button
-          v-if="detail.status === '对账文件生成失败'"
-          @click="handleRegenerate"
-        >重新生成</a-button>
+      <div class="file-list">
+        <div class="file-item" v-for="f in MOCK_FILES" :key="f.name">
+          <div class="file-icon">
+            <FileTextOutlined />
+          </div>
+          <div class="file-info">
+            <div class="file-name">{{ f.name }}</div>
+            <div class="file-meta">{{ f.size }} · {{ f.status }}</div>
+          </div>
+          <a-button type="link" size="small">预览</a-button>
+          <a-button type="link" size="small">下载</a-button>
+        </div>
       </div>
     </div>
 
-    <!-- 退回弹窗 -->
-    <a-modal v-model:open="showReturnModal" title="退回对账单" :width="480"
-      @ok="confirmReturn" ok-text="确认退回" cancel-text="取消" ok-type="danger">
-      <div style="margin-bottom:8px;font-size:13px;color:rgba(0,0,0,0.65)">请填写退回原因（必填）</div>
-      <a-textarea v-model:value="returnRemark" placeholder="请输入退回原因" :rows="4" :maxlength="512" show-count />
-    </a-modal>
+    <!-- 操作日志 -->
+    <div class="section-card">
+      <div class="section-title">操作日志</div>
+      <a-table
+        :columns="logColumns"
+        :data-source="MOCK_LOGS"
+        :pagination="false"
+        size="middle"
+        row-key="id"
+      />
+    </div>
 
-    <!-- 重新提交弹窗 -->
-    <a-modal v-model:open="showResubmitModal" title="重新提交" :width="480"
-      @ok="confirmResubmit" ok-text="确认提交" cancel-text="取消">
-      <div style="margin-bottom:8px;font-size:13px;color:rgba(0,0,0,0.65)">请填写补充说明（选填，最多 512 字）</div>
-      <a-textarea v-model:value="resubmitRemark" placeholder="可填写本次重新提交的说明" :rows="4" :maxlength="512" show-count />
-    </a-modal>
-
-    <!-- 上传确认函弹窗 -->
-    <a-modal v-model:open="showUploadModal" title="上传确认函" :width="520"
-      @ok="confirmUpload" ok-text="确认上传" cancel-text="取消">
-      <a-upload-dragger v-model:file-list="uploadFiles" name="file"
-        accept=".pdf,.jpg,.jpeg,.png" :multiple="false" :before-upload="() => false">
-        <p class="ant-upload-drag-icon"><InboxOutlined /></p>
-        <p class="ant-upload-text">点击或拖拽上传确认函</p>
-        <p class="ant-upload-hint">支持 PDF / JPG / PNG，不超过 10MB</p>
-      </a-upload-dragger>
-    </a-modal>
+    <!-- 底部操作按钮 -->
+    <div class="bottom-actions" v-if="currentStatus !== '已确认'">
+      <a-button v-if="currentStatus === '待代理商上传'" type="primary" @click="handleUploadConfirm">上传确认函</a-button>
+      <a-button v-if="currentStatus === '待代理商确认'" type="primary" @click="handleSign">签署</a-button>
+      <a-button v-if="currentStatus === '待代理商确认'" @click="handleReject">退回</a-button>
+      <a-button v-if="currentStatus === '待安能审核'" type="primary" @click="handleAudit">审核</a-button>
+      <a-button v-if="currentStatus === '退回安能确认'" type="primary" @click="handleResubmit">重新提交</a-button>
+      <a-button v-if="currentStatus === '对账文件生成失败'" type="primary" @click="handleRegenerate">重新生成</a-button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import {
-  LeftOutlined, DownloadOutlined,
-  FileOutlined, FileExcelOutlined, FilePdfOutlined,
-  InboxOutlined,
-} from '@ant-design/icons-vue'
+import { ArrowLeftOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons-vue'
 
-const emit = defineEmits<{
-  (e: 'navigate', target: string, payload?: Record<string, any>): void
-}>()
-
-const props = defineProps<{
-  row?: Record<string, any> | null
-}>()
+const props = defineProps<{ row?: any }>()
+const emit = defineEmits<{ navigate: [payload: { target: string; row?: any }] }>()
 
 const activeTab = ref('bills')
-const billSearch = ref('')
-const showReturnModal = ref(false)
-const showResubmitModal = ref(false)
-const showUploadModal = ref(false)
-const returnRemark = ref('')
-const resubmitRemark = ref('')
-const uploadFiles = ref<any[]>([])
 
-// 从父页面传入的行数据，或使用默认mock
-const detail = computed(() => {
-  if (props.row) return {
-    billNo: props.row.billNo ?? 'DZ2026090001',
-    agentName: props.row.agentName ?? '华东新能源科技有限公司',
-    period: props.row.period ?? '2026年9月',
-    amount: props.row.amount ?? 161.90,
-    status: props.row.status ?? '待代理商确认',
-  }
-  return {
-    billNo: 'DZ2026090001',
-    agentName: '华东新能源科技有限公司',
-    period: '2026年9月',
-    amount: 161.90,
-    status: '待代理商确认',
-  }
-})
+const reconcileNo = computed(() => props.row?.reconcileNo ?? 'DZD202609000002')
+const currentStatus = computed(() => props.row?.status ?? '待代理商确认')
 
-const hasBottomActions = computed(() => {
-  const s = detail.value.status
-  return ['待代理商确认','待代理商上传','待安能审核','退回安能确认','对账文件生成失败'].includes(s)
-})
-
-function statusTagColor(status: string) {
-  const map: Record<string, string> = {
-    '待生成对账文件': 'default', '对账文件生成失败': 'error',
-    '待代理商确认': 'processing', '已确认': 'success',
-    '退回安能确认': 'warning', '待代理商上传': 'blue', '待安能审核': 'purple',
-  }
-  return map[status] ?? 'default'
+const STATUS_COLOR: Record<string, string> = {
+  '待生成对账文件': 'default',
+  '对账文件生成失败': 'error',
+  '待代理商确认': 'processing',
+  '已确认': 'success',
+  '退回安能确认': 'warning',
+  '待代理商上传': 'processing',
+  '待安能审核': 'orange',
 }
 
-interface BillRow { id: number; billNo: string; stationName: string; billType: string; amount: number; period: string; remark: string }
-const MOCK_BILLS: BillRow[] = [
-  { id: 1, billNo: 'BD202609000101', stationName: '江苏省徐州市铜山区光伏电站', billType: '正数', amount: 8.52, period: '2026年9月', remark: '' },
-  { id: 2, billNo: 'BD202609000102', stationName: '安徽省合肥市庐阳区分布式电站', billType: '正数', amount: 12.38, period: '2026年9月', remark: '' },
-  { id: 3, billNo: 'BD202609000103', stationName: '浙江省杭州市余杭区光伏电站', billType: '负数', amount: -3.21, period: '2026年9月', remark: '退货抵扣' },
-  { id: 4, billNo: 'BD202609000104', stationName: '上海市松江区工商业屋顶电站', billType: '正数', amount: 24.60, period: '2026年9月', remark: '' },
-  { id: 5, billNo: 'BD202609000105', stationName: '江苏省苏州市吴江区光伏电站', billType: '正数', amount: 16.80, period: '2026年9月', remark: '' },
-  { id: 6, billNo: 'BD202609000106', stationName: '安徽省芜湖市鸠江区电站', billType: '负数', amount: -5.40, period: '2026年9月', remark: '质量问题退款' },
-]
+const BILL_TYPE_COLOR: Record<string, string> = {
+  '超出范围': 'orange', '渠道服务费': 'blue', '旁路': 'cyan',
+  '开发类费用': 'purple', '异常类费用': 'red',
+}
+
+// ── 账单明细 ──
 const billColumns = [
-  { title: '账单号', dataIndex: 'billNo', key: 'billNo', width: 180 },
-  { title: '电站名称', dataIndex: 'stationName', key: 'stationName', width: 220 },
-  { title: '账单类型', key: 'billType', width: 90, align: 'center' },
-  { title: '结算金额（万元）', key: 'amount', dataIndex: 'amount', width: 150, align: 'right' },
-  { title: '结算周期', dataIndex: 'period', key: 'period', width: 110 },
-  { title: '备注', dataIndex: 'remark', key: 'remark' },
+  { title: '账单编号', dataIndex: 'billNo', key: 'billNo', width: 180 },
+  { title: '电站编号', dataIndex: 'stationNo', key: 'stationNo', width: 160 },
+  { title: '账单类型', dataIndex: 'billType', key: 'billType', width: 130 },
+  { title: '账单创建时间', dataIndex: 'createTime', key: 'createTime', width: 160 },
+  { title: '应付金额', dataIndex: 'payableAmt', key: 'payableAmt', width: 130, align: 'right' as const },
 ]
-const filteredBills = computed(() => {
-  if (!billSearch.value) return MOCK_BILLS
-  return MOCK_BILLS.filter(b => b.billNo.includes(billSearch.value) || b.stationName.includes(billSearch.value))
+
+const MOCK_BILLS = [
+  { billNo:'ZD2026090-001-00', stationNo:'DC2026HZ299', billType:'超出范围', createTime:'2026-09-06 09:00', payableAmt:'66,720.00' },
+  { billNo:'ZD2026090-002-00', stationNo:'DC2026YG207', billType:'渠道服务费', createTime:'2026-09-14 07', payableAmt:'29,315.00' },
+  { billNo:'ZD2026090-003-00', stationNo:'DC2026BJ214', billType:'旁路', createTime:'2026-09-12 19:14', payableAmt:'61,200.00' },
+  { billNo:'ZD2026090-004-00', stationNo:'DC2026NC221', billType:'渠道服务费', createTime:'2026-09-15 00:21', payableAmt:'9,792.00' },
+  { billNo:'ZD2026090-005-00', stationNo:'DC2026WH228', billType:'开发类费用', createTime:'2026-09-18 05:23', payableAmt:'28,450.00' },
+  { billNo:'ZD2026090-006-00', stationNo:'DC2026HZ235', billType:'超出范围', createTime:'2026-09-21 10:35', payableAmt:'67,528.00' },
+  { billNo:'ZD2026090-007-00', stationNo:'DC2026YG242', billType:'渠道服务费', createTime:'2026-09-24 16:42', payableAmt:'20,540.00' },
+  { billNo:'ZD2026090-008-00', stationNo:'DC2026BJ249', billType:'旁路', createTime:'2026-09-27 20:49', payableAmt:'52,400.00' },
+  { billNo:'ZD2026090-009-00', stationNo:'DC2026NC256', billType:'渠道服务费', createTime:'2026-09-03 03:56', payableAmt:'8,912.00' },
+  { billNo:'ZD2026090-010-00', stationNo:'DC2026WH263', billType:'超出范围', createTime:'2026-09-06 06:03', payableAmt:'28,825.00' },
+  { billNo:'ZD2026090-011-00', stationNo:'DC2026HZ270', billType:'超出范围', createTime:'2026-09-09 19:10', payableAmt:'68,520.00' },
+  { billNo:'ZD2026090-012-00', stationNo:'DC2026YG277', billType:'渠道服务费', createTime:'2026-09-12 16:17', payableAmt:'20,765.00' },
+]
+
+const billTotal = computed(() => {
+  const sum = MOCK_BILLS.reduce((s, r) => s + parseFloat(r.payableAmt.replace(/,/g, '')), 0)
+  return sum.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 })
 
-interface DeductRow { id: number; type: string; desc: string; amount: number; basis: string; date: string }
-const MOCK_DEDUCTS: DeductRow[] = [
-  { id: 1, type: '超期未并网抵扣', desc: '徐州项目超期 45 天', amount: 8.50, basis: '合同第12条', date: '2026-09-30' },
-  { id: 2, type: '光伏贷逾期抵扣', desc: '2 笔光伏贷逾期', amount: 5.20, basis: '贷款协议附件', date: '2026-09-30' },
-  { id: 3, type: '市场罚单抵扣', desc: '违规展示物料', amount: 2.40, basis: '市场管理办法', date: '2026-09-28' },
-  { id: 4, type: '负数结算单抵扣', desc: '退货对应负数账单', amount: 5.50, basis: '退货确认单', date: '2026-09-25' },
-]
-const deductColumns = [
-  { title: '抵扣类型', dataIndex: 'type', key: 'type', width: 160 },
-  { title: '说明', dataIndex: 'desc', key: 'desc' },
-  { title: '依据', dataIndex: 'basis', key: 'basis', width: 140 },
-  { title: '抵扣金额（万元）', key: 'amount', dataIndex: 'amount', width: 150, align: 'right' },
-  { title: '日期', dataIndex: 'date', key: 'date', width: 120 },
+// ── 罚单明细 ──
+const penaltyColumns = [
+  { title: '罚单编号', dataIndex: 'penaltyNo', key: 'penaltyNo', width: 180 },
+  { title: '电站编号', dataIndex: 'stationNo', key: 'stationNo', width: 160 },
+  { title: '罚款金额', dataIndex: 'penaltyAmt', key: 'penaltyAmt', width: 130, align: 'right' as const },
 ]
 
-interface FileItem { id: number; name: string; type: string; size: string; uploadedAt: string }
-const MOCK_FILES: FileItem[] = [
-  { id: 1, name: '对账单_DZ2026090001_正式版.xlsx', type: 'excel', size: '248 KB', uploadedAt: '2026-10-10 14:32' },
-  { id: 2, name: '对账单_DZ2026090001_明细说明.pdf', type: 'pdf', size: '1.2 MB', uploadedAt: '2026-10-10 14:33' },
+const MOCK_PENALTIES = [
+  { penaltyNo:'FD2026090-001-00', stationNo:'DC2026HZ160', penaltyAmt:'6,108.00' },
+  { penaltyNo:'FD2026090-002-00', stationNo:'DC2026YG159', penaltyAmt:'9,216.00' },
+  { penaltyNo:'FD2026090-003-00', stationNo:'DC2026BJ168', penaltyAmt:'12,324.00' },
+]
+
+const penaltyTotal = computed(() => {
+  const sum = MOCK_PENALTIES.reduce((s, r) => s + parseFloat(r.penaltyAmt.replace(/,/g, '')), 0)
+  return sum.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+})
+
+// ── 对账文件 ──
+const MOCK_FILES = [
+  { name: `对账单-${reconcileNo.value}-待签名版.pdf`, size: '1.2MB', status: '待签名' },
+  { name: `对账单-${reconcileNo.value}-已签名版.pdf`, size: '606KB', status: '已签名' },
+]
+
+// ── 操作日志 ──
+const logColumns = [
+  { title: '动作', dataIndex: 'action', key: 'action', width: 180 },
+  { title: '日志文案', dataIndex: 'log', key: 'log' },
 ]
 
 const MOCK_LOGS = [
-  { id: 1, action: '系统自动生成对账单', operator: '系统', time: '2026-10-08 09:00', remark: '', color: 'gray' },
-  { id: 2, action: '对账文件生成完成', operator: '系统', time: '2026-10-10 14:32', remark: '', color: 'green' },
-  { id: 3, action: '已发送至代理商确认', operator: '王芳（财务）', time: '2026-10-10 15:00', remark: '', color: 'blue' },
+  { id:1, action:'对账单导入',      log:'对账单导入完成  操作人：系统管理员  操作时间：2026-09-22 21:39:35' },
+  { id:2, action:'对账单生成完成',   log:'对账单已生成  操作人：系统管理员  操作时间：2026-09-22 21:39:35' },
+  { id:3, action:'对账单文件生成成功', log:'对账单文件生成成功  操作人：系统管理员  操作时间：2026-09-22 21:39:35' },
+  { id:4, action:'上传确认单',      log:'对账单上传确认单完成  操作人：张三  操作时间：2026-09-22 21:39:35' },
+  { id:5, action:'对账单已签署',     log:'对账单代理商已签署  操作人：李四  操作时间：2026-09-23 09:12:05' },
 ]
 
-function handleExportBills() { message.info('导出明细功能待接入') }
-function handleDownload(f: FileItem) { message.info(`正在下载：${f.name}`) }
-function handleSign() { message.success('签署成功') }
-function handleAudit() { message.success('审核通过') }
-function handleRegenerate() {
-  message.loading({ content: '正在重新生成对账文件…', key: 'regen', duration: 2 })
-  setTimeout(() => message.success({ content: '已提交重新生成请求', key: 'regen' }), 2000)
-}
-function confirmReturn() {
-  if (!returnRemark.value.trim()) { message.error('请填写退回原因'); return }
-  message.success('已退回')
-  showReturnModal.value = false
-}
-function confirmResubmit() {
-  message.success('已重新提交')
-  showResubmitModal.value = false
-}
-function confirmUpload() {
-  if (uploadFiles.value.length === 0) { message.error('请先选择文件'); return }
-  message.success('确认函上传成功')
-  showUploadModal.value = false
-}
+function handleBack() { emit('navigate', { target: 'agent-reconcile-list' }) }
+function handleDownloadPdf() { message.info('正在生成PDF，请稍候') }
+function handleUploadConfirm() { message.info('上传确认函') }
+function handleSign() { message.info('发起签署流程') }
+function handleReject() { message.info('退回对账单') }
+function handleAudit() { message.info('审核对账单') }
+function handleResubmit() { message.info('重新提交对账单') }
+function handleRegenerate() { message.info('重新生成对账文件') }
 </script>
 
 <style scoped>
-.reconcile-detail-page {
-  display: flex; flex-direction: column; height: 100%;
-  background: #f5f5f5; overflow: hidden;
+.reconcile-detail-page { padding: 16px; height: 100%; box-sizing: border-box; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+
+.top-actions { display: flex; align-items: center; gap: 8px; }
+
+.header-card {
+  background: linear-gradient(135deg, #1677ff 0%, #0050b3 100%);
+  border-radius: 8px; padding: 20px 24px;
+  display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap;
+  color: #fff;
 }
+.header-left { flex: 1; min-width: 280px; }
+.header-title-row { display: flex; align-items: center; margin-bottom: 4px; }
+.reconcile-no { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+.header-sub { font-size: 13px; opacity: 0.8; margin-bottom: 12px; }
+.header-info-grid { display: flex; flex-wrap: wrap; gap: 6px 24px; }
+.info-item { font-size: 13px; white-space: nowrap; }
+.info-key { opacity: 0.7; }
+.info-val { font-weight: 500; }
 
-/* header */
-.detail-header {
-  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
-  padding: 16px 24px; flex-shrink: 0;
+.header-amounts { display: flex; gap: 8px; flex-wrap: wrap; align-self: center; }
+.amount-box {
+  background: rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 14px;
+  min-width: 110px; text-align: center;
 }
-.back-btn { color: rgba(255,255,255,0.8) !important; padding: 0; margin-bottom: 8px; }
-.back-btn:hover { color: #fff !important; }
-.header-info { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.bill-no { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: .5px; }
-.header-meta { font-size: 13px; color: rgba(255,255,255,0.8); display: flex; align-items: center; gap: 8px; }
-.header-meta strong { color: #fff; }
-.sep { opacity: 0.4; }
+.amount-box--primary { background: rgba(255,255,255,0.28); }
+.amount-label { font-size: 12px; opacity: 0.8; margin-bottom: 4px; }
+.amount-val { font-size: 16px; font-weight: 700; }
 
-/* body */
-.detail-body { flex: 1; overflow: auto; padding: 12px; }
-.detail-tabs { background: #fff; border-radius: 8px; }
-:deep(.ant-tabs-nav) { margin: 0 !important; padding: 0 16px; }
-.tab-content { padding: 16px; }
+.detail-card { background: #fff; border-radius: 8px; padding: 0 16px 16px; }
 
-.section-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.section-card { background: #fff; border-radius: 8px; padding: 16px 20px; }
+.section-title { font-size: 14px; font-weight: 600; color: rgba(0,0,0,0.88); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.section-count { font-size: 12px; color: rgba(0,0,0,0.45); font-weight: 400; }
 
-.neg { color: #cf1322; }
-
-.empty-hint {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 48px; gap: 12px; color: rgba(0,0,0,0.35);
-}
-
-/* 文件列表 */
-.file-list { display: flex; flex-direction: column; gap: 8px; }
+.file-list { display: flex; gap: 12px; flex-wrap: wrap; }
 .file-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid #f0f0f0; border-radius: 8px; padding: 10px 12px;
+  min-width: 280px; background: #fafafa;
 }
+.file-icon { font-size: 24px; color: #1677ff; }
 .file-info { flex: 1; min-width: 0; }
-.file-name { font-size: 13px; color: rgba(0,0,0,0.88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.file-meta { font-size: 12px; color: rgba(0,0,0,0.35); margin-top: 2px; }
+.file-name { font-size: 13px; color: rgba(0,0,0,0.88); font-weight: 500; }
+.file-meta { font-size: 11px; color: rgba(0,0,0,0.35); margin-top: 2px; }
 
-/* 操作日志 */
-.log-item { display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px; }
-.log-action { font-size: 13px; color: rgba(0,0,0,0.88); font-weight: 500; }
-.log-meta { font-size: 12px; color: rgba(0,0,0,0.35); }
-.log-remark { font-size: 12px; color: rgba(0,0,0,0.55); background: #f5f5f5; border-radius: 4px; padding: 4px 8px; margin-top: 2px; }
-
-/* footer */
-.detail-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 24px; background: #fff; border-top: 1px solid #f0f0f0; flex-shrink: 0;
+.bottom-actions {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff; border-radius: 8px; padding: 12px 20px;
+  position: sticky; bottom: 0; border-top: 1px solid #f0f0f0;
 }
-.footer-info { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(0,0,0,0.65); }
-.footer-info strong { color: rgba(0,0,0,0.88); }
-.footer-actions { display: flex; gap: 8px; }
+
+.link-cell { color: #1677ff; cursor: pointer; }
+.link-cell:hover { text-decoration: underline; }
 </style>
