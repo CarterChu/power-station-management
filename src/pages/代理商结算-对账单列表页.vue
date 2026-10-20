@@ -25,11 +25,7 @@
         <template #operationRight>
           <a-space>
             <AnfeTemplate title="下载模板" template-code="SETTLEMENT_NO_IMPORT" :request="fileRequest" />
-            <AnfeFileImport
-              template-code="SETTLEMENT_NO_IMPORT"
-              :request="fileRequest"
-              @on-import="handleImportResult"
-            />
+            <a-button @click="importModalVisible = true">导入</a-button>
             <AnfeFileExport
               title="导出"
               template-code="RECONCILE_LIST_EXPORT"
@@ -79,6 +75,27 @@
         </template>
       </AnfeProTable>
     </div>
+
+    <!-- 导入结算单号 Modal -->
+    <a-modal
+      v-model:open="importModalVisible"
+      title="导入结算单号"
+      :width="560"
+      :confirm-loading="importing"
+      ok-text="确认导入"
+      cancel-text="取消"
+      @ok="handleConfirmImport"
+      @cancel="() => { importRef?.reset(); }"
+    >
+      <AnfeFileImport
+        ref="importRef"
+        template-code="SETTLEMENT_NO_IMPORT"
+        title="点击或拖拽文件到此上传"
+        sub-title="支持 xlsx、xls 格式，文件大小不超过10M"
+        :request="fileRequest"
+        @on-import="handleImportResult"
+      />
+    </a-modal>
   </div>
 </template>
 
@@ -90,6 +107,9 @@ import { AnfeProTable, AnfeFileImport, AnfeFileExport, AnfeTemplate, AnfeQuickIn
 const emit = defineEmits<{ navigate: [payload: { target: string; row: any }] }>()
 
 const tableRef = ref<any>(null)
+const importRef = ref<any>(null)
+const importModalVisible = ref(false)
+const importing = ref(false)
 const filterReconcileNos = ref<string[]>([])
 const fileRequest = { fetch: () => Promise.resolve({ code: 0, data: {} }), token: '' }
 
@@ -176,8 +196,18 @@ const tableConfig = {
 function handleView(row: any) {
   emit('navigate', { target: 'agent-reconcile-detail', row })
 }
-function handleImportResult(result: any) {
-  message.success('导入完成')
+async function handleConfirmImport() {
+  importing.value = true
+  try {
+    await importRef.value?.save()
+  } finally {
+    importing.value = false
+  }
+}
+function handleImportResult(_result: any) {
+  message.success('导入成功，列表已刷新')
+  importModalVisible.value = false
+  importRef.value?.reset()
   tableRef.value?.reload()
 }
 function handleRegenerate(row: any) { message.info(`重新生成对账文件：${row.reconcileNo}`) }
