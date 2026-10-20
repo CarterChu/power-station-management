@@ -10,16 +10,12 @@
         :page-size="20"
         :table-props="{ scroll: { x: 2200 } }"
       >
-        <template #filterExtra>
-          <div class="filter-extra-row">
-            <span class="filter-extra-label">对账单号</span>
-            <AnfeQuickInputControls
-              v-model:value="filterReconcileNos"
-              placeholder="多个单号逗号/换行分隔"
-              :max-items="200"
-              style="width:280px"
-            />
-          </div>
+        <template #reconcileNosFilter>
+          <AnfeQuickInputControls
+            v-model:value="filterReconcileNos"
+            placeholder="多个单号逗号/换行分隔"
+            :max-items="200"
+          />
         </template>
 
         <template #operationRight>
@@ -142,6 +138,7 @@ const columns = [
 ]
 
 const filters = [
+  { label: '对账单号', key: 'reconcileNos', component: 'custom', slotName: 'reconcileNosFilter' },
   { label: '结算对象类型', key: 'settleObjType', component: 'select', placeholder: '全部类型',
     options: [
       { label: '代理商', value: '代理商' }, { label: '开发商', value: '开发商' },
@@ -221,11 +218,6 @@ function handleAudit(row: any) { message.info(`审核对账单：${row.reconcile
 <style scoped>
 .reconcile-list-page { padding: 16px; height: 100%; box-sizing: border-box; overflow: auto; }
 .slist-main-card { background: #fff; border-radius: 8px; }
-.filter-extra-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 0 0 8px; font-size: 13px;
-}
-.filter-extra-label { color: rgba(0,0,0,0.65); white-space: nowrap; }
 .link-cell { color: #1677ff; cursor: pointer; }
 .link-cell:hover { text-decoration: underline; }
 </style>
