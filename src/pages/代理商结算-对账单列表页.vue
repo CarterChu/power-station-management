@@ -7,8 +7,8 @@
         :columns="columns"
         :filters="filters"
         :config="tableConfig"
-        :page-size="20"
-        :table-props="{ scroll: { x: 2200 } }"
+        :page-size="10"
+        :table-props="{ scroll: { x: 2200 }, size: 'middle' }"
       >
         <template #reconcileNosFilter>
           <AnfeQuickInputControls
@@ -35,10 +35,7 @@
         </template>
 
         <template #settleObjSlot="{ row }">
-          <div>
-            <div>{{ row.settleObj }}</div>
-            <div style="font-size:11px;color:rgba(0,0,0,0.35)">{{ row.settleObjType }}</div>
-          </div>
+          <span>{{ row.settleObj }}</span>
         </template>
 
         <template #invoiceAmtSlot="{ row }">
@@ -134,7 +131,7 @@ const columns = [
   { title: '对账附件',  dataIndex: 'hasAttachment', key: 'attachment', width: 110, component: 'custom', slotName: 'attachmentSlot' },
   { title: '对账状态',  dataIndex: 'status',       key: 'status',      width: 130, component: 'custom', slotName: 'statusSlot' },
   { title: '确认时间',  dataIndex: 'confirmTime',  key: 'confirmTime', width: 160 },
-  { title: '操作',     dataIndex: 'action',         key: 'action',              width: 155, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作',     dataIndex: 'action',         key: 'action',              width: 120, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
