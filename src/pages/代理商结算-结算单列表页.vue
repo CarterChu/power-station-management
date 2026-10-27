@@ -19,7 +19,7 @@
         :columns="columns"
         :filters="filters"
         :config="tableConfig"
-        :page-size="20"
+        :page-size="10"
         :table-props="{ scroll: { x: 3351 }, size: 'middle' }"
       >
         <template #operationLeft>
