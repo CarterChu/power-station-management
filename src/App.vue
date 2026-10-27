@@ -491,6 +491,7 @@ const activeMenuKey = computed(() => {
   if (['list-b', 'stock-apply-b', 'stock-detail-b', 'start-apply-b', 'start-detail-b'].includes(page.value)) return 'biz-list-b'
   if (page.value === 'bill-query') return 'fin-bill-query'
   if (page.value === 'agent-todo') return 'agent-todo'
+  if (page.value === 'agent-settlement-list') return 'agent-settlement-list'
   if (page.value === 'agent-reconcile-summary') return 'agent-reconcile-summary'
   if (['agent-reconcile-list', 'agent-reconcile-detail'].includes(page.value)) return 'agent-reconcile-list'
   if (['fj-batch-list', 'fj-batch-edit', 'fj-batch-detail'].includes(page.value)) return 'fj-batch-list'
