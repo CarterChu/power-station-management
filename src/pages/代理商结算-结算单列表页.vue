@@ -243,8 +243,8 @@ function handlePayDetail(row: any) { message.info(`查看付款明细：${row.se
 </script>
 
 <style scoped>
-.settlement-list-page { padding: 16px; height: 100%; box-sizing: border-box; overflow: auto; }
-.slist-main-card { background: #fff; border-radius: 8px; }
+.settlement-list-page { padding: 16px; height: 100%; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; }
+.slist-main-card { background: #fff; border-radius: 8px; overflow: hidden; }
 
 .status-summary-bar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
