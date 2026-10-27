@@ -20,7 +20,7 @@
         :filters="filters"
         :config="tableConfig"
         :page-size="20"
-        :table-props="{ scroll: { x: 3395 }, size: 'middle' }"
+        :table-props="{ scroll: { x: 3351 }, size: 'middle' }"
       >
         <template #operationLeft>
           <a-space>
@@ -174,7 +174,7 @@ const columns = [
   { title: '状态',          dataIndex: 'status',         key: 'status',         width: 120, component: 'custom', slotName: 'statusSlot' },
   { title: '代理商状态',    dataIndex: 'agentStatus',    key: 'agentStatus',    width: 110, component: 'custom', slotName: 'agentStatusSlot' },
   { title: '特殊标记',      dataIndex: 'specialMark',    key: 'specialMark',    width: 110, component: 'custom', slotName: 'specialMarkSlot' },
-  { title: '操作',          dataIndex: 'action',         key: 'action',         width: 200, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作',          dataIndex: 'action',         key: 'action',         width: 156, fixed: 'right' as const, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
