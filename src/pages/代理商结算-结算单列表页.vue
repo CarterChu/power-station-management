@@ -82,23 +82,32 @@
         </template>
 
         <template #specialMarkSlot="{ row }">
-          <a-tag v-if="row.specialMark" color="warning" style="margin:0">{{ row.specialMark }}</a-tag>
+          <a-space v-if="row.specialMark?.length" :size="4" wrap>
+            <a-tag v-for="m in row.specialMark" :key="m" color="warning" style="margin:0">{{ m }}</a-tag>
+          </a-space>
           <span v-else style="color:rgba(0,0,0,0.25)">—</span>
         </template>
 
         <template #actionSlot="{ row }">
           <a-space :size="0">
             <a-button type="link" size="small" style="padding:0 4px" @click="handleDetail(row)">详情</a-button>
-            <a-button v-if="row.status !== '已付款'" type="link" size="small" style="padding:0 4px" @click="handlePayDetail(row)">付款明细</a-button>
+            <a-button type="link" size="small" style="padding:0 4px" @click="handleUploadInvoice(row)">上传发票</a-button>
+            <a-button type="link" size="small" style="padding:0 4px" @click="handleMark(row)">标记</a-button>
           </a-space>
         </template>
       </AnfeProTable>
     </div>
+
+    <a-modal v-model:open="markModal.visible" title="特殊标记" @ok="handleMarkSave" ok-text="确定" cancel-text="取消" :width="360">
+      <div class="mark-modal-body">
+        <a-checkbox-group v-model:value="markModal.selected" :options="SPECIAL_MARK_OPTIONS.map(v => ({ label: v, value: v }))" class="mark-checkbox-group" />
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { DownOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable, AnfeFileExport } from '@anfe/vue-pro-components'
@@ -127,6 +136,9 @@ const AGENT_STATUS_COLOR: Record<string, string> = {
   '退商': 'error',
   '异常': 'orange',
 }
+
+const SPECIAL_MARK_OPTIONS = ['诉讼', '跨区域', '重点关注', '冻结处理', '欠款纠纷', '协议异常']
+const markModal = reactive({ visible: false, row: null as any, selected: [] as string[] })
 
 const statusSummary = ref([
   { key: '待上传发票', label: '待上传发票', count: 4380 },
@@ -189,25 +201,25 @@ const filters = [
   { label: '代理商状态',  key: 'agentStatus',     component: 'select',      placeholder: '请选择',
     options: Object.keys(AGENT_STATUS_COLOR).map(k => ({ label: k, value: k })) },
   { label: '特殊标记',    key: 'specialMark',     component: 'select',      placeholder: '请选择',
-    options: ['诉讼','跨区域','重点关注','冻结处理'].map(v => ({ label: v, value: v })) },
+    options: SPECIAL_MARK_OPTIONS.map(v => ({ label: v, value: v })) },
 ]
 
 const MOCK_DATA = [
-  { id:'1',  settlementNo:'JS202609000001', agentName:'华东新能源科技有限公司', stationCode:'GF202401001', brand:'安能', branch:'华东分公司', province:'浙江', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:192, invoicedAmt:0, uninvoicedAmt:192, payableAmt:192, paidAmt:192, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'质保金', createTime:'2026-09-21 10:12:00', status:'已付款', agentStatus:'正常', specialMark:'' },
-  { id:'2',  settlementNo:'JS202609000002', agentName:'华东新能源科技有限公司', stationCode:'GF202401002', brand:'安能', branch:'华东分公司', province:'浙江', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:348355.46, invoicedAmt:0, uninvoicedAmt:348355.46, payableAmt:348355.46, paidAmt:0, deductedAmt:0, unpaidAmt:348355.46, frozenAmt:348355.46, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:18:00', status:'冻结中', agentStatus:'正常', specialMark:'' },
-  { id:'3',  settlementNo:'JS202609000003', agentName:'阳光光伏服务有限公司', stationCode:'GF202401015', brand:'安能', branch:'华东分公司', province:'江苏', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:1398976, invoicedAmt:0, uninvoicedAmt:1398976, payableAmt:1398976, paidAmt:0, deductedAmt:0, unpaidAmt:1398976, frozenAmt:0, deductingAmt:0, approvalAmt:1398976, settlementType:'开发安装费', createTime:'2026-09-21 09:05:00', status:'待付款', agentStatus:'正常', specialMark:'' },
-  { id:'4',  settlementNo:'JS202609000004', agentName:'阳光光伏服务有限公司', stationCode:'GF202401016', brand:'安能', branch:'华东分公司', province:'江苏', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:393422, invoicedAmt:0, uninvoicedAmt:393422, payableAmt:393422, paidAmt:0, deductedAmt:0, unpaidAmt:393422, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:00:00', status:'审批中', agentStatus:'正常', specialMark:'' },
-  { id:'5',  settlementNo:'JS202609000005', agentName:'北方绿能电力有限公司', stationCode:'GF202401030', brand:'光伏星', branch:'华北分公司', province:'山东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:159549, invoicedAmt:0, uninvoicedAmt:159549, payableAmt:159549, paidAmt:0, deductedAmt:0, unpaidAmt:159549, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:00:00', status:'审批中', agentStatus:'正常', specialMark:'' },
-  { id:'6',  settlementNo:'JS202609000006', agentName:'江南新能科技发展有限公司', stationCode:'GF202401044', brand:'安能', branch:'华东分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:97574.4, invoicedAmt:0, uninvoicedAmt:97574.4, payableAmt:97574.4, paidAmt:730, deductedAmt:0, unpaidAmt:96844.4, frozenAmt:96844.4, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 03:00:00', status:'部分付款', agentStatus:'正常', specialMark:'' },
-  { id:'7',  settlementNo:'JS202609000007', agentName:'江南新能科技发展有限公司', stationCode:'GF202401045', brand:'安能', branch:'华东分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:59272.2, invoicedAmt:0, uninvoicedAmt:59272.2, payableAmt:59272.2, paidAmt:0, deductedAmt:0, unpaidAmt:59272.2, frozenAmt:59272.2, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 03:00:00', status:'待付款', agentStatus:'正常', specialMark:'' },
-  { id:'8',  settlementNo:'JS202609000008', agentName:'西部光能发展有限公司', stationCode:'GF202401060', brand:'光伏星', branch:'西南分公司', province:'四川', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:235180, invoicedAmt:0, uninvoicedAmt:235180, payableAmt:235180, paidAmt:0, deductedAmt:0, unpaidAmt:235180, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 02:00:00', status:'待付款', agentStatus:'冻结', specialMark:'冻结处理' },
-  { id:'9',  settlementNo:'JS202609000009', agentName:'东南能源开发有限公司', stationCode:'GF202401071', brand:'安能', branch:'华东分公司', province:'福建', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:482000, invoicedAmt:0, uninvoicedAmt:482000, payableAmt:482000, paidAmt:482000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-20 18:00:00', status:'已付款', agentStatus:'正常', specialMark:'' },
-  { id:'10', settlementNo:'JS202609000010', agentName:'中原新能投资集团', stationCode:'GF202401088', brand:'安能', branch:'华北分公司', province:'河南', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:176500, invoicedAmt:0, uninvoicedAmt:176500, payableAmt:176500, paidAmt:0, deductedAmt:0, unpaidAmt:176500, frozenAmt:0, deductingAmt:176500, approvalAmt:0, settlementType:'返佣', createTime:'2026-09-20 15:30:00', status:'审批中', agentStatus:'异常', specialMark:'重点关注' },
-  { id:'11', settlementNo:'JS202609000011', agentName:'南粤绿能科技有限公司', stationCode:'GF202401099', brand:'光伏星', branch:'华南分公司', province:'广东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:625000, invoicedAmt:0, uninvoicedAmt:625000, payableAmt:625000, paidAmt:150000, deductedAmt:0, unpaidAmt:475000, frozenAmt:0, deductingAmt:0, approvalAmt:475000, settlementType:'开发安装费', createTime:'2026-09-20 14:00:00', status:'部分付款', agentStatus:'正常', specialMark:'' },
-  { id:'12', settlementNo:'JS202609000012', agentName:'秦岭清洁能源有限公司', stationCode:'GF202401112', brand:'光伏星', branch:'西北分公司', province:'湖北', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:88200, invoicedAmt:0, uninvoicedAmt:88200, payableAmt:88200, paidAmt:0, deductedAmt:0, unpaidAmt:88200, frozenAmt:88200, deductingAmt:0, approvalAmt:0, settlementType:'质保金', createTime:'2026-09-20 11:00:00', status:'冻结中', agentStatus:'退商', specialMark:'诉讼' },
-  { id:'13', settlementNo:'JS202608000001', agentName:'黑土地新能源科技公司', stationCode:'GF202401125', brand:'安能', branch:'东北分公司', province:'湖南', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:312000, invoicedAmt:0, uninvoicedAmt:312000, payableAmt:312000, paidAmt:312000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-08-31 17:00:00', status:'已付款', agentStatus:'正常', specialMark:'' },
-  { id:'14', settlementNo:'JS202608000002', agentName:'渤海湾风光互补能源公司', stationCode:'GF202401136', brand:'光伏星', branch:'东北分公司', province:'山东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:540000, invoicedAmt:0, uninvoicedAmt:540000, payableAmt:540000, paidAmt:200000, deductedAmt:50000, unpaidAmt:290000, frozenAmt:0, deductingAmt:290000, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-08-30 10:00:00', status:'部分付款', agentStatus:'正常', specialMark:'跨区域' },
-  { id:'15', settlementNo:'JS202608000003', agentName:'陇原光伏电力开发公司', stationCode:'GF202401148', brand:'安能', branch:'西北分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:198000, invoicedAmt:0, uninvoicedAmt:198000, payableAmt:198000, paidAmt:198000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'返佣', createTime:'2026-08-29 09:00:00', status:'已付款', agentStatus:'正常', specialMark:'' },
+  { id:'1',  settlementNo:'JS202609000001', agentName:'华东新能源科技有限公司', stationCode:'GF202401001', brand:'安能', branch:'华东分公司', province:'浙江', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:192, invoicedAmt:0, uninvoicedAmt:192, payableAmt:192, paidAmt:192, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'质保金', createTime:'2026-09-21 10:12:00', status:'已付款', agentStatus:'正常', specialMark:[] },
+  { id:'2',  settlementNo:'JS202609000002', agentName:'华东新能源科技有限公司', stationCode:'GF202401002', brand:'安能', branch:'华东分公司', province:'浙江', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:348355.46, invoicedAmt:0, uninvoicedAmt:348355.46, payableAmt:348355.46, paidAmt:0, deductedAmt:0, unpaidAmt:348355.46, frozenAmt:348355.46, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:18:00', status:'冻结中', agentStatus:'正常', specialMark:[] },
+  { id:'3',  settlementNo:'JS202609000003', agentName:'阳光光伏服务有限公司', stationCode:'GF202401015', brand:'安能', branch:'华东分公司', province:'江苏', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:1398976, invoicedAmt:0, uninvoicedAmt:1398976, payableAmt:1398976, paidAmt:0, deductedAmt:0, unpaidAmt:1398976, frozenAmt:0, deductingAmt:0, approvalAmt:1398976, settlementType:'开发安装费', createTime:'2026-09-21 09:05:00', status:'待付款', agentStatus:'正常', specialMark:[] },
+  { id:'4',  settlementNo:'JS202609000004', agentName:'阳光光伏服务有限公司', stationCode:'GF202401016', brand:'安能', branch:'华东分公司', province:'江苏', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:393422, invoicedAmt:0, uninvoicedAmt:393422, payableAmt:393422, paidAmt:0, deductedAmt:0, unpaidAmt:393422, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:00:00', status:'审批中', agentStatus:'正常', specialMark:[] },
+  { id:'5',  settlementNo:'JS202609000005', agentName:'北方绿能电力有限公司', stationCode:'GF202401030', brand:'光伏星', branch:'华北分公司', province:'山东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:159549, invoicedAmt:0, uninvoicedAmt:159549, payableAmt:159549, paidAmt:0, deductedAmt:0, unpaidAmt:159549, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-21 09:00:00', status:'审批中', agentStatus:'正常', specialMark:[] },
+  { id:'6',  settlementNo:'JS202609000006', agentName:'江南新能科技发展有限公司', stationCode:'GF202401044', brand:'安能', branch:'华东分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:97574.4, invoicedAmt:0, uninvoicedAmt:97574.4, payableAmt:97574.4, paidAmt:730, deductedAmt:0, unpaidAmt:96844.4, frozenAmt:96844.4, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 03:00:00', status:'部分付款', agentStatus:'正常', specialMark:[] },
+  { id:'7',  settlementNo:'JS202609000007', agentName:'江南新能科技发展有限公司', stationCode:'GF202401045', brand:'安能', branch:'华东分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:59272.2, invoicedAmt:0, uninvoicedAmt:59272.2, payableAmt:59272.2, paidAmt:0, deductedAmt:0, unpaidAmt:59272.2, frozenAmt:59272.2, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 03:00:00', status:'待付款', agentStatus:'正常', specialMark:[] },
+  { id:'8',  settlementNo:'JS202609000008', agentName:'西部光能发展有限公司', stationCode:'GF202401060', brand:'光伏星', branch:'西南分公司', province:'四川', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:235180, invoicedAmt:0, uninvoicedAmt:235180, payableAmt:235180, paidAmt:0, deductedAmt:0, unpaidAmt:235180, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'超期电站回购', createTime:'2026-09-21 02:00:00', status:'待付款', agentStatus:'冻结', specialMark:['冻结处理'] },
+  { id:'9',  settlementNo:'JS202609000009', agentName:'东南能源开发有限公司', stationCode:'GF202401071', brand:'安能', branch:'华东分公司', province:'福建', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:482000, invoicedAmt:0, uninvoicedAmt:482000, payableAmt:482000, paidAmt:482000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-09-20 18:00:00', status:'已付款', agentStatus:'正常', specialMark:[] },
+  { id:'10', settlementNo:'JS202609000010', agentName:'中原新能投资集团', stationCode:'GF202401088', brand:'安能', branch:'华北分公司', province:'河南', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:176500, invoicedAmt:0, uninvoicedAmt:176500, payableAmt:176500, paidAmt:0, deductedAmt:0, unpaidAmt:176500, frozenAmt:0, deductingAmt:176500, approvalAmt:0, settlementType:'返佣', createTime:'2026-09-20 15:30:00', status:'审批中', agentStatus:'异常', specialMark:['重点关注'] },
+  { id:'11', settlementNo:'JS202609000011', agentName:'南粤绿能科技有限公司', stationCode:'GF202401099', brand:'光伏星', branch:'华南分公司', province:'广东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:625000, invoicedAmt:0, uninvoicedAmt:625000, payableAmt:625000, paidAmt:150000, deductedAmt:0, unpaidAmt:475000, frozenAmt:0, deductingAmt:0, approvalAmt:475000, settlementType:'开发安装费', createTime:'2026-09-20 14:00:00', status:'部分付款', agentStatus:'正常', specialMark:[] },
+  { id:'12', settlementNo:'JS202609000012', agentName:'秦岭清洁能源有限公司', stationCode:'GF202401112', brand:'光伏星', branch:'西北分公司', province:'湖北', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:88200, invoicedAmt:0, uninvoicedAmt:88200, payableAmt:88200, paidAmt:0, deductedAmt:0, unpaidAmt:88200, frozenAmt:88200, deductingAmt:0, approvalAmt:0, settlementType:'质保金', createTime:'2026-09-20 11:00:00', status:'冻结中', agentStatus:'退商', specialMark:['诉讼'] },
+  { id:'13', settlementNo:'JS202608000001', agentName:'黑土地新能源科技公司', stationCode:'GF202401125', brand:'安能', branch:'东北分公司', province:'湖南', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:312000, invoicedAmt:0, uninvoicedAmt:312000, payableAmt:312000, paidAmt:312000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-08-31 17:00:00', status:'已付款', agentStatus:'正常', specialMark:[] },
+  { id:'14', settlementNo:'JS202608000002', agentName:'渤海湾风光互补能源公司', stationCode:'GF202401136', brand:'光伏星', branch:'东北分公司', province:'山东', payEntity:'光伏星能源科技（上海）有限公司', invoiceAmt:540000, invoicedAmt:0, uninvoicedAmt:540000, payableAmt:540000, paidAmt:200000, deductedAmt:50000, unpaidAmt:290000, frozenAmt:0, deductingAmt:290000, approvalAmt:0, settlementType:'开发安装费', createTime:'2026-08-30 10:00:00', status:'部分付款', agentStatus:'正常', specialMark:['跨区域'] },
+  { id:'15', settlementNo:'JS202608000003', agentName:'陇原光伏电力开发公司', stationCode:'GF202401148', brand:'安能', branch:'西北分公司', province:'安徽', payEntity:'正泰安能数字能源（浙江）股份有限公司', invoiceAmt:198000, invoicedAmt:0, uninvoicedAmt:198000, payableAmt:198000, paidAmt:198000, deductedAmt:0, unpaidAmt:0, frozenAmt:0, deductingAmt:0, approvalAmt:0, settlementType:'返佣', createTime:'2026-08-29 09:00:00', status:'已付款', agentStatus:'正常', specialMark:[] },
 ]
 
 const tableConfig = {
@@ -227,7 +239,7 @@ const tableConfig = {
       if (fp.settlementType && row.settlementType !== fp.settlementType)        return false
       if (fp.payEntity      && !row.payEntity.includes(fp.payEntity))           return false
       if (fp.agentStatus    && row.agentStatus !== fp.agentStatus)              return false
-      if (fp.specialMark    && row.specialMark !== fp.specialMark)              return false
+      if (fp.specialMark    && !row.specialMark.includes(fp.specialMark))        return false
       if (activeStatusFilter.value === '待上传发票' && row.status === '已付款') return false
       if (activeStatusFilter.value === '待签收合同' && !['审批中','待付款'].includes(row.status)) return false
       return true
@@ -239,7 +251,16 @@ const tableConfig = {
 
 function handleCreate() { message.info('新增结算单') }
 function handleDetail(row: any) { emit('navigate', { target: 'agent-settlement-detail', row }) }
-function handlePayDetail(row: any) { message.info(`查看付款明细：${row.settlementNo}`) }
+function handleUploadInvoice(row: any) { message.info(`上传发票：${row.settlementNo}`) }
+function handleMark(row: any) {
+  markModal.row = row
+  markModal.selected = [...(row.specialMark || [])]
+  markModal.visible = true
+}
+function handleMarkSave() {
+  if (markModal.row) markModal.row.specialMark = [...markModal.selected]
+  markModal.visible = false
+}
 </script>
 
 <style scoped>
@@ -261,4 +282,7 @@ function handlePayDetail(row: any) { message.info(`查看付款明细：${row.se
 .status-cell { display: inline-flex; align-items: center; gap: 4px; }
 .status-refresh-icon { font-size: 12px; color: rgba(0,0,0,0.45); cursor: pointer; }
 .status-refresh-icon:hover { color: #1677ff; }
+
+.mark-modal-body { padding: 8px 0 4px; }
+.mark-checkbox-group { display: flex; flex-direction: column; gap: 12px; }
 </style>
