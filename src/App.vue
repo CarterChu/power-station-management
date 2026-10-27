@@ -1150,6 +1150,7 @@ const handleEditFromCompleteDetail = (id: string) => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: #f5f5f5;
 }
 </style>
