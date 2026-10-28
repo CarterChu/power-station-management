@@ -50,9 +50,9 @@
         </template>
 
         <template #specialMarkSlot="{ row }">
-          <a-space v-if="row.specialMark?.length" :size="4" wrap>
-            <a-tag v-for="m in row.specialMark" :key="m" color="warning" style="margin:0">{{ m }}</a-tag>
-          </a-space>
+          <a-tooltip v-if="row.specialMark?.length" :title="row.specialMark.join('；')">
+            <span class="special-mark-text">{{ row.specialMark.join('；') }}</span>
+          </a-tooltip>
           <span v-else style="color:rgba(0,0,0,0.25)">—</span>
         </template>
 
@@ -68,14 +68,15 @@
 
     <a-modal v-model:open="markModal.visible" title="特殊标记" @ok="handleMarkSave" ok-text="确定" cancel-text="取消" :width="360">
       <div class="mark-modal-body">
-        <a-checkbox-group v-model:value="markModal.selected" :options="SPECIAL_MARK_OPTIONS.map(v => ({ label: v, value: v }))" class="mark-checkbox-group" />
+        <a-input v-model:value="markModal.search" placeholder="搜索标记" allow-clear style="margin-bottom:12px" />
+        <a-checkbox-group v-model:value="markModal.selected" :options="filteredMarkOptions" class="mark-checkbox-group" />
       </div>
     </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { SyncOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
@@ -105,7 +106,12 @@ const AGENT_STATUS_COLOR: Record<string, string> = {
 }
 
 const SPECIAL_MARK_OPTIONS = ['诉讼', '跨区域', '重点关注', '冻结处理', '欠款纠纷', '协议异常']
-const markModal = reactive({ visible: false, row: null as any, selected: [] as string[] })
+const markModal = reactive({ visible: false, row: null as any, selected: [] as string[], search: '' })
+const filteredMarkOptions = computed(() =>
+  SPECIAL_MARK_OPTIONS
+    .filter(v => !markModal.search || v.includes(markModal.search))
+    .map(v => ({ label: v, value: v }))
+)
 
 const statusSummary = ref([
   { key: '待上传发票', label: '待上传发票', count: 4380 },
@@ -228,6 +234,7 @@ function handleUploadInvoice(row: any) { message.info(`上传发票：${row.sett
 function handleMark(row: any) {
   markModal.row = row
   markModal.selected = [...(row.specialMark || [])]
+  markModal.search = ''
   markModal.visible = true
 }
 function handleMarkSave() {
@@ -256,6 +263,7 @@ function handleMarkSave() {
 .status-refresh-icon { font-size: 12px; color: rgba(0,0,0,0.45); cursor: pointer; }
 .status-refresh-icon:hover { color: #1677ff; }
 
+.special-mark-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
 .mark-modal-body { padding: 8px 0 4px; }
 .mark-checkbox-group { display: flex; flex-direction: column; gap: 12px; }
 </style>
