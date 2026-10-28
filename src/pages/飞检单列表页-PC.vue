@@ -56,7 +56,6 @@
   <!-- 飞检单详情 Drawer -->
   <a-drawer
     v-model:open="detailVisible"
-    :title="detailRow ? detailRow.sheetNo : ''"
     width="860"
     :body-style="{ padding: '16px 20px' }"
     destroy-on-close
