@@ -25,33 +25,9 @@
         <template #operationRight>
           <a-space>
             <a-button type="primary" @click="handleCreate">+ 新增</a-button>
-            <a-dropdown>
-              <a-button>下载结算批次 <DownOutlined /></a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="message.info('下载全部结算批次')">下载全部</a-menu-item>
-                  <a-menu-item @click="message.info('下载当前筛选结算批次')">下载当前筛选</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-            <a-dropdown>
-              <a-button>下载结算明细 <DownOutlined /></a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="message.info('下载全部结算明细')">下载全部</a-menu-item>
-                  <a-menu-item @click="message.info('下载当前筛选明细')">下载当前筛选</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-            <a-dropdown>
-              <a-button>下载结算单 <DownOutlined /></a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="message.info('下载选中结算单')">下载选中</a-menu-item>
-                  <a-menu-item @click="message.info('下载全部结算单')">下载全部</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
+            <a-button @click="message.info('下载结算批次')">下载结算批次</a-button>
+            <a-button @click="message.info('下载结算明细')">下载结算明细</a-button>
+            <a-button @click="message.info('下载结算单')">下载结算单</a-button>
           </a-space>
         </template>
 
@@ -101,7 +77,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
-import { DownOutlined, SyncOutlined } from '@ant-design/icons-vue'
+import { SyncOutlined } from '@ant-design/icons-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const emit = defineEmits<{ navigate: [payload: { target: string; row?: any }] }>()
