@@ -22,7 +22,7 @@
         :page-size="10"
         :table-props="{ scroll: { x: 3351 }, size: 'middle' }"
       >
-        <template #operationLeft>
+        <template #operationRight>
           <a-space>
             <a-button type="primary" @click="handleCreate">+ 新增</a-button>
             <a-dropdown>
