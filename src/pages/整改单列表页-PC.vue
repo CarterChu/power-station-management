@@ -90,7 +90,10 @@
               </div>
               <div class="info-item">
                 <div class="info-label">整改复验人</div>
-                <div class="info-value">{{ currentRow.rectifyEngineer || '—' }}</div>
+                <div class="info-value info-value--action">
+                  <span>{{ drawerRectifyEngineer || '—' }}</span>
+                  <a-button v-if="['pending','reviewing'].includes(currentRow.status)" type="link" size="small" class="transfer-btn" @click="rectifyTransferVisible = true">转办</a-button>
+                </div>
               </div>
               <div class="info-item">
                 <div class="info-label">整改期限</div>
@@ -137,11 +140,35 @@
         </div>
       </template>
     </a-drawer>
+
+  <!-- 整改复验人转办弹窗 -->
+  <a-modal
+    v-model:open="rectifyTransferVisible"
+    title="转办整改复验人"
+    ok-text="确认转办"
+    cancel-text="取消"
+    :ok-button-props="{ disabled: !rectifyTransferTarget }"
+    width="400px"
+    @ok="handleRectifyTransferConfirm"
+    @cancel="rectifyTransferTarget = ''"
+  >
+    <div style="padding:8px 0 4px">
+      <a-select
+        v-model:value="rectifyTransferTarget"
+        show-search
+        placeholder="搜索被转办人姓名"
+        style="width:100%"
+        :options="ENGINEER_OPTIONS"
+        :filter-option="(input: string, opt: any) => opt.label.includes(input)"
+      />
+    </div>
+  </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { message } from 'ant-design-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 
 // APP 端功能，PC 暂不展示；需要演示时改为 true
@@ -208,7 +235,25 @@ function handleRectify(row: any) {
 
 function handleDetail(row: any) {
   currentRow.value = row
+  drawerRectifyEngineer.value = row.rectifyEngineer || ''
   detailVisible.value = true
+}
+
+// ── 整改复验人转办 ─────────────────────────────────────────────────────────
+const ENGINEERS = ['赵飞', '刘海', '黄磊', '周斌', '吴杰', '陈明海', '李志远', '王建国', '张晓云', '刘明', '陈浩', '林峰']
+const ENGINEER_OPTIONS = ENGINEERS.map(name => ({ label: name, value: name }))
+
+const drawerRectifyEngineer = ref('')
+const rectifyTransferVisible = ref(false)
+const rectifyTransferTarget = ref('')
+
+function handleRectifyTransferConfirm() {
+  const name = rectifyTransferTarget.value
+  if (!name) return
+  drawerRectifyEngineer.value = name
+  message.success(`整改复验已转办给 ${name}`)
+  rectifyTransferVisible.value = false
+  rectifyTransferTarget.value = ''
 }
 
 const MOCK_RECTIFY = [
@@ -251,6 +296,8 @@ const MOCK_RECTIFY = [
 .info-item--span2 { grid-column: span 2; }
 .info-label { font-size: 14px; color: rgba(0,0,0,0.45); line-height: 22px; padding-bottom: 8px; white-space: nowrap; }
 .info-value { font-size: 14px; color: #262626; }
+.info-value--action { display: flex; align-items: center; gap: 2px; }
+.transfer-btn { padding: 0 4px; height: auto; font-size: 13px; }
 .defect-item-card { border: 1px solid #f0f0f0; border-left-width: 3px; border-radius: 6px; padding: 14px 16px; margin-bottom: 10px; }
 .defect-item-card.rs-pending   { border-left-color: #fa8c16; background: rgba(250,140,22,0.02); }
 .defect-item-card.rs-reviewing { border-left-color: #1677ff; background: rgba(22,119,255,0.02); }

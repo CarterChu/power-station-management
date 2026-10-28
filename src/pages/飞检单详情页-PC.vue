@@ -50,11 +50,17 @@
           </div>
           <div class="info-item">
             <div class="info-label">飞检工程师</div>
-            <div class="info-value">{{ sheet.engineer }}</div>
+            <div class="info-value info-value--action">
+              <span>{{ engineerName }}</span>
+              <a-button v-if="sheetData.checkStatus === 'pending'" type="link" size="small" class="transfer-btn" @click="openTransfer('engineer')">转办</a-button>
+            </div>
           </div>
           <div class="info-item">
             <div class="info-label">整改复验人</div>
-            <div class="info-value">{{ sheet.rectifyEngineer || '—' }}</div>
+            <div class="info-value info-value--action">
+              <span>{{ rectifyEngineerName || '—' }}</span>
+              <a-button v-if="['pending','reviewing'].includes(sheetData.rectifyStatus)" type="link" size="small" class="transfer-btn" @click="openTransfer('rectify')">转办</a-button>
+            </div>
           </div>
           <div class="info-item">
             <div class="info-label">整改状态</div>
@@ -71,7 +77,13 @@
 
       <!-- 缺陷汇总 + 检查项结果 -->
       <div class="detail-section">
-        <!-- 缺陷汇总（检查后才展示） -->
+        <!-- 待检查时展示空状态 -->
+        <template v-if="sheet.checkStatus === 'pending'">
+          <div class="section-title">检查项结果</div>
+          <a-empty description="暂无检查记录，飞检尚未执行" style="padding: 32px 0;" />
+        </template>
+
+        <!-- 检查后展示缺陷汇总 -->
         <template v-if="sheet.checkStatus !== 'pending'">
           <div class="section-title">缺陷汇总</div>
           <div class="defect-summary-row">
@@ -91,10 +103,9 @@
               <div class="ds-threshold">允收 ≤ 3</div>
             </div>
           </div>
-        </template>
 
         <!-- 检查项结果 -->
-        <div class="section-title">检查项结果</div>
+        <div class="section-title" style="margin-top:28px">检查项结果</div>
         <div v-for="cat in checkCategories" :key="cat.name" class="check-category">
           <div class="check-cat-header" @click="cat.expanded = !cat.expanded">
             <span class="check-cat-name">{{ cat.name }}</span>
@@ -125,12 +136,37 @@
             </div>
           </div>
         </div>
+        </template>
       </div>
   </div>
+
+  <!-- 转办弹窗 -->
+  <a-modal
+    v-model:open="transferVisible"
+    :title="transferType === 'engineer' ? '转办飞检工程师' : '转办整改复验人'"
+    ok-text="确认转办"
+    cancel-text="取消"
+    :ok-button-props="{ disabled: !transferTarget }"
+    width="400px"
+    @ok="handleTransferConfirm"
+    @cancel="transferTarget = ''"
+  >
+    <div style="padding:8px 0 4px">
+      <a-select
+        v-model:value="transferTarget"
+        show-search
+        placeholder="搜索被转办人姓名"
+        style="width:100%"
+        :options="ENGINEER_OPTIONS"
+        :filter-option="(input: string, opt: any) => opt.label.includes(input)"
+      />
+    </div>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
 import { DownOutlined, CheckCircleFilled, CloseCircleFilled, MinusCircleOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps<{
@@ -147,7 +183,40 @@ const MOCK_SHEET = {
   crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'reviewing',
 }
 
-const sheet = props.initRow ?? MOCK_SHEET
+const sheetData = reactive({ ...(props.initRow ?? MOCK_SHEET) })
+// 保持向下兼容，检查项等部分仍使用 sheet 别名
+const sheet = sheetData
+
+const engineerName = ref(sheetData.engineer || '')
+const rectifyEngineerName = ref(sheetData.rectifyEngineer || '')
+
+// ── 转办 ──────────────────────────────────────────────────────────────────
+const ENGINEERS = ['赵飞', '刘海', '黄磊', '周斌', '吴杰', '陈明海', '李志远', '王建国', '张晓云', '刘明', '陈浩', '林峰']
+const ENGINEER_OPTIONS = ENGINEERS.map(name => ({ label: name, value: name }))
+
+const transferVisible = ref(false)
+const transferType = ref<'engineer' | 'rectify'>('engineer')
+const transferTarget = ref('')
+
+function openTransfer(type: 'engineer' | 'rectify') {
+  transferType.value = type
+  transferTarget.value = ''
+  transferVisible.value = true
+}
+
+function handleTransferConfirm() {
+  const name = transferTarget.value
+  if (!name) return
+  if (transferType.value === 'engineer') {
+    engineerName.value = name
+    message.success(`飞检单已转办给 ${name}`)
+  } else {
+    rectifyEngineerName.value = name
+    message.success(`整改复验已转办给 ${name}`)
+  }
+  transferVisible.value = false
+  transferTarget.value = ''
+}
 
 const checkCategories = reactive([
   {
@@ -199,6 +268,8 @@ const checkCategories = reactive([
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
 .info-label { font-size: 14px; color: rgba(0,0,0,0.45); line-height: 22px; padding-bottom: 8px; white-space: nowrap; }
 .info-value { font-size: 14px; color: #262626; }
+.info-value--action { display: flex; align-items: center; gap: 2px; }
+.transfer-btn { padding: 0 4px; height: auto; font-size: 13px; }
 
 /* 缺陷汇总 */
 .defect-summary-row { display: flex; gap: 10px; margin-bottom: 32px; }
