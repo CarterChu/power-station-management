@@ -65,7 +65,7 @@
         :data-source="filteredAgents"
         row-key="id"
         size="middle"
-        :scroll="{ x: 2600 }"
+        :scroll="{ x: 2356 }"
         :pagination="{
           pageSize: 10,
           showSizeChanger: true,
