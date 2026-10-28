@@ -184,7 +184,8 @@ const filters = [
       { label: '开发安装费', value: '开发安装费' }, { label: '质保金', value: '质保金' },
       { label: '超期电站回购', value: '超期电站回购' }, { label: '返佣', value: '返佣' },
     ] },
-  { label: '创建日期',    key: 'createTimeRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
+  { label: '创建日期',    key: 'createTimeRange',  component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
+  { label: '结算单确认时间', key: 'confirmTimeRange', component: 'rangePicker', placeholder: ['开始日期', '结束日期'] },
   { label: '分公司',      key: 'branch',          component: 'select',      placeholder: '请选择',
     options: ['华东分公司','华南分公司','华北分公司','西南分公司','西北分公司','东北分公司','华中分公司'].map(v => ({ label: v, value: v })) },
   { label: '省份',        key: 'province',        component: 'select',      placeholder: '请选择',
@@ -232,6 +233,10 @@ const tableConfig = {
       if (fp.payEntity      && !row.payEntity.includes(fp.payEntity))           return false
       if (fp.agentStatus    && row.agentStatus !== fp.agentStatus)              return false
       if (fp.specialMark    && !row.specialMark.includes(fp.specialMark))        return false
+      if (fp.createTimeRange?.[0] && row.createTime && row.createTime < fp.createTimeRange[0]) return false
+      if (fp.createTimeRange?.[1] && row.createTime && row.createTime > fp.createTimeRange[1]) return false
+      if (fp.confirmTimeRange?.[0] && row.confirmTime && row.confirmTime < fp.confirmTimeRange[0]) return false
+      if (fp.confirmTimeRange?.[1] && row.confirmTime && row.confirmTime > fp.confirmTimeRange[1]) return false
       if (activeStatusFilter.value === '待上传发票' && row.status === '已付款') return false
       if (activeStatusFilter.value === '待签收合同' && !['审批中','待付款'].includes(row.status)) return false
       return true
