@@ -75,30 +75,6 @@
           pageSizeOptions: ['10', '20', '50'],
         }"
       >
-        <template #summary>
-          <a-table-summary fixed="bottom">
-            <a-table-summary-row>
-              <a-table-summary-cell :index="0" :col-span="4" class="td-summary-label">
-                合计（{{ filteredAgents.length }} 家结算对象）
-              </a-table-summary-cell>
-              <a-table-summary-cell :index="4" :col-span="4" class="td-summary-item" style="background:#fffefb">
-                销售待办：<strong>{{ sumSales }}</strong> 项
-              </a-table-summary-cell>
-              <a-table-summary-cell :index="8" :col-span="6" class="td-summary-item" style="background:#fcfdff">
-                结算待办：<strong>{{ sumSettle }}</strong> 项
-              </a-table-summary-cell>
-              <a-table-summary-cell :index="14" :col-span="2" class="td-summary-item" style="background:#fdfffa">
-                归档待办：<strong>{{ sumArchive }}</strong> 项
-              </a-table-summary-cell>
-              <a-table-summary-cell :index="16" :col-span="6" class="td-summary-item" style="background:#fffdfc">
-                冻结合计：<strong>¥{{ sumFreeze.toFixed(2) }}</strong> 万
-              </a-table-summary-cell>
-              <a-table-summary-cell :index="22" :col-span="6" class="td-summary-item" style="background:#fcfbff">
-                抵扣合计：<strong>¥{{ sumDeduct.toFixed(2) }}</strong> 万
-              </a-table-summary-cell>
-            </a-table-summary-row>
-          </a-table-summary>
-        </template>
       </a-table>
       </div>
     </div>
@@ -498,11 +474,6 @@ const pagedAgents  = computed(() => {
 watch(filteredAgents, () => { cardPage.value = 1 })
 
 
-const sumSales   = computed(() => filteredAgents.value.reduce((s, r) => s + r.salesContract + r.salesGoods + r.salesInvoice, 0))
-const sumSettle  = computed(() => filteredAgents.value.reduce((s, r) => s + r.settlePosOpen + r.settleNegOpen + r.settleNonSettle + r.settleFinance + r.settleControlled + r.settleSignReconcile, 0))
-const sumArchive = computed(() => filteredAgents.value.reduce((s, r) => s + r.archiveFix + r.archiveMail, 0))
-const sumFreeze  = computed(() => filteredAgents.value.reduce((s, r) => s + parseFloat(r.freezeMaterial) + parseFloat(r.freezeGrid) + parseFloat(r.freezeLoan) + parseFloat(r.freezeMaint) + parseFloat(r.freezeRect) + parseFloat(r.freezeOther), 0))
-const sumDeduct  = computed(() => filteredAgents.value.reduce((s, r) => s + parseFloat(r.deductGrid) + parseFloat(r.deductLoan) + parseFloat(r.deductPenalty) + parseFloat(r.deductOther) + parseFloat(r.deductNeg) + parseFloat(r.deductXaz), 0))
 
 function doQuery() {}
 function handleReset() { queryBrand.value = ''; queryRegion.value = ''; queryAgent.value = '' }
@@ -584,8 +555,5 @@ function handleReset() { queryBrand.value = ''; queryRegion.value = ''; queryAge
 .ant-table-tbody > tr > td.ant-table-cell-fix-left { background: #fff; }
 .ant-table-thead > tr > th.ant-table-cell-fix-left { background: #fafafa !important; border-right-color: transparent !important; }
 
-.td-summary-label { font-weight: 600; color: rgba(0,0,0,0.65); background: #fafafa !important; }
-.td-summary-item  { color: rgba(0,0,0,0.65); font-size: 14px; }
-.td-summary-item strong { color: rgba(0,0,0,0.88); }
 
 </style>
