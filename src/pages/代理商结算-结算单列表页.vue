@@ -55,14 +55,6 @@
           </a-space>
         </template>
 
-        <template #operationRight>
-          <AnfeFileExport
-            title="导出"
-            template-code="SETTLEMENT_LIST_EXPORT"
-            :request="fileRequest"
-          />
-        </template>
-
         <template #settlementNoSlot="{ row }">
           <a class="link-cell" @click="handleDetail(row)">{{ row.settlementNo }}</a>
         </template>
@@ -110,12 +102,11 @@
 import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { DownOutlined, SyncOutlined } from '@ant-design/icons-vue'
-import { AnfeProTable, AnfeFileExport } from '@anfe/vue-pro-components'
+import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const emit = defineEmits<{ navigate: [payload: { target: string; row?: any }] }>()
 
 const tableRef = ref<any>(null)
-const fileRequest = { fetch: () => Promise.resolve({ code: 0, data: {} }), token: '' }
 const activeStatusFilter = ref<string | null>(null)
 
 const STATUS_COLOR: Record<string, string> = {
