@@ -151,6 +151,7 @@
             <FjBatchDetail v-else-if="activeTabKey === 'fj-batch-detail'" :init-row="fjBatchDetailRow" @back="handleBackFromFjBatchDetail" @navigate="handleNavigate" />
             <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" :pending-update="fjPendingSheetUpdate" @navigate="handleNavigate" @update-applied="fjPendingSheetUpdate = null" />
             <FjRectifyList v-else-if="activeTabKey === 'fj-rectify-list'" @navigate="handleNavigate" />
+            <FjReviewList v-else-if="activeTabKey === 'fj-review-list'" />
             <FjSheetCheck v-else-if="activeTabKey === 'fj-sheet-check'" :init-row="fjSheetCheckRow" @back="closeTab('fj-sheet-check')" @submitted="handleFjSheetCheckSubmitted" />
             <FjRectifyInput v-else-if="activeTabKey === 'fj-rectify-input'" :init-row="fjRectifyInputRow" @back="closeTab('fj-rectify-input')" @submitted="handleFjRectifyInputSubmitted" />
             <FjConfig v-else-if="activeTabKey === 'fj-config'" />
@@ -204,6 +205,7 @@ import FjBatchEdit from './pages/批次编辑页.vue'
 import FjBatchDetail from './pages/批次详情页.vue'
 import FjSheetList from './pages/飞检单列表页-PC.vue'
 import FjRectifyList from './pages/整改单列表页-PC.vue'
+import FjReviewList from './pages/整改复验列表页-PC.vue'
 import FjConfig from './pages/飞检配置页.vue'
 import FjSheetCheck from './pages/飞检执行页-PC.vue'
 import FjRectifyInput from './pages/整改录入页-PC.vue'
@@ -423,6 +425,7 @@ const menuGroups = [
         { key: 'fj-batch-list', label: '飞检批次单' },
         { key: 'fj-sheet-list', label: '飞检单' },
         { key: 'fj-rectify-list', label: '整改单' },
+        { key: 'fj-review-list', label: '整改复验' },
         { key: 'fj-config', label: '飞检配置' },
       ]},
       { key: 'nav-施工安全管理', label: '施工安全管理' },
@@ -497,6 +500,7 @@ const activeMenuKey = computed(() => {
   if (['fj-batch-list', 'fj-batch-edit', 'fj-batch-detail'].includes(page.value)) return 'fj-batch-list'
   if (page.value === 'fj-sheet-list') return 'fj-sheet-list'
   if (page.value === 'fj-rectify-list') return 'fj-rectify-list'
+  if (page.value === 'fj-review-list') return 'fj-review-list'
   if (page.value === 'fj-config') return 'fj-config'
   return ''
 })
@@ -542,9 +546,10 @@ function handleMenuClick({ key }: { key: string }) {
   else if (key === 'fj-batch-list') openTab('fj-batch-list', '飞检批次单', false)
   else if (key === 'fj-sheet-list') openTab('fj-sheet-list', '飞检单')
   else if (key === 'fj-rectify-list') openTab('fj-rectify-list', '整改单')
+  else if (key === 'fj-review-list') openTab('fj-review-list', '整改复验')
   else if (key === 'fj-config') openTab('fj-config', '飞检配置')
   const domain = getMenuGroupDomain(key)
-  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-review-list', 'fj-config']
   const agentChildKeys = ['agent-todo', 'agent-settlement-list', 'agent-reconcile-summary', 'agent-reconcile-list']
   const openKeys: string[] = domain ? [domain] : [...menuOpenKeys.value]
   if (fjChildKeys.includes(key) && !openKeys.includes('fj-parent')) openKeys.push('fj-parent')
@@ -557,7 +562,7 @@ watch(activeMenuKey, (menuKey) => {
   if (!menuKey) return
   const domain = getMenuGroupDomain(menuKey)
   const keys: string[] = domain ? [domain] : [...menuOpenKeys.value]
-  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-config']
+  const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-review-list', 'fj-config']
   const agentChildKeys = ['agent-todo', 'agent-settlement-list', 'agent-reconcile-summary', 'agent-reconcile-list']
   if (fjChildKeys.includes(menuKey) && !keys.includes('fj-parent')) keys.push('fj-parent')
   if (agentChildKeys.includes(menuKey) && !keys.includes('agent-settlement')) keys.push('agent-settlement')
