@@ -26,15 +26,7 @@
 
         <!-- 操作 -->
         <template #actionSlot="{ row }">
-          <a-space :size="0">
-            <a-button
-              v-if="row.status === 'reviewing'"
-              type="link" size="small"
-              style="color:#1677ff"
-              @click="handleReview(row)"
-            >开始复验</a-button>
-            <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
-          </a-space>
+          <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
         </template>
       </AnfeProTable>
     </div>
@@ -172,7 +164,7 @@
         </div>
 
         <!-- 操作按钮区（仅 reviewing 状态） -->
-        <div v-if="reviewMode && currentRow.status === 'reviewing'" class="review-actions-bar">
+        <div v-if="currentRow.status === 'reviewing'" class="review-actions-bar">
           <a-button danger @click="openRejectModal">退回整改</a-button>
           <a-button type="primary" @click="handlePass">通过复验</a-button>
         </div>
@@ -211,7 +203,6 @@ import { AnfeProTable } from '@anfe/vue-pro-components'
 
 const tableRef = ref<any>(null)
 const detailVisible = ref(false)
-const reviewMode = ref(false)
 const currentRow = ref<any>(null)
 
 const rejectVisible = ref(false)
@@ -266,14 +257,7 @@ const tableConfig = {
   },
 }
 
-function handleReview(row: any) {
-  reviewMode.value = true
-  currentRow.value = row
-  detailVisible.value = true
-}
-
 function handleDetail(row: any) {
-  reviewMode.value = false
   currentRow.value = row
   detailVisible.value = true
 }
