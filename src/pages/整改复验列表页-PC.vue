@@ -34,8 +34,8 @@
     <!-- 复验详情 Drawer -->
     <a-drawer
       v-model:open="detailVisible"
-      width="900"
-      :body-style="{ padding: '0' }"
+      width="860"
+      :body-style="{ padding: '16px 20px' }"
       destroy-on-close
     >
       <template v-if="currentRow" #title>
@@ -43,6 +43,12 @@
         <a-tag v-if="currentRow.status === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
         <a-tag v-else-if="currentRow.status === 'passed'" color="success" style="margin:0">复验通过</a-tag>
         <a-tag v-else-if="currentRow.status === 'rejected'" color="error" style="margin:0">退回整改</a-tag>
+      </template>
+      <template v-if="currentRow" #footer>
+        <div v-if="currentRow.status === 'reviewing'" style="display:flex;justify-content:flex-end;gap:10px">
+          <a-button danger @click="openRejectModal">退回整改</a-button>
+          <a-button type="primary" @click="handlePass">通过复验</a-button>
+        </div>
       </template>
       <template v-if="currentRow">
         <div class="review-detail-wrap">
@@ -162,12 +168,6 @@
             </div>
           </div>
         </div>
-
-        <!-- 操作按钮区（仅 reviewing 状态） -->
-        <div v-if="currentRow.status === 'reviewing'" class="review-actions-bar">
-          <a-button danger @click="openRejectModal">退回整改</a-button>
-          <a-button type="primary" @click="handlePass">通过复验</a-button>
-        </div>
       </template>
     </a-drawer>
 
@@ -221,7 +221,7 @@ const columns: any[] = [
   { title: '整改期限', dataIndex: 'deadline', key: 'deadline', width: 130 },
   { title: '整改提交时间', dataIndex: 'submitTime', key: 'submitTime', width: 150 },
   { title: '复验状态', key: 'status', width: 110, component: 'custom', slotName: 'statusSlot' },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 120, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 80, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
@@ -402,8 +402,8 @@ const MOCK_REVIEW = [
 .fj-main-card :deep(.anfe-pro-table) { background: transparent !important; border-radius: 0 !important; box-shadow: none !important; }
 
 /* 详情 */
-.review-detail-wrap { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
-.detail-section { background: #fff; border-radius: 8px; padding: 18px 20px; border: 1px solid #f0f0f0; }
+.review-detail-wrap { padding: 4px 0; display: flex; flex-direction: column; gap: 12px; }
+.detail-section { background: #fff; border-radius: 8px; padding: 18px 20px; }
 .section-title { font-size: 16px; font-weight: 600; color: #262626; margin-bottom: 14px; }
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
 .info-label { font-size: 14px; color: rgba(0,0,0,0.45); padding-bottom: 6px; }
@@ -434,7 +434,6 @@ const MOCK_REVIEW = [
 .photos-empty { font-size: 13px; color: #bfbfbf; margin-top: 10px; }
 
 /* 操作按钮栏 */
-.review-actions-bar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid #f0f0f0; padding: 14px 24px; display: flex; justify-content: flex-end; gap: 10px; }
 
 /* badge */
 .defect-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
