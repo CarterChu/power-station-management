@@ -143,7 +143,7 @@ const columns: any[] = [
   { title: '飞检类型', key: 'type', width: 110, component: 'custom', slotName: 'typeSlot' },
   { title: '飞检名称', dataIndex: 'name', key: 'name', width: 160, ellipsis: true, customRender: ({ text }: any) => text || '—' },
   { title: '小组负责人', dataIndex: 'leader', key: 'leader', width: 110 },
-  { title: '飞检日期', dataIndex: 'checkDate', key: 'checkDate', width: 130 },
+  { title: '飞检日期', key: 'checkDate', width: 200, customRender: ({ record }: any) => record.checkDateEnd ? `${record.checkDate} ~ ${record.checkDateEnd}` : (record.checkDate || '—') },
   { title: '电站数', dataIndex: 'stationCount', key: 'stationCount', width: 90 },
   { title: '通过比例', key: 'passRate', width: 130, component: 'custom', slotName: 'passRateSlot' },
   { title: '状态', key: 'status', width: 110, component: 'custom', slotName: 'statusSlot' },

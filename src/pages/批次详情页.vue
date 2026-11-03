@@ -33,7 +33,7 @@
           </div>
           <div class="info-item">
             <div class="info-label">飞检日期</div>
-            <div class="info-value">{{ batch.checkDate }}</div>
+            <div class="info-value">{{ batch.checkDate }}{{ batch.checkDateEnd ? ' ~ ' + batch.checkDateEnd : '' }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">小组负责人</div>

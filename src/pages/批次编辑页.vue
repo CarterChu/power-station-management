@@ -45,7 +45,7 @@
             />
           </a-form-item>
           <a-form-item label="飞检日期" required>
-            <a-date-picker v-model:value="formData.checkDate" style="width:100%" placeholder="请选择飞检日期" />
+            <a-range-picker v-model:value="formData.checkDateRange" style="width:100%" :placeholder="['开始日期', '结束日期']" />
           </a-form-item>
           <a-form-item label="是否随机抽验">
             <a-switch v-model:checked="formData.random" checked-children="是" un-checked-children="否" />
@@ -236,7 +236,9 @@ const formData = reactive({
   type: (props.initRow?.type ?? props.initType ?? 'daily') as string,
   name: props.initRow?.name ?? '',
   leader: props.initRow?.leader ?? undefined as string | undefined,
-  checkDate: props.initRow?.checkDate ? dayjs(props.initRow.checkDate) : null,
+  checkDateRange: props.initRow?.checkDate
+    ? [dayjs(props.initRow.checkDate), props.initRow.checkDateEnd ? dayjs(props.initRow.checkDateEnd) : null] as [any, any]
+    : [null, null] as [any, any],
   random: props.initRow?.random ?? false,
   sampleRate: props.initRow?.sampleRate ?? 30,
   remark: props.initRow?.remark ?? '',
@@ -380,7 +382,7 @@ watch(stationList, () => {
 // ── 提交 ──────────────────────────────────────────────────────────────────
 async function handleSubmit() {
   if (!formData.leader) { message.error('请选择小组负责人'); return }
-  if (!formData.checkDate) { message.error('请选择飞检日期'); return }
+  if (!formData.checkDateRange?.[0] || !formData.checkDateRange?.[1]) { message.error('请选择飞检日期区间'); return }
   const unassigned = stationList.value.filter(s => !s.engineerId)
   if (unassigned.length > 0) {
     message.warning(`还有 ${unassigned.length} 个电站未分配飞检工程师，建议先分配再提交`)
@@ -396,7 +398,8 @@ async function handleSubmit() {
     type: formData.type,
     name: formData.name,
     leader: formData.leader,
-    checkDate: formData.checkDate ? formData.checkDate.format('YYYY-MM-DD') : '',
+    checkDate: formData.checkDateRange?.[0]?.format('YYYY-MM-DD') ?? '',
+    checkDateEnd: formData.checkDateRange?.[1]?.format('YYYY-MM-DD') ?? '',
     stationCount: stationList.value.length,
     passCount: null,
     passRate: null,
