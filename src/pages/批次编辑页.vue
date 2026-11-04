@@ -66,6 +66,10 @@
           <span class="station-count-badge">共 {{ stationList.length }} 个电站</span>
           <div style="flex:1"></div>
           <a-space v-if="!formReadOnly">
+            <a-button @click="openImport">
+              <template #icon><UploadOutlined /></template>
+              导入电站
+            </a-button>
             <a-button @click="addStationVisible = true">
               <template #icon><PlusOutlined /></template>
               添加电站
@@ -121,6 +125,77 @@
 
       </div>
     </div>
+
+    <!-- ── 导入电站弹窗 ── -->
+    <a-modal
+      v-model:open="importVisible"
+      title="导入电站"
+      width="620px"
+      :ok-text="importResult ? `导入 ${importResult.matched.length} 个电站` : '导入'"
+      cancel-text="取消"
+      :ok-button-props="{ disabled: !importResult || importResult.matched.length === 0 }"
+      :confirm-loading="importParsing"
+      destroy-on-close
+      @ok="confirmImport"
+      @cancel="resetImport"
+    >
+      <div class="import-modal-body">
+        <!-- 顶部提示 -->
+        <div class="import-tip-bar">
+          <InfoCircleOutlined style="color:#1677ff;margin-right:6px" />
+          <span>请先下载模板，按格式填写电站编号后上传（支持 .xlsx / .csv）</span>
+          <a-button type="link" size="small" style="padding:0 4px;margin-left:4px" @click="handleDownloadTemplate">下载模板</a-button>
+        </div>
+
+        <!-- 上传区（未解析时） -->
+        <div v-if="!importResult && !importParsing" class="import-upload-area">
+          <a-upload-dragger
+            :show-upload-list="false"
+            accept=".xlsx,.xls,.csv"
+            :before-upload="handleImportFile"
+          >
+            <div class="upload-inner">
+              <InboxOutlined style="font-size:40px;color:#1677ff;margin-bottom:12px" />
+              <div class="upload-title">点击或拖拽文件到此区域</div>
+              <div class="upload-hint">支持 .xlsx、.xls、.csv 格式</div>
+            </div>
+          </a-upload-dragger>
+        </div>
+
+        <!-- 解析中 -->
+        <div v-if="importParsing" class="import-parsing">
+          <a-spin tip="正在解析文件..." />
+        </div>
+
+        <!-- 解析结果 -->
+        <div v-if="importResult && !importParsing" class="import-result">
+          <div class="import-result-stats">
+            <span class="stat-item">共 <strong>{{ importResult.total }}</strong> 条</span>
+            <span class="stat-item matched">匹配 <strong>{{ importResult.matched.length }}</strong> 个</span>
+            <span v-if="importResult.notFound.length" class="stat-item not-found">未找到 <strong>{{ importResult.notFound.length }}</strong> 个</span>
+            <span v-if="importResult.duplicate.length" class="stat-item duplicate">已存在 <strong>{{ importResult.duplicate.length }}</strong> 个（跳过）</span>
+            <a-button type="link" size="small" style="margin-left:auto;padding:0" @click="resetImport">重新上传</a-button>
+          </div>
+
+          <a-table
+            v-if="importResult.matched.length"
+            :columns="importPreviewColumns"
+            :data-source="importResult.matched"
+            size="small"
+            :pagination="importResult.matched.length > 6 ? { pageSize: 6, size: 'small' } : false"
+            row-key="stationId"
+            style="margin-top:10px"
+          />
+
+          <div v-if="importResult.notFound.length" class="not-found-list">
+            <span class="not-found-label">未找到：</span>
+            <span class="not-found-nos">{{ importResult.notFound.join('、') }}</span>
+          </div>
+
+          <a-empty v-if="!importResult.matched.length" description="没有可导入的电站" style="padding:24px 0" />
+        </div>
+      </div>
+    </a-modal>
 
     <!-- ── 添加电站弹窗 ── -->
     <a-modal
@@ -209,7 +284,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
 import dayjs from 'dayjs'
-import { LeftOutlined, PlusOutlined, CheckCircleFilled, InfoCircleOutlined } from '@ant-design/icons-vue'
+import { LeftOutlined, PlusOutlined, CheckCircleFilled, InfoCircleOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 const props = defineProps<{
@@ -446,6 +521,88 @@ const REGION_OPTIONS = [
   ]},
 ]
 
+// ── 导入电站 ──────────────────────────────────────────────────────────────
+const importVisible = ref(false)
+const importParsing = ref(false)
+const importResult = ref<{
+  total: number
+  matched: any[]
+  notFound: string[]
+  duplicate: string[]
+} | null>(null)
+
+const importPreviewColumns = [
+  { title: '电站编号', dataIndex: 'stationNo', key: 'stationNo', ellipsis: true },
+  { title: '业主', dataIndex: 'owner', key: 'owner', width: 90 },
+  { title: '地址', dataIndex: 'address', key: 'address', ellipsis: true },
+  { title: '代理商', dataIndex: 'agent', key: 'agent', ellipsis: true },
+]
+
+function openImport() {
+  resetImport()
+  importVisible.value = true
+}
+
+function resetImport() {
+  importResult.value = null
+  importParsing.value = false
+}
+
+function handleDownloadTemplate() {
+  // 模拟下载：创建一个包含示例电站编号的 CSV
+  const content = '电站编号\nGFDZ-2025-001001\nGFDZ-2025-001002\nGFDZ-2025-001003'
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = '电站导入模板.csv'; a.click()
+  URL.revokeObjectURL(url)
+}
+
+function handleImportFile(file: File) {
+  importParsing.value = true
+  // 模拟解析：读取文件名做演示，实际应解析文件内容
+  setTimeout(() => {
+    const existingIds = new Set(stationList.value.map((s: any) => s.stationId))
+    // 模拟从文件中读到的电站编号列表（取前8条 mock 数据模拟）
+    const mockParsed = MOCK_POOL_STATIONS.slice(0, 8).map(s => s.stationNo)
+    const total = mockParsed.length
+
+    const matched: any[] = []
+    const notFound: string[] = []
+    const duplicate: string[] = []
+
+    mockParsed.forEach(no => {
+      const station = MOCK_POOL_STATIONS.find(s => s.stationNo === no)
+      if (!station) {
+        notFound.push(no)
+      } else if (existingIds.has(station.stationId)) {
+        duplicate.push(no)
+      } else {
+        matched.push(station)
+      }
+    })
+
+    // 模拟 2 个未找到的编号
+    notFound.push('GFDZ-2025-999001', 'GFDZ-2025-999002')
+
+    importResult.value = { total: total + 2, matched, notFound, duplicate }
+    importParsing.value = false
+  }, 1000)
+  return false // 阻止 antd 自动上传
+}
+
+function confirmImport() {
+  if (!importResult.value?.matched.length) return
+  importResult.value.matched.forEach(s => {
+    if (!stationList.value.find((e: any) => e.stationId === s.stationId)) {
+      stationList.value.push({ ...s, engineerId: undefined, engineerName: '' })
+    }
+  })
+  message.success(`成功导入 ${importResult.value.matched.length} 个电站`)
+  importVisible.value = false
+  resetImport()
+}
+
 </script>
 
 <style scoped>
@@ -527,4 +684,20 @@ const REGION_OPTIONS = [
   padding: 8px 12px; background: #fffbe6; border: 1px solid #ffe58f;
   border-radius: 4px; font-size: 13px; color: #ad6800;
 }
+/* 导入电站弹窗 */
+.import-modal-body { display: flex; flex-direction: column; gap: 12px; }
+.import-tip-bar { display: flex; align-items: center; font-size: 13px; color: rgba(0,0,0,0.65); background: #e6f4ff; border: 1px solid #91caff; border-radius: 6px; padding: 8px 12px; }
+.import-upload-area :deep(.ant-upload-drag) { border-radius: 8px; }
+.upload-inner { padding: 20px 0; display: flex; flex-direction: column; align-items: center; }
+.upload-title { font-size: 15px; font-weight: 500; color: #262626; margin-bottom: 4px; }
+.upload-hint { font-size: 13px; color: rgba(0,0,0,0.45); }
+.import-parsing { display: flex; justify-content: center; padding: 40px 0; }
+.import-result-stats { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #fafafa; border-radius: 6px; font-size: 13px; }
+.stat-item { color: rgba(0,0,0,0.65); }
+.stat-item.matched strong { color: #52c41a; }
+.stat-item.not-found strong { color: #ff4d4f; }
+.stat-item.duplicate strong { color: #fa8c16; }
+.not-found-list { margin-top: 10px; padding: 8px 12px; background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; font-size: 13px; }
+.not-found-label { color: #ff4d4f; font-weight: 500; margin-right: 4px; }
+.not-found-nos { color: #595959; }
 </style>
