@@ -8,7 +8,7 @@
       <div class="batch-edit-status-tag" v-if="isEdit">
         <a-tag :color="statusColor[formData.status]" style="margin:0">{{ STATUS_LABEL[formData.status] }}</a-tag>
       </div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:10px" v-if="!formReadOnly">
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px" v-if="!isStatusLocked">
         <span class="draft-tip" v-if="lastSaved">已自动保存 {{ lastSaved }}</span>
         <a-button @click="handleSaveDraft" :loading="savingDraft">保存草稿</a-button>
         <a-button type="primary" :disabled="stationList.length === 0" @click="submitConfirmVisible = true">提交（生成飞检单）</a-button>
@@ -22,11 +22,20 @@
         <a-form :model="formData" layout="vertical" :disabled="formReadOnly">
           <a-form-item label="飞检类型">
             <div class="fake-radio-group">
-              <label class="fake-radio" :class="{ checked: formData.type === 'daily', disabled: isEdit }" @click="!isEdit && (formData.type = 'daily')">
+              <label
+                v-if="!isEngineer || isEdit"
+                class="fake-radio"
+                :class="{ checked: formData.type === 'daily', disabled: isEdit }"
+                @click="!isEdit && (formData.type = 'daily')"
+              >
                 <span class="fake-radio-dot" :class="{ checked: formData.type === 'daily' }"><span class="fake-radio-inner"></span></span>
                 日常飞检
               </label>
-              <label class="fake-radio" :class="{ checked: formData.type === 'special', disabled: isEdit }" @click="!isEdit && (formData.type = 'special')">
+              <label
+                class="fake-radio"
+                :class="{ checked: formData.type === 'special', disabled: isEdit || isEngineer }"
+                @click="!isEdit && !isEngineer && (formData.type = 'special')"
+              >
                 <span class="fake-radio-dot" :class="{ checked: formData.type === 'special' }"><span class="fake-radio-inner"></span></span>
                 专项飞检
               </label>
@@ -65,7 +74,7 @@
           <span class="card-section-title">飞检电站清单</span>
           <span class="station-count-badge">共 {{ stationList.length }} 个电站</span>
           <div style="flex:1"></div>
-          <a-space v-if="!formReadOnly">
+          <a-space v-if="!isStatusLocked">
             <a-button @click="openImport">
               <template #icon><UploadOutlined /></template>
               导入电站
@@ -75,6 +84,7 @@
               添加电站
             </a-button>
             <a-button
+              v-if="!formReadOnly"
               danger
               :disabled="isEdit || stationList.length === 0"
               @click="handleClearStations"
@@ -291,6 +301,7 @@ const props = defineProps<{
   initMode?: 'create' | 'edit'
   initType?: string
   initRow?: any
+  initRole?: 'leader' | 'engineer'
 }>()
 
 const emit = defineEmits<{
@@ -302,13 +313,17 @@ const emit = defineEmits<{
 // ── 状态 ─────────────────────────────────────────────────────────────────
 const isEdit = computed(() => props.initMode === 'edit' && !!props.initRow)
 const batchType = computed(() => props.initType ?? 'daily')
-const formReadOnly = computed(() => isEdit.value && !['draft', 'pending'].includes(formData.status))
+const isEngineer = computed(() => props.initRole === 'engineer')
+// 因批次状态不可编辑（检查中/已验收）
+const isStatusLocked = computed(() => isEdit.value && !['draft', 'pending'].includes(formData.status))
+// 基础信息表单只读：状态锁定 OR 工程师在编辑模式
+const formReadOnly = computed(() => isStatusLocked.value || (isEngineer.value && isEdit.value))
 
 const STATUS_LABEL: Record<string, string> = { draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收' }
 const statusColor: Record<string, string> = { draft: 'default', pending: 'warning', checking: 'processing', done: 'success' }
 
 const formData = reactive({
-  type: (props.initRow?.type ?? props.initType ?? 'daily') as string,
+  type: (props.initRow?.type ?? (props.initRole === 'engineer' ? 'special' : props.initType ?? 'daily')) as string,
   name: props.initRow?.name ?? '',
   leader: props.initRow?.leader ?? undefined as string | undefined,
   checkDateRange: props.initRow?.checkDate

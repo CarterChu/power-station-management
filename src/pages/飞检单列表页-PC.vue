@@ -22,7 +22,7 @@
         <!-- 整改状态 -->
         <template #rectifyStatusSlot="{ row }">
           <span v-if="row.checkStatus === 'pending'" style="color:#bfbfbf">—</span>
-          <a-tag v-else-if="row.rectifyStatus === 'none'" color="default" style="margin:0">无缺陷</a-tag>
+          <a-tag v-else-if="row.rectifyStatus === 'none'" color="default" style="margin:0">无需整改</a-tag>
           <a-tag v-else-if="row.rectifyStatus === 'pending'" color="warning" style="margin:0">待整改</a-tag>
           <a-tag v-else-if="row.rectifyStatus === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
           <a-tag v-else-if="row.rectifyStatus === 'passed'" color="success" style="margin:0">整改通过</a-tag>
@@ -46,7 +46,17 @@
               type="link" size="small"
               @click="handleStartCheck(row)"
             >执行飞检</a-button>
-            <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
+            <a-button v-if="row.checkStatus !== 'deleted'" type="link" size="small" @click="handleDetail(row)">详情</a-button>
+            <a-popconfirm
+              v-if="row.checkStatus === 'pending' && isOverdue(row)"
+              title="飞检日期已过期，确认删除该飞检单？"
+              ok-text="删除"
+              cancel-text="取消"
+              ok-type="danger"
+              @confirm="handleDelete(row)"
+            >
+              <a-button type="link" size="small" danger>删除</a-button>
+            </a-popconfirm>
           </a-space>
         </template>
       </AnfeProTable>
@@ -64,6 +74,7 @@
       <span style="margin-right:10px">飞检详情 · {{ detailRow.sheetNo }}</span>
       <a-tag v-if="detailRow.checkStatus === 'pending'" color="default" style="margin:0">待检查</a-tag>
       <a-tag v-else-if="detailRow.checkStatus === 'passed'" color="success" style="margin:0">通过</a-tag>
+      <a-tag v-else-if="detailRow.checkStatus === 'deleted'" color="default" style="margin:0">已删除</a-tag>
       <a-tag v-else color="error" style="margin:0">不通过</a-tag>
     </template>
     <FjSheetDetailPC v-if="detailRow" :init-row="detailRow" />
@@ -89,8 +100,8 @@ const tableRef = ref<any>(null)
 const detailVisible = ref(false)
 const detailRow = ref<any>(null)
 
-const CHECK_STATUS_LABEL: Record<string, string> = { pending: '待检查', passed: '通过', failed: '不通过' }
-const CHECK_STATUS_COLOR: Record<string, string> = { pending: 'warning', passed: 'success', failed: 'error' }
+const CHECK_STATUS_LABEL: Record<string, string> = { pending: '待检查', passed: '通过', failed: '不通过', deleted: '已删除' }
+const CHECK_STATUS_COLOR: Record<string, string> = { pending: 'warning', passed: 'success', failed: 'error', deleted: 'default' }
 
 const columns: any[] = [
   { title: '飞检单号', dataIndex: 'sheetNo', key: 'sheetNo', width: 170, fixed: 'left' as const, ellipsis: true },
@@ -107,7 +118,7 @@ const columns: any[] = [
   { title: '缺陷统计', key: 'defects', width: 180, component: 'custom', slotName: 'defectsSlot' },
   { title: '检查状态', key: 'checkStatus', width: 110, component: 'custom', slotName: 'checkStatusSlot' },
   { title: '整改状态', key: 'rectifyStatus', width: 110, component: 'custom', slotName: 'rectifyStatusSlot' },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 80, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 100, component: 'custom', slotName: 'actionSlot' },
 ]
 
 const filters = [
@@ -122,9 +133,10 @@ const filters = [
     { label: '待检查', value: 'pending' },
     { label: '通过',   value: 'passed' },
     { label: '不通过', value: 'failed' },
+    { label: '已删除', value: 'deleted' },
   ]},
   { label: '整改状态',   key: 'rectifyStatus', component: 'select', placeholder: '请选择', options: [
-    { label: '无缺陷',   value: 'none' },
+    { label: '无需整改', value: 'none' },
     { label: '待整改',   value: 'pending' },
     { label: '待复验',   value: 'reviewing' },
     { label: '整改通过', value: 'passed' },
@@ -152,6 +164,18 @@ const tableConfig = {
   },
 }
 
+// 超过飞检日期且仍为 pending 的单才可手动删除
+function isOverdue(row: any): boolean {
+  return row.checkDate && new Date(row.checkDate).getTime() < Date.now()
+}
+
+function handleDelete(row: any) {
+  const idx = MOCK_SHEETS.value.findIndex(s => s.id === row.id)
+  if (idx !== -1) MOCK_SHEETS.value[idx].checkStatus = 'deleted'
+  tableRef.value?.onSearch(1)
+  message.success('飞检单已删除')
+}
+
 function handleStartCheck(row: any) {
   emit('navigate', 'fj-sheet-check', { row })
 }
@@ -176,6 +200,7 @@ const MOCK_SHEETS = ref([
   { id: 'fj008', sheetNo: 'FJD-2026-003001', batchNo: 'FJB-20260910-003', stationNo: 'GFDZ-2025-003001', owner: '郑十',  capacity: '11.0kWp', stationType: '户用',   address: '安徽省芜湖市弋江区九华中路',   firstAgent: '安徽大区代理商', agent: '芜湖清洁能源发展有限公司',   engineer: '吴杰', rectifyEngineer: '',      checkDate: '2026-09-25', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
   { id: 'fj009', sheetNo: 'FJD-2026-003002', batchNo: 'FJB-20260910-003', stationNo: 'GFDZ-2025-003002', owner: '冯一',  capacity: '25.0kWp', stationType: '户用',   address: '浙江省宁波市江北区',           firstAgent: '浙江大区代理商', agent: '宁波绿能电力安装有限公司',   engineer: '刘海', rectifyEngineer: '',      checkDate: '2026-09-25', crCount: 0, maCount: 2, miCount: 0, checkStatus: 'failed',  rectifyStatus: 'pending' },
   { id: 'fj010', sheetNo: 'FJD-2026-004001', batchNo: 'FJB-20260920-004', stationNo: 'GFDZ-2025-004001', owner: '陈二',  capacity: '7.7kWp',  stationType: '户用',   address: '江苏省苏州市虎丘区科技城',     firstAgent: '江苏大区代理商', agent: '苏州工业光伏集成商',         engineer: '赵飞', rectifyEngineer: '',      checkDate: '2026-10-08', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'pending', rectifyStatus: 'none' },
+  { id: 'fj011', sheetNo: 'FJD-2026-005001', batchNo: 'FJB-20260825-005', stationNo: 'GFDZ-2025-005001', owner: '林明',  capacity: '10.0kWp', stationType: '户用',   address: '浙江省温州市鹿城区学院路',     firstAgent: '浙江大区代理商', agent: '温州光能工程技术有限公司',   engineer: '陈明海', rectifyEngineer: '',    checkDate: '2026-09-01', crCount: 0, maCount: 0, miCount: 0, checkStatus: 'deleted', rectifyStatus: 'none' },
 ])
 
 watch(() => props.pendingUpdate, (update) => {

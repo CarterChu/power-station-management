@@ -218,7 +218,7 @@ function handleTransferConfirm() {
   transferTarget.value = ''
 }
 
-const checkCategories = reactive([
+const BASE_CHECK_CATEGORIES = [
   {
     name: '支架系统', expanded: true, items: [
       { name: '支架固定螺栓紧固情况', result: 'pass', level: null, reason: '', photos: [] },
@@ -247,7 +247,19 @@ const checkCategories = reactive([
       { name: '逆变器接线端子', result: 'pass', level: null, reason: '', photos: [] },
     ],
   },
-])
+]
+
+function buildCheckCategories(checkStatus: string) {
+  if (checkStatus === 'passed') {
+    return BASE_CHECK_CATEGORIES.map(cat => ({
+      ...cat,
+      items: cat.items.map(i => ({ ...i, result: 'pass', level: null, reason: '', photos: [] })),
+    }))
+  }
+  return BASE_CHECK_CATEGORIES.map(cat => ({ ...cat, items: cat.items.map(i => ({ ...i })) }))
+}
+
+const checkCategories = reactive(buildCheckCategories(sheetData.checkStatus))
 
 </script>
 

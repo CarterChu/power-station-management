@@ -10,6 +10,13 @@
         :page-size="10"
         :table-props="{ scroll: { x: 2000 } }"
       >
+        <template #operationRight>
+          <a-button @click="handleExport">
+            <template #icon><DownloadOutlined /></template>
+            导出需整改单
+          </a-button>
+        </template>
+
         <!-- 缺陷统计 -->
         <template #defectSlot="{ row }">
           <span class="defect-badge cr">CR {{ row.crCount }}</span>
@@ -26,7 +33,9 @@
 
         <!-- 操作 -->
         <template #actionSlot="{ row }">
-          <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
+          <a-button type="link" size="small" @click="handleDetail(row)">
+            {{ row.status === 'reviewing' ? '去复验' : '详情' }}
+          </a-button>
         </template>
       </AnfeProTable>
     </div>
@@ -45,9 +54,8 @@
         <a-tag v-else-if="currentRow.status === 'rejected'" color="error" style="margin:0">退回整改</a-tag>
       </template>
       <template v-if="currentRow" #footer>
-        <div v-if="currentRow.status === 'reviewing'" style="display:flex;justify-content:flex-end;gap:10px">
-          <a-button danger @click="openRejectModal">退回整改</a-button>
-          <a-button type="primary" @click="handlePass">通过复验</a-button>
+        <div v-if="currentRow.status === 'reviewing'" style="display:flex;justify-content:flex-end">
+          <a-button type="primary" :loading="submitting" @click="handleSubmitReview">提交复验结果</a-button>
         </div>
       </template>
       <template v-if="currentRow">
@@ -70,15 +78,15 @@
               </div>
               <div class="info-item">
                 <div class="info-label">业主姓名</div>
-                <div class="info-value">{{ currentRow.owner }}</div>
+                <div class="info-value">{{ currentRow.owner || '—' }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">一级代理商</div>
-                <div class="info-value">{{ currentRow.firstAgent }}</div>
+                <div class="info-value">{{ currentRow.firstAgent || '—' }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">代理商</div>
-                <div class="info-value">{{ currentRow.agent }}</div>
+                <div class="info-value">{{ currentRow.agent || '—' }}</div>
               </div>
               <div class="info-item">
                 <div class="info-label">整改复验人</div>
@@ -100,30 +108,37 @@
                   <a-tag v-else-if="currentRow.status === 'rejected'" color="error" style="margin:0">退回整改</a-tag>
                 </div>
               </div>
+              <div class="info-item info-item--span2">
+                <div class="info-label">项目地址</div>
+                <div class="info-value">{{ currentRow.address || '—' }}</div>
+              </div>
             </div>
           </div>
 
-          <!-- 退回原因（仅 rejected 状态展示） -->
-          <div v-if="currentRow.status === 'rejected' && currentRow.rejectReason" class="detail-section reject-section">
-            <div class="section-title" style="color:#ff4d4f">退回原因</div>
-            <p class="reject-reason-text">{{ currentRow.rejectReason }}</p>
-          </div>
-
-          <!-- 整改内容 -->
+          <!-- 整改内容核查 -->
           <div class="detail-section">
             <div class="section-title">整改内容核查</div>
             <div
               v-for="(defect, idx) in currentRow.defects"
               :key="idx"
               class="defect-review-card"
+              :class="getCardClass(idx, defect)"
             >
+              <!-- 卡片头部 -->
               <div class="defect-review-head">
                 <span class="defect-idx">{{ idx + 1 }}</span>
                 <span class="defect-badge-small" :class="defect.level">{{ defect.level?.toUpperCase() }}</span>
                 <span class="defect-name">{{ defect.checkName }}</span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+                  <template v-if="currentRow.status !== 'reviewing'">
+                    <a-tag v-if="defect.reviewResult === 'pass'" color="success" style="margin:0">通过</a-tag>
+                    <a-tag v-else-if="defect.reviewResult === 'fail'" color="error" style="margin:0">不通过</a-tag>
+                  </template>
+                </div>
               </div>
+
+              <!-- 对比内容 -->
               <div class="defect-compare">
-                <!-- 原缺陷描述 -->
                 <div class="compare-col">
                   <div class="compare-col-title">
                     <span class="col-dot origin"></span>原缺陷描述
@@ -131,19 +146,11 @@
                   <div class="compare-col-content">{{ defect.reason }}</div>
                   <div v-if="defect.originPhotos?.length" class="photos-row">
                     <a-image-preview-group>
-                      <a-image
-                        v-for="(src, pi) in defect.originPhotos"
-                        :key="pi"
-                        :src="src"
-                        :width="72"
-                        :height="72"
-                        style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0"
-                      />
+                      <a-image v-for="(src, pi) in defect.originPhotos" :key="pi" :src="src" :width="72" :height="72" style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0" />
                     </a-image-preview-group>
                   </div>
                 </div>
                 <div class="compare-divider"></div>
-                <!-- 整改内容 -->
                 <div class="compare-col">
                   <div class="compare-col-title">
                     <span class="col-dot rectify"></span>整改内容
@@ -152,61 +159,168 @@
                   <div v-else class="compare-col-content empty">暂未填写整改内容</div>
                   <div v-if="defect.rectifyPhotos?.length" class="photos-row">
                     <a-image-preview-group>
-                      <a-image
-                        v-for="(src, pi) in defect.rectifyPhotos"
-                        :key="pi"
-                        :src="src"
-                        :width="72"
-                        :height="72"
-                        style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0"
-                      />
+                      <a-image v-for="(src, pi) in defect.rectifyPhotos" :key="pi" :src="src" :width="72" :height="72" style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0" />
                     </a-image-preview-group>
                   </div>
                   <div v-else class="photos-empty">暂无整改照片</div>
                 </div>
               </div>
+
+              <!-- 退回原因（非复验状态且该项不通过时展示） -->
+              <div v-if="currentRow.status !== 'reviewing' && defect.reviewResult === 'fail'" class="defect-review-note">
+                <span class="defect-review-note-label">复验意见</span>
+                <span class="defect-review-note-text">{{ defect.reviewNote || '—' }}</span>
+              </div>
+
+              <!-- 复验结果操作（仅 reviewing 状态） -->
+              <template v-if="currentRow.status === 'reviewing'">
+                <div class="review-result-row">
+                  <span class="review-result-label">复验结果</span>
+                  <a-button
+                    size="small"
+                    :type="reviewResults[idx]?.result === 'pass' ? 'primary' : 'default'"
+                    @click="setResult(idx, 'pass')"
+                  >通过</a-button>
+                  <a-button
+                    size="small"
+                    danger
+                    :type="reviewResults[idx]?.result === 'fail' ? 'primary' : 'default'"
+                    @click="setResult(idx, 'fail')"
+                  >不通过</a-button>
+                </div>
+
+                <!-- 不通过：展开填写表单 -->
+                <div v-if="reviewResults[idx]?.result === 'fail'" class="fail-form">
+                  <div class="fail-form-item">
+                    <span class="fail-form-label">异常分类<span class="fail-required">*</span></span>
+                    <a-select
+                      v-model:value="reviewResults[idx].anomalyType"
+                      placeholder="请选择异常分类"
+                      style="width:240px"
+                      :options="ANOMALY_TYPE_OPTIONS"
+                    />
+                  </div>
+                  <div class="fail-form-item">
+                    <span class="fail-form-label">缺陷说明<span class="fail-required">*</span></span>
+                    <a-textarea
+                      v-model:value="reviewResults[idx].defectDesc"
+                      placeholder="请描述发现的缺陷或不合格内容"
+                      :rows="3"
+                      :maxlength="300"
+                      show-count
+                      style="flex:1"
+                    />
+                  </div>
+                  <div class="fail-form-item">
+                    <span class="fail-form-label">缺陷图片</span>
+                    <a-upload
+                      v-model:file-list="reviewResults[idx].defectPhotos"
+                      list-type="picture-card"
+                      :before-upload="() => false"
+                      accept="image/*"
+                      :multiple="true"
+                    >
+                      <div class="upload-trigger">
+                        <PlusOutlined />
+                        <div>上传</div>
+                      </div>
+                    </a-upload>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
       </template>
     </a-drawer>
 
-    <!-- 退回原因弹窗 -->
-    <a-modal
-      v-model:open="rejectVisible"
-      title="退回整改"
-      ok-text="确认退回"
-      cancel-text="取消"
-      :ok-button-props="{ danger: true, disabled: !rejectReason.trim() }"
-      width="460px"
-      @ok="handleRejectConfirm"
-      @cancel="rejectReason = ''"
-    >
-      <div style="padding: 8px 0 4px">
-        <div style="margin-bottom:8px;font-size:13px;color:rgba(0,0,0,0.65)">请填写退回原因，整改人将收到通知</div>
-        <a-textarea
-          v-model:value="rejectReason"
-          :rows="4"
-          placeholder="请说明退回原因，如：整改内容描述不够详细，请补充现场照片及处理措施。"
-          :maxlength="200"
-          show-count
-        />
-      </div>
-    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
+import { DownloadOutlined, PlusOutlined } from '@ant-design/icons-vue'
 
 const tableRef = ref<any>(null)
 const detailVisible = ref(false)
 const currentRow = ref<any>(null)
+const submitting = ref(false)
 
-const rejectVisible = ref(false)
-const rejectReason = ref('')
+interface ReviewResult {
+  result: 'pass' | 'fail' | null
+  anomalyType: string | undefined
+  defectDesc: string
+  defectPhotos: any[]
+}
+
+const reviewResults = reactive<Record<number, ReviewResult>>({})
+
+const ANOMALY_TYPE_OPTIONS = [
+  { label: '设备故障', value: 'device' },
+  { label: '安装工艺缺陷', value: 'install' },
+  { label: '安全隐患', value: 'safety' },
+  { label: '文件资料不符', value: 'docs' },
+  { label: '其他', value: 'other' },
+]
+
+function getCardClass(idx: number, defect?: any) {
+  if (currentRow.value?.status === 'reviewing') {
+    const r = reviewResults[idx]
+    if (!r || r.result === null) return ''
+    return r.result === 'pass' ? 'card-pass' : 'card-fail'
+  }
+  if (defect?.reviewResult === 'pass') return 'card-pass'
+  if (defect?.reviewResult === 'fail') return 'card-fail'
+  return ''
+}
+
+function setResult(idx: number, result: 'pass' | 'fail') {
+  if (!reviewResults[idx]) {
+    reviewResults[idx] = { result: null, anomalyType: undefined, defectDesc: '', defectPhotos: [] }
+  }
+  if (reviewResults[idx].result === result) {
+    reviewResults[idx].result = null
+  } else {
+    reviewResults[idx].result = result
+    if (result === 'pass') {
+      reviewResults[idx].anomalyType = undefined
+      reviewResults[idx].defectDesc = ''
+      reviewResults[idx].defectPhotos = []
+    }
+  }
+}
+
+async function handleSubmitReview() {
+  if (!currentRow.value) return
+  const defects = currentRow.value.defects ?? []
+  for (let i = 0; i < defects.length; i++) {
+    const r = reviewResults[i]
+    if (!r || r.result === null) {
+      message.warning(`请先对第 ${i + 1} 项缺陷「${defects[i].checkName}」进行复验判定`)
+      return
+    }
+    if (r.result === 'fail') {
+      if (!r.anomalyType) { message.warning(`第 ${i + 1} 项缺陷请选择异常分类`); return }
+      if (!r.defectDesc.trim()) { message.warning(`第 ${i + 1} 项缺陷请填写缺陷说明`); return }
+    }
+  }
+  submitting.value = true
+  await new Promise(r => setTimeout(r, 600))
+  const hasAnyFail = Object.values(reviewResults).some(r => r.result === 'fail')
+  defects.forEach((defect: any, i: number) => {
+    const r = reviewResults[i]
+    defect.reviewResult = r.result
+    defect.reviewNote = r.result === 'fail' ? r.defectDesc : ''
+    defect.reviewAnomalyType = r.result === 'fail' ? r.anomalyType : ''
+  })
+  currentRow.value.status = hasAnyFail ? 'rejected' : 'passed'
+  submitting.value = false
+  message.success(hasAnyFail ? '已提交复验结果：存在不通过项，已退回整改' : '复验通过，整改单已关闭')
+  detailVisible.value = false
+  tableRef.value?.refresh?.()
+}
 
 const columns: any[] = [
   { title: '整改单号', dataIndex: 'rectifyNo', key: 'rectifyNo', width: 170, fixed: 'left' as const, ellipsis: true },
@@ -259,34 +373,31 @@ const tableConfig = {
 
 function handleDetail(row: any) {
   currentRow.value = row
+  Object.keys(reviewResults).forEach(k => delete (reviewResults as any)[k])
   detailVisible.value = true
 }
 
-function openRejectModal() {
-  rejectReason.value = ''
-  rejectVisible.value = true
-}
-
-function handlePass() {
-  if (!currentRow.value) return
-  currentRow.value.status = 'passed'
-  message.success('已通过复验，整改单状态已更新')
-  detailVisible.value = false
-  tableRef.value?.refresh?.()
-}
-
-function handleRejectConfirm() {
-  const reason = rejectReason.value.trim()
-  if (!reason) return
-  if (currentRow.value) {
-    currentRow.value.status = 'rejected'
-    currentRow.value.rejectReason = reason
+function handleExport() {
+  const rejected = MOCK_REVIEW.filter(r => r.status === 'rejected')
+  if (!rejected.length) {
+    message.info('暂无退回整改数据')
+    return
   }
-  message.success('已退回整改，整改人将收到通知')
-  rejectVisible.value = false
-  rejectReason.value = ''
-  detailVisible.value = false
-  tableRef.value?.refresh?.()
+  const headers = ['整改单号', '关联飞检单', '关联电站', '业主姓名', '一级代理商', '代理商', '整改复验人', '整改期限', '整改提交时间', '退回原因']
+  const rows = rejected.map(r => [
+    r.rectifyNo, r.sheetNo, r.stationNo, r.owner,
+    r.firstAgent, r.agent, r.rectifyEngineer ?? '',
+    r.deadline, r.submitTime, r.rejectReason ?? '',
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+  const csv = '﻿' + [headers.join(','), ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `退回整改数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  message.success(`已导出 ${rejected.length} 条退回整改记录`)
 }
 
 const MOCK_REVIEW = [
@@ -359,6 +470,7 @@ const MOCK_REVIEW = [
       { level: 'mi', checkName: '组件外观清洁度',
         reason: '组件表面积灰较厚，影响发电效率',
         rectifyContent: '已进行专业清洁，发电量恢复正常',
+        reviewResult: 'pass', reviewNote: '',
         originPhotos: [], rectifyPhotos: [] },
     ]
   },
@@ -373,6 +485,7 @@ const MOCK_REVIEW = [
       { level: 'ma', checkName: 'MC4 接头防水情况',
         reason: '多个 MC4 接头防水套损坏，存在进水风险',
         rectifyContent: '已更换接头防水套',
+        reviewResult: 'fail', reviewNote: '整改内容描述不够详细，需补充处理前后对比照片，以及更换部件的型号规格记录。',
         originPhotos: [], rectifyPhotos: [] },
     ]
   },
@@ -406,16 +519,35 @@ const MOCK_REVIEW = [
 .detail-section { background: #fff; border-radius: 8px; padding: 18px 20px; }
 .section-title { font-size: 16px; font-weight: 600; color: #262626; margin-bottom: 14px; }
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
-.info-label { font-size: 14px; color: rgba(0,0,0,0.45); padding-bottom: 6px; }
+.info-label { font-size: 14px; color: rgba(0,0,0,0.45); line-height: 22px; padding-bottom: 8px; white-space: nowrap; }
 .info-value { font-size: 14px; color: #262626; }
+.info-item--span2 { grid-column: span 2; }
 
 /* 退回信息 */
 .reject-section { border-color: rgba(255,77,79,0.2); background: rgba(255,77,79,0.02); }
 .reject-reason-text { margin: 0; font-size: 14px; color: #595959; line-height: 1.7; }
 
 /* 整改核查卡 */
-.defect-review-card { border: 1px solid #f0f0f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+.defect-review-card { border: 1px solid #f0f0f0; border-left-width: 3px; border-left-color: #d9d9d9; border-radius: 6px; padding: 14px 16px; margin-bottom: 12px; transition: border-left-color 0.2s; }
 .defect-review-card:last-child { margin-bottom: 0; }
+.defect-review-card.card-pass { border-left-color: #52c41a; }
+.defect-review-card.card-fail { border-left-color: #ff4d4f; }
+
+/* 复验结果行 */
+.review-result-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f5f5f5; }
+.review-result-label { font-size: 13px; color: rgba(0,0,0,0.65); flex-shrink: 0; }
+
+/* 不通过表单 */
+.fail-form { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; background: #fafafa; border-radius: 6px; padding: 14px 16px; }
+.fail-form-item { display: flex; align-items: flex-start; gap: 10px; }
+.fail-form-label { font-size: 13px; color: rgba(0,0,0,0.65); flex-shrink: 0; min-width: 60px; padding-top: 5px; }
+.fail-required { color: #ff4d4f; margin-left: 2px; }
+.upload-trigger { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; color: rgba(0,0,0,0.45); }
+
+/* 复验意见（非复验状态不通过项） */
+.defect-review-note { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding: 10px 12px; background: rgba(255,77,79,0.04); border-radius: 4px; }
+.defect-review-note-label { font-size: 13px; font-weight: 600; color: #ff4d4f; flex-shrink: 0; }
+.defect-review-note-text { font-size: 13px; color: #595959; line-height: 1.65; }
 .defect-review-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .defect-idx { width: 20px; height: 20px; background: #f5f5f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #595959; flex-shrink: 0; }
 .defect-name { font-size: 14px; font-weight: 600; color: #262626; }

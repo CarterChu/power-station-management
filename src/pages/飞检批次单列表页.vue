@@ -25,6 +25,15 @@
       >
         <template #operationRight>
           <a-space>
+            <div class="role-switch-wrap">
+              <span class="role-switch-label" :class="{ active: currentRole === 'leader' }">小组负责人</span>
+              <a-switch
+                :checked="currentRole === 'engineer'"
+                size="small"
+                @change="(val: boolean) => currentRole = val ? 'engineer' : 'leader'"
+              />
+              <span class="role-switch-label" :class="{ active: currentRole === 'engineer' }">飞检工程师</span>
+            </div>
             <a-button type="primary" @click="handleCreate">新增飞检</a-button>
             <a-button @click="handleExport">导出</a-button>
           </a-space>
@@ -119,6 +128,11 @@ const emit = defineEmits<{
 // ── 状态 ────────────────────────────────────────────────────────────────────
 const tableRef = ref<any>(null)
 const activeStatKey = ref<string | null>(null)
+const currentRole = ref<'leader' | 'engineer'>('leader')
+
+function toggleRole() {
+  currentRole.value = currentRole.value === 'leader' ? 'engineer' : 'leader'
+}
 
 const BATCH_STATUS_LABEL: Record<string, string> = {
   draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除',
@@ -208,11 +222,15 @@ function selectStatCard(key: string | null) {
 }
 
 function handleCreate() {
-  emit('navigate', 'fj-batch-edit', { mode: 'create' })
+  emit('navigate', 'fj-batch-edit', {
+    mode: 'create',
+    role: currentRole.value,
+    type: currentRole.value === 'engineer' ? 'special' : 'daily',
+  })
 }
 
 function handleEdit(row: any) {
-  emit('navigate', 'fj-batch-edit', { mode: 'edit', row })
+  emit('navigate', 'fj-batch-edit', { mode: 'edit', row, role: currentRole.value })
 }
 
 function handleDetail(row: any) {
@@ -275,6 +293,11 @@ watch(() => props.pendingNewBatch, (batch) => {
 .fj-batch-no-link { color: #3060FF; cursor: pointer; }
 .fj-batch-no-link:hover { text-decoration: underline; }
 
+
+/* 角色切换 */
+.role-switch-wrap { display: flex; align-items: center; gap: 7px; }
+.role-switch-label { font-size: 13px; color: #8c8c8c; transition: color 0.2s; }
+.role-switch-label.active { color: #262626; font-weight: 500; }
 
 /* 通过比例 */
 .fj-pass-rate { display: flex; flex-direction: column; gap: 1px; }

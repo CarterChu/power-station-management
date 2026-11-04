@@ -147,7 +147,7 @@
           <div class="app-content">
             <!-- 飞检功能页面 -->
             <FjBatchList v-if="activeTabKey === 'fj-batch-list'" :pending-new-batch="fjPendingNewBatch" @navigate="handleNavigate" @batch-added="fjPendingNewBatch = null" />
-            <FjBatchEdit v-else-if="activeTabKey === 'fj-batch-edit'" :init-mode="fjBatchEditMode" :init-type="fjBatchEditType" :init-row="fjBatchEditRow" @back="handleBackFromFjBatchEdit" @submitted="handleFjBatchSubmitted" @navigate="handleNavigate" />
+            <FjBatchEdit v-else-if="activeTabKey === 'fj-batch-edit'" :init-mode="fjBatchEditMode" :init-type="fjBatchEditType" :init-row="fjBatchEditRow" :init-role="fjBatchEditRole" @back="handleBackFromFjBatchEdit" @submitted="handleFjBatchSubmitted" @navigate="handleNavigate" />
             <FjBatchDetail v-else-if="activeTabKey === 'fj-batch-detail'" :init-row="fjBatchDetailRow" @back="handleBackFromFjBatchDetail" @navigate="handleNavigate" />
             <FjSheetList v-else-if="activeTabKey === 'fj-sheet-list'" :pending-update="fjPendingSheetUpdate" @navigate="handleNavigate" @update-applied="fjPendingSheetUpdate = null" />
             <FjRectifyList v-else-if="activeTabKey === 'fj-rectify-list'" @navigate="handleNavigate" />
@@ -275,6 +275,7 @@ const agentReconcileDetailRow = ref<Record<string, any> | null>(null)
 const fjBatchEditMode   = ref<'create' | 'edit'>('create')
 const fjBatchEditType   = ref<string>('daily')
 const fjBatchEditRow    = ref<any>(null)
+const fjBatchEditRole   = ref<'leader' | 'engineer'>('leader')
 const fjBatchDetailRow  = ref<any>(null)
 const fjPendingNewBatch  = ref<any>(null)
 const fjSheetCheckRow      = ref<any>(null)
@@ -584,7 +585,10 @@ const handleNavigate = (target: string, payload?: any) => {
     fjBatchEditMode.value = payload?.mode ?? 'create'
     fjBatchEditType.value = payload?.type ?? 'daily'
     fjBatchEditRow.value  = payload?.row ?? null
-    const label = payload?.mode === 'edit' ? '编辑批次' : payload?.type === 'special' ? '新增专项飞检' : '新增日常飞检'
+    fjBatchEditRole.value = payload?.role ?? 'leader'
+    const label = payload?.mode === 'edit' ? '编辑批次'
+      : (payload?.role === 'engineer' || payload?.type === 'special') ? '新增专项飞检'
+      : '新增日常飞检'
     openTab('fj-batch-edit', label)
     return
   }

@@ -51,6 +51,13 @@
           <a-tabs v-model:active-key="checkItemTab" type="card" size="small">
             <!-- 分类管理 -->
             <a-tab-pane key="categories" tab="检查项分类">
+              <div class="deadline-hint">
+                <span class="deadline-hint-item"><a-tag color="blue" style="margin:0">3 天</a-tag> 表单资料类 / 系统填写类 / 图纸类 / 照片类或其他 MI 缺陷项</span>
+                <span class="deadline-hint-sep">·</span>
+                <span class="deadline-hint-item"><a-tag color="orange" style="margin:0">7 天</a-tag> 施工类 / 发电类</span>
+                <span class="deadline-hint-sep">·</span>
+                <span class="deadline-hint-item"><a-tag color="red" style="margin:0">30 天</a-tag> 政府交涉 / 结构整改难度较大异常</span>
+              </div>
               <div class="check-item-toolbar">
                 <a-button type="primary" @click="addCategory">
                   <template #icon><PlusOutlined /></template>
@@ -72,6 +79,20 @@
                   <template v-if="column.key === 'sortNo'">
                     <a-input-number v-if="record._editing" v-model:value="record.sortNo" size="small" :min="1" style="width:70px" />
                     <span v-else>{{ record.sortNo }}</span>
+                  </template>
+                  <template v-if="column.key === 'deadline'">
+                    <a-select
+                      v-if="record._editing"
+                      v-model:value="record.deadline"
+                      size="small"
+                      style="width:90px"
+                      :options="[{ label: '3 天', value: 3 }, { label: '7 天', value: 7 }, { label: '30 天', value: 30 }]"
+                    />
+                    <a-tag
+                      v-else
+                      :color="record.deadline === 3 ? 'blue' : record.deadline === 30 ? 'red' : 'orange'"
+                      style="margin:0"
+                    >{{ record.deadline }} 天</a-tag>
                   </template>
                   <template v-if="column.key === 'enabled'">
                     <a-switch v-model:checked="record.enabled" size="small" @change="(val: boolean) => onCategoryEnabledChange(record.id, val)" />
@@ -296,20 +317,21 @@ async function saveAccept() {
 
 // ── 分类管理 ────────────────────────────────────────────────────────────
 const categories = reactive([
-  { id: 'cat01', name: '支架系统',    code: 'CAT-01', sortNo: 1, enabled: true, _editing: false },
-  { id: 'cat02', name: '组件检查',    code: 'CAT-02', sortNo: 2, enabled: true, _editing: false },
-  { id: 'cat03', name: '线缆与汇流', code: 'CAT-03', sortNo: 3, enabled: true, _editing: false },
-  { id: 'cat04', name: '逆变器',      code: 'CAT-04', sortNo: 4, enabled: true, _editing: false },
-  { id: 'cat05', name: '配电箱',      code: 'CAT-05', sortNo: 5, enabled: true, _editing: false },
-  { id: 'cat06', name: '用电安全',    code: 'CAT-06', sortNo: 6, enabled: true, _editing: false },
-  { id: 'cat07', name: '并网计量',    code: 'CAT-07', sortNo: 7, enabled: true, _editing: false },
-  { id: 'cat08', name: '外部环境',    code: 'CAT-08', sortNo: 8, enabled: true, _editing: false },
+  { id: 'cat01', name: '支架系统',    code: 'CAT-01', sortNo: 1, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat02', name: '组件检查',    code: 'CAT-02', sortNo: 2, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat03', name: '线缆与汇流', code: 'CAT-03', sortNo: 3, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat04', name: '逆变器',      code: 'CAT-04', sortNo: 4, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat05', name: '配电箱',      code: 'CAT-05', sortNo: 5, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat06', name: '用电安全',    code: 'CAT-06', sortNo: 6, deadline: 7,  enabled: true, _editing: false },
+  { id: 'cat07', name: '并网计量',    code: 'CAT-07', sortNo: 7, deadline: 3,  enabled: true, _editing: false },
+  { id: 'cat08', name: '外部环境',    code: 'CAT-08', sortNo: 8, deadline: 3,  enabled: true, _editing: false },
 ])
 const catColumns = [
   { title: '分类编号', dataIndex: 'code', key: 'code', width: 120 },
   { title: '分类名称', key: 'name', width: 160 },
   { title: '排序号',   key: 'sortNo', width: 90 },
   { title: '检查项数', dataIndex: 'itemCount', key: 'itemCount', width: 90, customRender: ({ record }: any) => checkItems.filter((i: any) => i.categoryId === record.id).length },
+  { title: '整改时限', key: 'deadline', width: 120 },
   { title: '启用',    key: 'enabled', width: 80 },
   { title: '操作',    key: 'action', width: 130 },
 ]
@@ -507,4 +529,9 @@ function deleteRule(id: string) {
 .fake-radio-dot { width: 14px; height: 14px; border-radius: 50%; border: 3px solid #d9d9d9; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .fake-radio-inner { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
 .fake-radio-dot.checked { border-color: #3060FF; }
+
+/* 整改时限说明栏 */
+.deadline-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 14px; background: #fafafa; border-radius: 6px; margin-top: 16px; margin-bottom: 10px; font-size: 13px; color: #595959; }
+.deadline-hint-item { display: inline-flex; align-items: center; gap: 6px; }
+.deadline-hint-sep { color: #d9d9d9; }
 </style>

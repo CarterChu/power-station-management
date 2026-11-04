@@ -24,11 +24,16 @@
           <a-tag v-else-if="row.status === 'passed'" color="success" style="margin:0">整改通过</a-tag>
         </template>
 
-        <!-- 剩余天数 -->
+        <!-- 剩余天数（取所有缺陷中最大剩余天数） -->
         <template #remainDaysSlot="{ row }">
-          <span v-if="row.remainDays > 3" style="color:#262626">{{ row.remainDays }} 天</span>
-          <span v-else-if="row.remainDays > 0" style="color:#fa8c16;font-weight:500">{{ row.remainDays }} 天</span>
-          <span v-else style="color:#ff4d4f;font-weight:600">已逾期 {{ Math.abs(row.remainDays) }} 天</span>
+          <template v-if="row.status === 'passed'">
+            <span style="color:#8c8c8c">—</span>
+          </template>
+          <template v-else>
+            <span v-if="getMaxRemainDays(row) > 3" style="color:#262626">{{ getMaxRemainDays(row) }} 天</span>
+            <span v-else-if="getMaxRemainDays(row) > 0" style="color:#fa8c16;font-weight:500">{{ getMaxRemainDays(row) }} 天</span>
+            <span v-else style="color:#ff4d4f;font-weight:600">已逾期 {{ Math.abs(getMaxRemainDays(row)) }} 天</span>
+          </template>
         </template>
 
         <!-- 操作 -->
@@ -117,10 +122,18 @@
           <!-- 不合格项 -->
           <div class="detail-section">
             <div class="section-title">不合格项（{{ currentRow.defects?.length ?? 0 }} 项）</div>
-            <div v-for="(defect, i) in currentRow.defects" :key="i" class="defect-item-card" :class="`rs-${currentRow.status}`">
+            <div v-for="(defect, i) in currentRow.defects" :key="i" class="defect-item-card">
               <div class="defect-item-head">
                 <span class="defect-badge-small" :class="defect.level">{{ defect.level?.toUpperCase() }}</span>
                 <span class="defect-item-name">{{ defect.checkName }}</span>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                  <span class="defect-deadline-tag">{{ defect.deadlineDays }} 天限</span>
+                  <template v-if="currentRow.status !== 'passed'">
+                    <span v-if="getDefectRemainDays(defect, currentRow) > 3" class="defect-remain" style="color:#8c8c8c">剩 {{ getDefectRemainDays(defect, currentRow) }} 天</span>
+                    <span v-else-if="getDefectRemainDays(defect, currentRow) > 0" class="defect-remain" style="color:#fa8c16;font-weight:500">剩 {{ getDefectRemainDays(defect, currentRow) }} 天</span>
+                    <span v-else class="defect-remain" style="color:#ff4d4f;font-weight:600">逾期 {{ Math.abs(getDefectRemainDays(defect, currentRow)) }} 天</span>
+                  </template>
+                </div>
               </div>
               <div class="defect-row">
                 <div class="defect-meta">
@@ -229,6 +242,21 @@ const tableConfig = {
   },
 }
 
+// 整改时限工具函数
+// row.remainDays 以 max(deadlineDays) 对应的截止日为基准
+// 各缺陷独立剩余天数 = row.remainDays + (defect.deadlineDays - maxDeadlineDays)
+function getMaxDeadlineDays(defects: any[]): number {
+  return defects.length ? Math.max(...defects.map(d => d.deadlineDays ?? 7)) : 7
+}
+function getDefectRemainDays(defect: any, row: any): number {
+  const maxDays = getMaxDeadlineDays(row.defects ?? [])
+  return row.remainDays + ((defect.deadlineDays ?? 7) - maxDays)
+}
+function getMaxRemainDays(row: any): number {
+  if (!row.defects?.length) return row.remainDays
+  return Math.max(...row.defects.map((d: any) => getDefectRemainDays(d, row)))
+}
+
 function handleRectify(row: any) {
   emit('navigate', 'fj-rectify-input', { row })
 }
@@ -261,27 +289,40 @@ const MOCK_RECTIFY = [
     owner: '张三', firstAgent: '浙江大区代理商', address: '浙江省杭州市余杭区未来科技城',
     agent: '杭州阳光新能源科技有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-25', remainDays: 13,
     crCount: 0, maCount: 1, miCount: 1, status: 'passed',
-    defects: [{ level: 'ma', checkName: '支架腐蚀锈蚀情况', reason: '支架发现明显锈蚀', rectifyContent: '已更换锈蚀段支架并做防腐处理' }, { level: 'mi', checkName: '组件背板气泡/发黄情况', reason: '2号组件背板轻微气泡', rectifyContent: '观察无扩大，已做标记，下次复查' }] },
+    defects: [
+      { level: 'ma', deadlineDays: 7, checkName: '支架腐蚀锈蚀情况', reason: '支架发现明显锈蚀', rectifyContent: '已更换锈蚀段支架并做防腐处理' },
+      { level: 'mi', deadlineDays: 3, checkName: '组件背板气泡/发黄情况', reason: '2号组件背板轻微气泡', rectifyContent: '观察无扩大，已做标记，下次复查' },
+    ] },
   { id: 'r002', rectifyNo: 'ZGD-2026-002', sheetNo: 'FJD-2026-001003', stationNo: 'GFDZ-2025-001004',
     owner: '赵六', firstAgent: '安徽大区代理商', address: '安徽省合肥市蜀山区科学大道128号',
     agent: '合肥绿色能源技术有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-30', remainDays: -8,
     crCount: 1, maCount: 0, miCount: 1, status: 'pending',
-    defects: [{ level: 'cr', checkName: '支架固定螺栓紧固情况', reason: '多处螺栓松动，存在安全隐患', rectifyContent: null }, { level: 'mi', checkName: '直流线缆绝缘层完整性', reason: '局部绝缘层老化', rectifyContent: null }] },
+    defects: [
+      { level: 'cr', deadlineDays: 7, checkName: '支架固定螺栓紧固情况', reason: '多处螺栓松动，存在安全隐患', rectifyContent: null },
+      { level: 'mi', deadlineDays: 3, checkName: '直流线缆绝缘层完整性', reason: '局部绝缘层老化', rectifyContent: null },
+    ] },
   { id: 'r003', rectifyNo: 'ZGD-2026-003', sheetNo: 'FJD-2026-002002', stationNo: 'GFDZ-2025-002002',
     owner: '褚三', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
     agent: '金华光伏建设集团有限公司', rectifyEngineer: '周斌', deadline: '2026-10-08', remainDays: 0,
     crCount: 0, maCount: 1, miCount: 0, status: 'reviewing',
-    defects: [{ level: 'ma', checkName: '汇流箱密封情况', reason: '汇流箱密封圈老化开裂', rectifyContent: '已更换密封圈，通过防水测试' }] },
+    defects: [
+      { level: 'ma', deadlineDays: 7, checkName: '汇流箱密封情况', reason: '汇流箱密封圈老化开裂', rectifyContent: '已更换密封圈，通过防水测试' },
+    ] },
   { id: 'r004', rectifyNo: 'ZGD-2026-004', sheetNo: 'FJD-2026-003002', stationNo: 'GFDZ-2025-003002',
     owner: '冯一', firstAgent: '浙江大区代理商', address: '浙江省宁波市江北区庄桥街道',
     agent: '宁波绿能电力安装有限公司', rectifyEngineer: '', deadline: '2026-10-20', remainDays: 12,
     crCount: 0, maCount: 2, miCount: 0, status: 'pending',
-    defects: [{ level: 'ma', checkName: 'MC4接头紧固情况', reason: 'B组串 MC4 接头松动', rectifyContent: null }, { level: 'ma', checkName: '逆变器散热风扇', reason: '风扇异响，疑似轴承损坏', rectifyContent: null }] },
+    defects: [
+      { level: 'ma', deadlineDays: 7, checkName: 'MC4接头紧固情况', reason: 'B组串 MC4 接头松动', rectifyContent: null },
+      { level: 'ma', deadlineDays: 7, checkName: '逆变器散热风扇', reason: '风扇异响，疑似轴承损坏', rectifyContent: null },
+    ] },
   { id: 'r005', rectifyNo: 'ZGD-2026-005', sheetNo: 'FJD-2026-003001', stationNo: 'GFDZ-2025-003001',
     owner: '郑十', firstAgent: '安徽大区代理商', address: '安徽省芜湖市弋江区九华中路',
     agent: '芜湖清洁能源发展有限公司', rectifyEngineer: '', deadline: '2026-10-15', remainDays: 7,
     crCount: 0, maCount: 0, miCount: 1, status: 'pending',
-    defects: [{ level: 'mi', checkName: '组件外观破损情况', reason: '边框轻微变形', rectifyContent: null }] },
+    defects: [
+      { level: 'mi', deadlineDays: 3, checkName: '组件外观破损情况', reason: '边框轻微变形', rectifyContent: null },
+    ] },
 ]
 </script>
 
@@ -298,10 +339,7 @@ const MOCK_RECTIFY = [
 .info-value { font-size: 14px; color: #262626; }
 .info-value--action { display: flex; align-items: center; gap: 2px; }
 .transfer-btn { padding: 0 4px; height: auto; font-size: 13px; }
-.defect-item-card { border: 1px solid #f0f0f0; border-left-width: 3px; border-radius: 6px; padding: 14px 16px; margin-bottom: 10px; }
-.defect-item-card.rs-pending   { border-left-color: #fa8c16; background: rgba(250,140,22,0.02); }
-.defect-item-card.rs-reviewing { border-left-color: #1677ff; background: rgba(22,119,255,0.02); }
-.defect-item-card.rs-passed    { border-left-color: #52c41a; background: rgba(82,196,26,0.02); }
+.defect-item-card { border: 1px solid #f0f0f0; border-left-width: 3px; border-left-color: #d9d9d9; border-radius: 6px; padding: 14px 16px; margin-bottom: 10px; }
 .defect-item-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .defect-item-name { font-size: 14px; font-weight: 600; color: #262626; }
 .defect-badge-small { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 3px; flex-shrink: 0; }
@@ -314,6 +352,8 @@ const MOCK_RECTIFY = [
 .defect-meta-label { font-size: 13px; color: rgba(0,0,0,0.45); flex-shrink: 0; min-width: 56px; }
 .defect-meta-value { font-size: 14px; color: #262626; line-height: 1.6; }
 .defect-meta-value.is-empty { color: #bfbfbf; }
+.defect-deadline-tag { font-size: 11px; color: rgba(0,0,0,0.45); background: #f5f5f5; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+.defect-remain { font-size: 12px; white-space: nowrap; }
 .defect-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
 .defect-badge.cr { background: rgba(255,77,79,0.1); color: #ff4d4f; }
 .defect-badge.ma { background: rgba(250,140,22,0.1); color: #fa8c16; }
