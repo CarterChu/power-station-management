@@ -170,7 +170,13 @@
             :scroll="{ x: 1000 }"
           >
             <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'region'">{{ record.region || '全部' }}</template>
+              <template v-if="column.key === 'region'">
+                <template v-if="!record.regionPaths?.length">全部</template>
+                <a-space v-else :size="[4, 4]" wrap>
+                  <a-tag v-for="(path, pi) in record.regionPaths.slice(0, 2)" :key="pi" style="margin:0;font-size:12px">{{ formatPath(path) }}</a-tag>
+                  <span v-if="record.regionPaths.length > 2" style="color:#8c8c8c;font-size:12px">+{{ record.regionPaths.length - 2 }}</span>
+                </a-space>
+              </template>
               <template v-if="column.key === 'ratio'">
                 {{ record.ratio != null ? record.ratio + '%' : record.count + '个固定' }}
               </template>
@@ -206,8 +212,9 @@
           <a-cascader
             v-model:value="ruleForm.regionArr"
             :options="REGION_OPTIONS"
-            placeholder="请选择省/市/区（不选则为全部）"
-            :display-render="({ labels }: any) => labels.join(' / ')"
+            multiple
+            :max-tag-count="3"
+            placeholder="请选择省/市/区（可多选，不选则为全部）"
             change-on-select
             allowClear
           />
@@ -403,7 +410,7 @@ function deleteItem(id: string) {
 const addRuleModalVisible = ref(false)
 const editingRule = ref<any>(null)
 const ruleForm = reactive({
-  regionArr: [] as string[],
+  regionArr: [] as string[][],
   agent: undefined as string | undefined,
   stationStatus: '并网',
   ratioType: 'ratio' as 'ratio' | 'count',
@@ -412,6 +419,9 @@ const ruleForm = reactive({
   frequency: '每季度' as string | undefined,
   nextTimeDayjs: null as any,
 })
+function formatPath(path: string[]): string {
+  return path.length ? path.join(' / ') : '全部'
+}
 function resetRuleForm() {
   ruleForm.regionArr = []
   ruleForm.agent = undefined
@@ -425,7 +435,7 @@ function resetRuleForm() {
 function openAddRule() { resetRuleForm(); editingRule.value = null; addRuleModalVisible.value = true }
 function openEditRule(row: any) {
   editingRule.value = row
-  ruleForm.regionArr = row.region && row.region !== '全部' ? row.region.split(' / ').filter((s: string) => s !== '全部') : []
+  ruleForm.regionArr = row.regionPaths?.length ? row.regionPaths.map((p: string[]) => [...p]) : []
   ruleForm.agent = row.agent === '全部' ? undefined : row.agent
   ruleForm.stationStatus = row.stationStatus
   ruleForm.ratioType = row.ratio != null ? 'ratio' : 'count'
@@ -441,9 +451,8 @@ function saveRule() {
   if (ruleForm.ratioType === 'ratio' && !ruleForm.ratio) { message.error('请输入抽验比例'); return }
   if (ruleForm.ratioType === 'count' && !ruleForm.count) { message.error('请输入固定数量'); return }
   if (!ruleForm.nextTimeDayjs) { message.error('请选择首次触发时间'); return }
-  const regionLabel = ruleForm.regionArr.length ? ruleForm.regionArr.join(' / ') + (ruleForm.regionArr.length < 3 ? ' / 全部'.repeat(3 - ruleForm.regionArr.length) : '') : '全部'
   const data = {
-    region: regionLabel,
+    regionPaths: ruleForm.regionArr.length ? ruleForm.regionArr.map(p => [...p]) : [],
     agent: ruleForm.agent ?? '全部',
     stationStatus: ruleForm.stationStatus,
     scene: '全部',
@@ -489,12 +498,12 @@ const REGION_OPTIONS = [
 ]
 
 const rules = reactive([
-  { id: 'rule01', region: '浙江省 / 全部 / 全部', agent: '全部', stationStatus: '并网', scene: '全部', ratio: 20, count: null, frequency: '每季度', nextTime: '2026-10-01', enabled: true },
-  { id: 'rule02', region: '江苏省 / 苏州市 / 全部', agent: '全部', stationStatus: '并网', scene: '全部', ratio: 30, count: null, frequency: '每月', nextTime: '2026-10-10', enabled: true },
-  { id: 'rule03', region: '安徽省 / 全部 / 全部', agent: '合肥绿色能源技术有限公司', stationStatus: '并网', scene: '全部', ratio: null, count: 5, frequency: '每季度', nextTime: '2026-10-15', enabled: false },
+  { id: 'rule01', regionPaths: [['浙江省']], agent: '全部', stationStatus: '并网', scene: '全部', ratio: 20, count: null, frequency: '每季度', nextTime: '2026-10-01', enabled: true },
+  { id: 'rule02', regionPaths: [['江苏省', '苏州市'], ['浙江省', '杭州市']], agent: '全部', stationStatus: '并网', scene: '全部', ratio: 30, count: null, frequency: '每月', nextTime: '2026-10-10', enabled: true },
+  { id: 'rule03', regionPaths: [['安徽省'], ['江苏省']], agent: '合肥绿色能源技术有限公司', stationStatus: '并网', scene: '全部', ratio: null, count: 5, frequency: '每季度', nextTime: '2026-10-15', enabled: false },
 ])
 const ruleColumns = [
-  { title: '省/市/区', key: 'region', dataIndex: 'region', width: 200, ellipsis: true },
+  { title: '省/市/区', key: 'region', width: 220 },
   { title: '代理商', dataIndex: 'agent', key: 'agent', width: 180, ellipsis: true },
   { title: '电站状态', dataIndex: 'stationStatus', key: 'stationStatus', width: 100 },
   { title: '应用场景', dataIndex: 'scene', key: 'scene', width: 100 },
