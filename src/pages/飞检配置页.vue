@@ -226,13 +226,13 @@
     >
       <a-form :model="ruleForm" layout="vertical" style="margin-top:8px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px">
-          <a-form-item label="省/市/区" style="grid-column:1/-1">
+          <a-form-item label="省/市/区">
             <a-cascader
               v-model:value="ruleForm.regionArr"
               :options="REGION_OPTIONS"
               multiple
-              :max-tag-count="3"
-              placeholder="请选择省/市/区（可多选，不选则为全部）"
+              :max-tag-count="2"
+              placeholder="不选则为全部"
               change-on-select
               allowClear
             />
@@ -253,7 +253,7 @@
             <a-select
               v-model:value="ruleForm.scenes"
               mode="multiple"
-              :max-tag-count="2"
+              :max-tag-count="1"
               placeholder="不选则为全部"
               allowClear
               :options="SCENE_OPTIONS"
@@ -263,44 +263,44 @@
             <a-select
               v-model:value="ruleForm.racking"
               mode="multiple"
-              :max-tag-count="2"
+              :max-tag-count="1"
               placeholder="不选则为全部"
               allowClear
               :options="RACKING_OPTIONS"
             />
           </a-form-item>
+          <a-form-item label="抽检比例" required>
+            <div class="fake-radio-group" style="margin-bottom:8px">
+              <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'ratio' }" @click="ruleForm.ratioType = 'ratio'">
+                <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'ratio' }"><span class="fake-radio-inner"></span></span>
+                百分比
+              </label>
+              <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'count' }" @click="ruleForm.ratioType = 'count'">
+                <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'count' }"><span class="fake-radio-inner"></span></span>
+                数量
+              </label>
+            </div>
+            <a-input-number v-if="ruleForm.ratioType === 'ratio'" v-model:value="ruleForm.ratio" :min="1" :max="100" addon-after="%" style="width:100%" placeholder="请输入比例" />
+            <a-input-number v-else v-model:value="ruleForm.count" :min="1" addon-after="个" style="width:100%" placeholder="请输入数量" />
+          </a-form-item>
+          <a-form-item label="抽检频次" required>
+            <a-select v-model:value="ruleForm.frequency" :options="[{ label: '每周', value: '每周' }, { label: '每月', value: '每月' }]" placeholder="请选择频次" style="width:100%" @change="() => { ruleForm.scheduleDay = undefined }" />
+          </a-form-item>
+          <a-form-item label="批次自动生成时间" required style="grid-column:1/-1">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:13px;color:#595959">{{ ruleForm.frequency || '——' }}</span>
+              <template v-if="ruleForm.frequency === '每周'">
+                <a-select v-model:value="ruleForm.scheduleDay" style="width:90px" :options="WEEKDAY_OPTIONS" placeholder="周几" />
+              </template>
+              <template v-else-if="ruleForm.frequency === '每月'">
+                <a-select v-model:value="ruleForm.scheduleDay" style="width:80px" :options="MONTHDAY_OPTIONS" placeholder="几号" />
+                <span style="font-size:13px;color:#595959">号</span>
+              </template>
+              <a-select v-model:value="ruleForm.scheduleHour" style="width:88px" :options="HOUR_OPTIONS" placeholder="时间" />
+              <span style="font-size:13px;color:#595959">点</span>
+            </div>
+          </a-form-item>
         </div>
-        <a-form-item label="抽检比例" required>
-          <div class="fake-radio-group" style="margin-bottom:10px">
-            <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'ratio' }" @click="ruleForm.ratioType = 'ratio'">
-              <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'ratio' }"><span class="fake-radio-inner"></span></span>
-              百分比
-            </label>
-            <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'count' }" @click="ruleForm.ratioType = 'count'">
-              <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'count' }"><span class="fake-radio-inner"></span></span>
-              数量
-            </label>
-          </div>
-          <a-input-number v-if="ruleForm.ratioType === 'ratio'" v-model:value="ruleForm.ratio" :min="1" :max="100" addon-after="%" style="width:160px" placeholder="请输入比例" />
-          <a-input-number v-else v-model:value="ruleForm.count" :min="1" addon-after="个" style="width:160px" placeholder="请输入数量" />
-        </a-form-item>
-        <a-form-item label="抽检频次" required>
-          <a-select v-model:value="ruleForm.frequency" :options="[{ label: '每周', value: '每周' }, { label: '每月', value: '每月' }]" placeholder="请选择频次" style="width:160px" @change="() => { ruleForm.scheduleDay = undefined }" />
-        </a-form-item>
-        <a-form-item label="批次自动生成时间" required>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:13px;color:#595959">{{ ruleForm.frequency || '——' }}</span>
-            <template v-if="ruleForm.frequency === '每周'">
-              <a-select v-model:value="ruleForm.scheduleDay" style="width:90px" :options="WEEKDAY_OPTIONS" placeholder="周几" />
-            </template>
-            <template v-else-if="ruleForm.frequency === '每月'">
-              <a-select v-model:value="ruleForm.scheduleDay" style="width:80px" :options="MONTHDAY_OPTIONS" placeholder="几号" />
-              <span style="font-size:13px;color:#595959">号</span>
-            </template>
-            <a-select v-model:value="ruleForm.scheduleHour" style="width:88px" :options="HOUR_OPTIONS" placeholder="时间" />
-            <span style="font-size:13px;color:#595959">点</span>
-          </div>
-        </a-form-item>
       </a-form>
     </a-modal>
 
