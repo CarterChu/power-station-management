@@ -177,8 +177,25 @@
                   <span v-if="record.regionPaths.length > 2" style="color:#8c8c8c;font-size:12px">+{{ record.regionPaths.length - 2 }}</span>
                 </a-space>
               </template>
+              <template v-if="column.key === 'scenes'">
+                <template v-if="!record.scenes?.length">全部</template>
+                <a-space v-else :size="[4, 4]" wrap>
+                  <a-tag v-for="(s, si) in record.scenes.slice(0, 2)" :key="si" style="margin:0;font-size:12px">{{ s }}</a-tag>
+                  <span v-if="record.scenes.length > 2" style="color:#8c8c8c;font-size:12px">+{{ record.scenes.length - 2 }}</span>
+                </a-space>
+              </template>
+              <template v-if="column.key === 'racking'">
+                <template v-if="!record.racking?.length">全部</template>
+                <a-space v-else :size="[4, 4]" wrap>
+                  <a-tag v-for="(r, ri) in record.racking.slice(0, 2)" :key="ri" style="margin:0;font-size:12px">{{ r }}</a-tag>
+                  <span v-if="record.racking.length > 2" style="color:#8c8c8c;font-size:12px">+{{ record.racking.length - 2 }}</span>
+                </a-space>
+              </template>
               <template v-if="column.key === 'ratio'">
                 {{ record.ratio != null ? record.ratio + '%' : record.count + '个固定' }}
+              </template>
+              <template v-if="column.key === 'scheduleTime'">
+                {{ formatSchedule(record) }}
               </template>
               <template v-if="column.key === 'enabled'">
                 <a-switch v-model:checked="record.enabled" size="small" />
@@ -201,55 +218,88 @@
     <a-modal
       v-model:open="addRuleModalVisible"
       :title="editingRule ? '编辑规则' : '新增规则'"
-      width="560px"
+      width="640px"
       ok-text="保存"
       @ok="saveRule"
       @cancel="cancelRule"
       destroy-on-close
     >
       <a-form :model="ruleForm" layout="vertical" style="margin-top:8px">
-        <a-form-item label="省/市/区">
-          <a-cascader
-            v-model:value="ruleForm.regionArr"
-            :options="REGION_OPTIONS"
-            multiple
-            :max-tag-count="3"
-            placeholder="请选择省/市/区（可多选，不选则为全部）"
-            change-on-select
-            allowClear
-          />
-        </a-form-item>
-        <a-form-item label="代理商">
-          <a-select
-            v-model:value="ruleForm.agent"
-            placeholder="请选择代理商（不选则为全部）"
-            allowClear
-            show-search
-            :options="AGENT_OPTIONS"
-          />
-        </a-form-item>
-        <a-form-item label="电站状态">
-          <a-select v-model:value="ruleForm.stationStatus" :options="[{ label: '全部', value: '全部' }, { label: '并网', value: '并网' }, { label: '待并网', value: '待并网' }]" />
-        </a-form-item>
-        <a-form-item label="抽验方式" required>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px">
+          <a-form-item label="省/市/区" style="grid-column:1/-1">
+            <a-cascader
+              v-model:value="ruleForm.regionArr"
+              :options="REGION_OPTIONS"
+              multiple
+              :max-tag-count="3"
+              placeholder="请选择省/市/区（可多选，不选则为全部）"
+              change-on-select
+              allowClear
+            />
+          </a-form-item>
+          <a-form-item label="一级代理商">
+            <a-select
+              v-model:value="ruleForm.agent"
+              placeholder="不选则为全部"
+              allowClear
+              show-search
+              :options="AGENT_OPTIONS"
+            />
+          </a-form-item>
+          <a-form-item label="抽检电站状态">
+            <a-select v-model:value="ruleForm.stationStatus" :options="[{ label: '全部', value: '全部' }, { label: '已派工', value: '已派工' }, { label: '已完工', value: '已完工' }, { label: '已并网', value: '已并网' }]" />
+          </a-form-item>
+          <a-form-item label="应用场景">
+            <a-select
+              v-model:value="ruleForm.scenes"
+              mode="multiple"
+              :max-tag-count="2"
+              placeholder="不选则为全部"
+              allowClear
+              :options="SCENE_OPTIONS"
+            />
+          </a-form-item>
+          <a-form-item label="支架方案">
+            <a-select
+              v-model:value="ruleForm.racking"
+              mode="multiple"
+              :max-tag-count="2"
+              placeholder="不选则为全部"
+              allowClear
+              :options="RACKING_OPTIONS"
+            />
+          </a-form-item>
+        </div>
+        <a-form-item label="抽检比例" required>
           <div class="fake-radio-group" style="margin-bottom:10px">
             <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'ratio' }" @click="ruleForm.ratioType = 'ratio'">
               <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'ratio' }"><span class="fake-radio-inner"></span></span>
-              按比例
+              百分比
             </label>
             <label class="fake-radio" :class="{ checked: ruleForm.ratioType === 'count' }" @click="ruleForm.ratioType = 'count'">
               <span class="fake-radio-dot" :class="{ checked: ruleForm.ratioType === 'count' }"><span class="fake-radio-inner"></span></span>
-              固定数量
+              数量
             </label>
           </div>
           <a-input-number v-if="ruleForm.ratioType === 'ratio'" v-model:value="ruleForm.ratio" :min="1" :max="100" addon-after="%" style="width:160px" placeholder="请输入比例" />
           <a-input-number v-else v-model:value="ruleForm.count" :min="1" addon-after="个" style="width:160px" placeholder="请输入数量" />
         </a-form-item>
-        <a-form-item label="频次" required>
-          <a-select v-model:value="ruleForm.frequency" :options="[{ label: '每月', value: '每月' }, { label: '每季度', value: '每季度' }, { label: '每半年', value: '每半年' }, { label: '每年', value: '每年' }]" placeholder="请选择频次" />
+        <a-form-item label="抽检频次" required>
+          <a-select v-model:value="ruleForm.frequency" :options="[{ label: '每周', value: '每周' }, { label: '每月', value: '每月' }]" placeholder="请选择频次" style="width:160px" @change="() => { ruleForm.scheduleDay = undefined }" />
         </a-form-item>
-        <a-form-item label="首次触发时间" required>
-          <a-date-picker v-model:value="ruleForm.nextTimeDayjs" style="width:100%" placeholder="请选择首次触发时间" />
+        <a-form-item label="批次自动生成时间" required>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;color:#595959">{{ ruleForm.frequency || '——' }}</span>
+            <template v-if="ruleForm.frequency === '每周'">
+              <a-select v-model:value="ruleForm.scheduleDay" style="width:90px" :options="WEEKDAY_OPTIONS" placeholder="周几" />
+            </template>
+            <template v-else-if="ruleForm.frequency === '每月'">
+              <a-select v-model:value="ruleForm.scheduleDay" style="width:80px" :options="MONTHDAY_OPTIONS" placeholder="几号" />
+              <span style="font-size:13px;color:#595959">号</span>
+            </template>
+            <a-select v-model:value="ruleForm.scheduleHour" style="width:88px" :options="HOUR_OPTIONS" placeholder="时间" />
+            <span style="font-size:13px;color:#595959">点</span>
+          </div>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -292,7 +342,6 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import dayjs from 'dayjs'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
@@ -412,54 +461,74 @@ const editingRule = ref<any>(null)
 const ruleForm = reactive({
   regionArr: [] as string[][],
   agent: undefined as string | undefined,
-  stationStatus: '并网',
+  stationStatus: '全部',
+  scenes: [] as string[],
+  racking: [] as string[],
   ratioType: 'ratio' as 'ratio' | 'count',
   ratio: 20 as number | null,
   count: null as number | null,
-  frequency: '每季度' as string | undefined,
-  nextTimeDayjs: null as any,
+  frequency: '每月' as string | undefined,
+  scheduleDay: undefined as number | undefined,
+  scheduleHour: 9 as number,
 })
 function formatPath(path: string[]): string {
   return path.length ? path.join(' / ') : '全部'
 }
+function formatSchedule(rule: any): string {
+  if (rule.scheduleDay == null) return '—'
+  const h = String(rule.scheduleHour ?? 9).padStart(2, '0') + ':00'
+  if (rule.frequency === '每周') {
+    const days = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    return `每周${days[rule.scheduleDay] ?? ''}  ${h}`
+  }
+  return `每月${rule.scheduleDay}号  ${h}`
+}
 function resetRuleForm() {
   ruleForm.regionArr = []
   ruleForm.agent = undefined
-  ruleForm.stationStatus = '并网'
+  ruleForm.stationStatus = '全部'
+  ruleForm.scenes = []
+  ruleForm.racking = []
   ruleForm.ratioType = 'ratio'
   ruleForm.ratio = 20
   ruleForm.count = null
-  ruleForm.frequency = '每季度'
-  ruleForm.nextTimeDayjs = null
+  ruleForm.frequency = '每月'
+  ruleForm.scheduleDay = undefined
+  ruleForm.scheduleHour = 9
 }
 function openAddRule() { resetRuleForm(); editingRule.value = null; addRuleModalVisible.value = true }
 function openEditRule(row: any) {
   editingRule.value = row
   ruleForm.regionArr = row.regionPaths?.length ? row.regionPaths.map((p: string[]) => [...p]) : []
   ruleForm.agent = row.agent === '全部' ? undefined : row.agent
-  ruleForm.stationStatus = row.stationStatus
+  ruleForm.stationStatus = row.stationStatus ?? '全部'
+  ruleForm.scenes = row.scenes ? [...row.scenes] : []
+  ruleForm.racking = row.racking ? [...row.racking] : []
   ruleForm.ratioType = row.ratio != null ? 'ratio' : 'count'
   ruleForm.ratio = row.ratio
   ruleForm.count = row.count
   ruleForm.frequency = row.frequency
-  ruleForm.nextTimeDayjs = row.nextTime ? dayjs(row.nextTime) : null
+  ruleForm.scheduleDay = row.scheduleDay
+  ruleForm.scheduleHour = row.scheduleHour ?? 9
   addRuleModalVisible.value = true
 }
 function cancelRule() { addRuleModalVisible.value = false; editingRule.value = null }
 function saveRule() {
-  if (!ruleForm.frequency) { message.error('请选择频次'); return }
-  if (ruleForm.ratioType === 'ratio' && !ruleForm.ratio) { message.error('请输入抽验比例'); return }
+  if (!ruleForm.frequency) { message.error('请选择抽检频次'); return }
+  if (ruleForm.ratioType === 'ratio' && !ruleForm.ratio) { message.error('请输入抽检比例'); return }
   if (ruleForm.ratioType === 'count' && !ruleForm.count) { message.error('请输入固定数量'); return }
-  if (!ruleForm.nextTimeDayjs) { message.error('请选择首次触发时间'); return }
+  if (ruleForm.scheduleDay == null) { message.error('请选择自动生成时间'); return }
   const data = {
     regionPaths: ruleForm.regionArr.length ? ruleForm.regionArr.map(p => [...p]) : [],
     agent: ruleForm.agent ?? '全部',
     stationStatus: ruleForm.stationStatus,
-    scene: '全部',
+    scenes: [...ruleForm.scenes],
+    racking: [...ruleForm.racking],
     ratio: ruleForm.ratioType === 'ratio' ? ruleForm.ratio : null,
     count: ruleForm.ratioType === 'count' ? ruleForm.count : null,
     frequency: ruleForm.frequency,
-    nextTime: ruleForm.nextTimeDayjs.format('YYYY-MM-DD'),
+    scheduleDay: ruleForm.scheduleDay,
+    scheduleHour: ruleForm.scheduleHour,
   }
   if (editingRule.value) {
     Object.assign(editingRule.value, data)
@@ -470,6 +539,27 @@ function saveRule() {
   editingRule.value = null
   message.success('规则已保存')
 }
+
+const SCENE_OPTIONS = [
+  { label: '工商业屋顶', value: '工商业屋顶' },
+  { label: '工业厂房屋顶', value: '工业厂房屋顶' },
+  { label: '居民屋顶', value: '居民屋顶' },
+  { label: '地面电站', value: '地面电站' },
+  { label: 'BIPV', value: 'BIPV' },
+  { label: '阳台壁挂', value: '阳台壁挂' },
+]
+const RACKING_OPTIONS = [
+  { label: '固定支架', value: '固定支架' },
+  { label: '可调支架', value: '可调支架' },
+  { label: '跟踪支架', value: '跟踪支架' },
+  { label: 'BIPV一体化', value: 'BIPV一体化' },
+]
+const WEEKDAY_OPTIONS = [
+  { label: '周一', value: 1 }, { label: '周二', value: 2 }, { label: '周三', value: 3 },
+  { label: '周四', value: 4 }, { label: '周五', value: 5 }, { label: '周六', value: 6 }, { label: '周日', value: 7 },
+]
+const MONTHDAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({ label: `${i + 1}号`, value: i + 1 }))
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({ label: `${String(i).padStart(2, '0')}:00`, value: i }))
 
 const AGENT_OPTIONS = [
   { label: '全部', value: '全部' },
@@ -498,20 +588,21 @@ const REGION_OPTIONS = [
 ]
 
 const rules = reactive([
-  { id: 'rule01', regionPaths: [['浙江省']], agent: '全部', stationStatus: '并网', scene: '全部', ratio: 20, count: null, frequency: '每季度', nextTime: '2026-10-01', enabled: true },
-  { id: 'rule02', regionPaths: [['江苏省', '苏州市'], ['浙江省', '杭州市']], agent: '全部', stationStatus: '并网', scene: '全部', ratio: 30, count: null, frequency: '每月', nextTime: '2026-10-10', enabled: true },
-  { id: 'rule03', regionPaths: [['安徽省'], ['江苏省']], agent: '合肥绿色能源技术有限公司', stationStatus: '并网', scene: '全部', ratio: null, count: 5, frequency: '每季度', nextTime: '2026-10-15', enabled: false },
+  { id: 'rule01', regionPaths: [['浙江省']], agent: '全部', stationStatus: '全部', scenes: ['工商业屋顶', '工业厂房屋顶'], racking: ['固定支架'], ratio: 20, count: null, frequency: '每月', scheduleDay: 1, scheduleHour: 9, enabled: true },
+  { id: 'rule02', regionPaths: [['江苏省', '苏州市'], ['浙江省', '杭州市']], agent: '全部', stationStatus: '已并网', scenes: [], racking: [], ratio: 30, count: null, frequency: '每周', scheduleDay: 3, scheduleHour: 10, enabled: true },
+  { id: 'rule03', regionPaths: [['安徽省'], ['江苏省']], agent: '合肥绿色能源技术有限公司', stationStatus: '已并网', scenes: ['地面电站'], racking: ['跟踪支架', '可调支架'], ratio: null, count: 5, frequency: '每月', scheduleDay: 15, scheduleHour: 8, enabled: false },
 ])
 const ruleColumns = [
-  { title: '省/市/区', key: 'region', width: 220 },
-  { title: '代理商', dataIndex: 'agent', key: 'agent', width: 180, ellipsis: true },
-  { title: '电站状态', dataIndex: 'stationStatus', key: 'stationStatus', width: 100 },
-  { title: '应用场景', dataIndex: 'scene', key: 'scene', width: 100 },
-  { title: '抽验方式', key: 'ratio', width: 120 },
-  { title: '频次', dataIndex: 'frequency', key: 'frequency', width: 100 },
-  { title: '下次触发时间', dataIndex: 'nextTime', key: 'nextTime', width: 130 },
-  { title: '启用', key: 'enabled', width: 80 },
-  { title: '操作', key: 'action', width: 110 },
+  { title: '省/市/区', key: 'region', width: 200 },
+  { title: '一级代理商', dataIndex: 'agent', key: 'agent', width: 160, ellipsis: true },
+  { title: '电站状态', dataIndex: 'stationStatus', key: 'stationStatus', width: 90 },
+  { title: '应用场景', key: 'scenes', width: 160 },
+  { title: '支架方案', key: 'racking', width: 150 },
+  { title: '抽检比例', key: 'ratio', width: 110 },
+  { title: '频次', dataIndex: 'frequency', key: 'frequency', width: 70 },
+  { title: '批次自动生成时间', key: 'scheduleTime', width: 150 },
+  { title: '启用', key: 'enabled', width: 72 },
+  { title: '操作', key: 'action', width: 100 },
 ]
 function editRule(row: any) { openEditRule(row) }
 function deleteRule(id: string) {
