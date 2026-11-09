@@ -242,10 +242,10 @@
                   </div>
                 </div>
 
-                <!-- 通过：必须留存复验现场照片 -->
-                <div v-if="reviewResults[idx]?.result === 'pass'" class="pass-form">
+                <!-- 通过：可留存复验现场照片 -->
+                <div v-if="reviewResults[idx]?.result === 'pass'" class="fail-form">
                   <div class="fail-form-item">
-                    <span class="fail-form-label">现场照片<span class="fail-required">*</span></span>
+                    <span class="fail-form-label">现场照片</span>
                     <div>
                       <a-upload
                         v-model:file-list="reviewResults[idx].passPhotos"
@@ -259,7 +259,7 @@
                           <div>上传</div>
                         </div>
                       </a-upload>
-                      <div class="upload-help">复验通过时请至少上传 1 张现场照片</div>
+                      <div class="upload-help">可上传复验现场照片作为凭证</div>
                     </div>
                   </div>
                 </div>
@@ -348,10 +348,6 @@ async function handleSubmitReview() {
     if (r.result === 'fail') {
       if (!r.anomalyType) { message.warning(`第 ${i + 1} 项缺陷请选择异常分类`); return }
       if (!r.defectDesc.trim()) { message.warning(`第 ${i + 1} 项缺陷请填写缺陷说明`); return }
-    }
-    if (r.result === 'pass' && !r.passPhotos.length) {
-      message.warning(`第 ${i + 1} 项缺陷复验通过时，请上传至少 1 张现场照片`)
-      return
     }
   }
   submitting.value = true
@@ -588,7 +584,6 @@ const MOCK_REVIEW = [
 
 /* 不通过表单 */
 .fail-form { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; background: #fafafa; border-radius: 6px; padding: 14px 16px; }
-.pass-form { margin-top: 14px; background: rgba(82,196,26,0.04); border: 1px solid rgba(82,196,26,0.16); border-radius: 6px; padding: 14px 16px; }
 .fail-form-item { display: flex; align-items: flex-start; gap: 10px; }
 .fail-form-label { font-size: 13px; color: rgba(0,0,0,0.65); flex-shrink: 0; min-width: 60px; padding-top: 5px; }
 .fail-required { color: #ff4d4f; margin-left: 2px; }
