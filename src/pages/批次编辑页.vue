@@ -319,8 +319,8 @@ const isStatusLocked = computed(() => isEdit.value && !['draft', 'pending'].incl
 // 基础信息表单只读：状态锁定 OR 工程师在编辑模式
 const formReadOnly = computed(() => isStatusLocked.value || (isEngineer.value && isEdit.value))
 
-const STATUS_LABEL: Record<string, string> = { draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收' }
-const statusColor: Record<string, string> = { draft: 'default', pending: 'warning', checking: 'processing', done: 'success' }
+const STATUS_LABEL: Record<string, string> = { draft: '草稿', pendingGeneration: '待生成飞检单', pending: '待检查', checking: '检查中', done: '已验收' }
+const statusColor: Record<string, string> = { draft: 'default', pendingGeneration: 'cyan', pending: 'warning', checking: 'processing', done: 'success' }
 
 const formData = reactive({
   type: (props.initRow?.type ?? (props.initRole === 'engineer' ? 'special' : props.initType ?? 'daily')) as string,

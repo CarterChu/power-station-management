@@ -167,8 +167,8 @@ const emit = defineEmits<{
   navigate: [target: string, payload?: any]
 }>()
 
-const STATUS_LABEL: Record<string, string> = { draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除' }
-const statusColor: Record<string, string> = { draft: 'default', pending: 'warning', checking: 'processing', done: 'success', deleted: 'error' }
+const STATUS_LABEL: Record<string, string> = { draft: '草稿', pendingGeneration: '待生成飞检单', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除' }
+const statusColor: Record<string, string> = { draft: 'default', pendingGeneration: 'cyan', pending: 'warning', checking: 'processing', done: 'success', deleted: 'error' }
 const CHECK_STATUS_LABEL: Record<string, string> = { pending: '待检查', passed: '通过', failed: '不通过' }
 const CHECK_STATUS_COLOR: Record<string, string> = { pending: 'warning', passed: 'success', failed: 'error' }
 
@@ -184,7 +184,7 @@ const filteredSheets = computed(() =>
   sheetFilter.value ? sheets.value.filter(s => s.checkStatus === sheetFilter.value) : sheets.value
 )
 const overdueCount = computed(() => {
-  if (['draft', 'done', 'deleted'].includes(batch.value.status)) return 0
+  if (['draft', 'pendingGeneration', 'done', 'deleted'].includes(batch.value.status)) return 0
   const checkDate = batch.value.checkDate
   if (!checkDate) return 0
   const days = Math.floor((Date.now() - new Date(checkDate).getTime()) / 86400000)

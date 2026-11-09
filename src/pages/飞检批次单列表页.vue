@@ -53,7 +53,7 @@
 
         <!-- 通过比例 -->
         <template #passRateSlot="{ row }">
-          <template v-if="row.status === 'draft'">
+          <template v-if="['draft', 'pendingGeneration'].includes(row.status)">
             <span style="color:#bfbfbf">—</span>
           </template>
           <template v-else>
@@ -75,7 +75,7 @@
 
         <!-- 逾期天数 -->
         <template #overdueDaysSlot="{ row }">
-          <template v-if="['draft', 'done', 'deleted'].includes(row.status) || calcOverdueDays(row.checkDate) <= 0">
+          <template v-if="['draft', 'pendingGeneration', 'done', 'deleted'].includes(row.status) || calcOverdueDays(row.checkDate) <= 0">
             <span style="color:#bfbfbf">—</span>
           </template>
           <template v-else>
@@ -135,16 +135,17 @@ function toggleRole() {
 }
 
 const BATCH_STATUS_LABEL: Record<string, string> = {
-  draft: '草稿', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除',
+  draft: '草稿', pendingGeneration: '待生成飞检单', pending: '待检查', checking: '检查中', done: '已验收', deleted: '已删除',
 }
 const BATCH_STATUS_COLOR: Record<string, string> = {
-  draft: 'default', pending: 'warning', checking: 'processing', done: 'success', deleted: 'error',
+  draft: 'default', pendingGeneration: 'cyan', pending: 'warning', checking: 'processing', done: 'success', deleted: 'error',
 }
 
 // ── 统计卡片 ─────────────────────────────────────────────────────────────────
 const statCards = computed(() => [
   { key: null, label: '全部', count: MOCK_BATCHES.value.length },
   { key: 'draft', label: '草稿', count: MOCK_BATCHES.value.filter(b => b.status === 'draft').length },
+  { key: 'pendingGeneration', label: '待生成飞检单', count: MOCK_BATCHES.value.filter(b => b.status === 'pendingGeneration').length },
   { key: 'pending', label: '待检查', count: MOCK_BATCHES.value.filter(b => b.status === 'pending').length },
   { key: 'checking', label: '检查中', count: MOCK_BATCHES.value.filter(b => b.status === 'checking').length },
   { key: 'done', label: '已验收', count: MOCK_BATCHES.value.filter(b => b.status === 'done').length },
@@ -179,6 +180,7 @@ const filters = [
     props: { mode: 'multiple', showArrow: true },
     options: [
       { label: '草稿',   value: 'draft' },
+      { label: '待生成飞检单', value: 'pendingGeneration' },
       { label: '待检查', value: 'pending' },
       { label: '检查中', value: 'checking' },
       { label: '已验收', value: 'done' },
@@ -280,6 +282,7 @@ watch(() => props.pendingNewBatch, (batch) => {
 .fj-stat-count { font-size: 22px; font-weight: 700; color: #262626; line-height: 1.2; }
 .fj-stat-card.active .fj-stat-count { color: #3060FF; }
 .fj-count--draft { color: #8c8c8c; }
+.fj-count--pendingGeneration { color: #13c2c2; }
 .fj-count--pending { color: #fa8c16; }
 .fj-count--checking { color: #3060FF; }
 .fj-count--done { color: #52c41a; }
