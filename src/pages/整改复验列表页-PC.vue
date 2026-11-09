@@ -172,6 +172,20 @@
                 <span class="defect-review-note-text">{{ defect.reviewNote || '—' }}</span>
               </div>
 
+              <div v-if="currentRow.status !== 'reviewing' && defect.reviewResult === 'pass' && defect.reviewPhotos?.length" class="defect-review-photos">
+                <span class="defect-review-photos-label">复验现场照片</span>
+                <a-image-preview-group>
+                  <a-image
+                    v-for="(photo, pi) in defect.reviewPhotos"
+                    :key="pi"
+                    :src="getPhotoUrl(photo)"
+                    :width="72"
+                    :height="72"
+                    style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0"
+                  />
+                </a-image-preview-group>
+              </div>
+
               <!-- 复验结果操作（仅 reviewing 状态） -->
               <template v-if="currentRow.status === 'reviewing'">
                 <div class="review-result-row">
@@ -227,6 +241,28 @@
                     </a-upload>
                   </div>
                 </div>
+
+                <!-- 通过：必须留存复验现场照片 -->
+                <div v-if="reviewResults[idx]?.result === 'pass'" class="pass-form">
+                  <div class="fail-form-item">
+                    <span class="fail-form-label">现场照片<span class="fail-required">*</span></span>
+                    <div>
+                      <a-upload
+                        v-model:file-list="reviewResults[idx].passPhotos"
+                        list-type="picture-card"
+                        :before-upload="() => false"
+                        accept="image/*"
+                        :multiple="true"
+                      >
+                        <div class="upload-trigger">
+                          <PlusOutlined />
+                          <div>上传</div>
+                        </div>
+                      </a-upload>
+                      <div class="upload-help">复验通过时请至少上传 1 张现场照片</div>
+                    </div>
+                  </div>
+                </div>
               </template>
             </div>
           </div>
@@ -253,6 +289,7 @@ interface ReviewResult {
   anomalyType: string | undefined
   defectDesc: string
   defectPhotos: any[]
+  passPhotos: any[]
 }
 
 const reviewResults = reactive<Record<number, ReviewResult>>({})
@@ -278,7 +315,7 @@ function getCardClass(idx: number, defect?: any) {
 
 function setResult(idx: number, result: 'pass' | 'fail') {
   if (!reviewResults[idx]) {
-    reviewResults[idx] = { result: null, anomalyType: undefined, defectDesc: '', defectPhotos: [] }
+    reviewResults[idx] = { result: null, anomalyType: undefined, defectDesc: '', defectPhotos: [], passPhotos: [] }
   }
   if (reviewResults[idx].result === result) {
     reviewResults[idx].result = null
@@ -288,8 +325,15 @@ function setResult(idx: number, result: 'pass' | 'fail') {
       reviewResults[idx].anomalyType = undefined
       reviewResults[idx].defectDesc = ''
       reviewResults[idx].defectPhotos = []
+    } else {
+      reviewResults[idx].passPhotos = []
     }
   }
+}
+
+function getPhotoUrl(photo: any) {
+  if (typeof photo === 'string') return photo
+  return photo.url || photo.thumbUrl || (photo.originFileObj ? URL.createObjectURL(photo.originFileObj) : '')
 }
 
 async function handleSubmitReview() {
@@ -305,6 +349,10 @@ async function handleSubmitReview() {
       if (!r.anomalyType) { message.warning(`第 ${i + 1} 项缺陷请选择异常分类`); return }
       if (!r.defectDesc.trim()) { message.warning(`第 ${i + 1} 项缺陷请填写缺陷说明`); return }
     }
+    if (r.result === 'pass' && !r.passPhotos.length) {
+      message.warning(`第 ${i + 1} 项缺陷复验通过时，请上传至少 1 张现场照片`)
+      return
+    }
   }
   submitting.value = true
   await new Promise(r => setTimeout(r, 600))
@@ -314,6 +362,7 @@ async function handleSubmitReview() {
     defect.reviewResult = r.result
     defect.reviewNote = r.result === 'fail' ? r.defectDesc : ''
     defect.reviewAnomalyType = r.result === 'fail' ? r.anomalyType : ''
+    defect.reviewPhotos = r.result === 'pass' ? r.passPhotos : []
   })
   currentRow.value.status = hasAnyFail ? 'rejected' : 'passed'
   submitting.value = false
@@ -539,15 +588,19 @@ const MOCK_REVIEW = [
 
 /* 不通过表单 */
 .fail-form { margin-top: 14px; display: flex; flex-direction: column; gap: 14px; background: #fafafa; border-radius: 6px; padding: 14px 16px; }
+.pass-form { margin-top: 14px; background: rgba(82,196,26,0.04); border: 1px solid rgba(82,196,26,0.16); border-radius: 6px; padding: 14px 16px; }
 .fail-form-item { display: flex; align-items: flex-start; gap: 10px; }
 .fail-form-label { font-size: 13px; color: rgba(0,0,0,0.65); flex-shrink: 0; min-width: 60px; padding-top: 5px; }
 .fail-required { color: #ff4d4f; margin-left: 2px; }
 .upload-trigger { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; color: rgba(0,0,0,0.45); }
+.upload-help { margin-top: 4px; font-size: 12px; color: rgba(0,0,0,0.45); }
 
 /* 复验意见（非复验状态不通过项） */
 .defect-review-note { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; padding: 10px 12px; background: rgba(255,77,79,0.04); border-radius: 4px; }
 .defect-review-note-label { font-size: 13px; font-weight: 600; color: #ff4d4f; flex-shrink: 0; }
 .defect-review-note-text { font-size: 13px; color: #595959; line-height: 1.65; }
+.defect-review-photos { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; padding: 10px 12px; background: rgba(82,196,26,0.04); border-radius: 4px; }
+.defect-review-photos-label { padding-top: 4px; font-size: 13px; font-weight: 600; color: #389e0d; flex-shrink: 0; }
 .defect-review-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .defect-idx { width: 20px; height: 20px; background: #f5f5f5; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #595959; flex-shrink: 0; }
 .defect-name { font-size: 14px; font-weight: 600; color: #262626; }
