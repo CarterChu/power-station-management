@@ -26,13 +26,13 @@
         <template #operationRight>
           <a-space>
             <div class="role-switch-wrap">
-              <span class="role-switch-label" :class="{ active: currentRole === 'leader' }">小组负责人</span>
+              <span class="role-switch-label" :class="{ active: currentRole === 'leader' }">飞检管理员</span>
               <a-switch
                 :checked="currentRole === 'engineer'"
                 size="small"
                 @change="(val: boolean) => currentRole = val ? 'engineer' : 'leader'"
               />
-              <span class="role-switch-label" :class="{ active: currentRole === 'engineer' }">飞检工程师</span>
+              <span class="role-switch-label" :class="{ active: currentRole === 'engineer' }">小组负责人</span>
             </div>
             <a-button type="primary" @click="handleCreate">新增飞检</a-button>
             <a-button @click="handleExport">导出</a-button>
