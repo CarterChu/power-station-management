@@ -40,7 +40,7 @@
             <div class="info-value">{{ batch.leader }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">是否随机</div>
+            <div class="info-label">是否随机抽检</div>
             <div class="info-value">{{ batch.random ? `是（${batch.sampleRate}%）` : '否' }}</div>
           </div>
           <div class="info-item">

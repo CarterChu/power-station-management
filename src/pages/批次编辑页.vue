@@ -56,8 +56,11 @@
           <a-form-item label="飞检日期" required>
             <a-range-picker v-model:value="formData.checkDateRange" style="width:100%" :placeholder="['开始日期', '结束日期']" />
           </a-form-item>
-          <a-form-item v-if="formData.type === 'daily'" label="抽验比例">
-            <a-input-number v-model:value="formData.sampleRate" :min="10" :max="100" :step="5" style="width:100%" addon-after="%" />
+          <a-form-item label="是否随机抽检">
+            <a-input :value="formData.random ? '是' : '否'" disabled />
+          </a-form-item>
+          <a-form-item v-if="formData.random" label="抽检比例">
+            <a-input value="按后台抽检比例规则" disabled />
           </a-form-item>
           <a-form-item label="备注">
             <a-textarea v-model:value="formData.remark" :rows="3" :maxlength="200" show-count placeholder="可填写备注信息" />
@@ -327,7 +330,8 @@ const formData = reactive({
     ? [dayjs(props.initRow.checkDate), props.initRow.checkDateEnd ? dayjs(props.initRow.checkDateEnd) : null] as [any, any]
     : [null, null] as [any, any],
   random: props.initRow?.random ?? false,
-  sampleRate: props.initRow?.sampleRate ?? 30,
+  // 新增批次使用后台抽检规则的默认比例；编辑批次回显后台已保存的比例。
+  sampleRate: props.initRow?.sampleRate ?? 20,
   remark: props.initRow?.remark ?? '',
   status: props.initRow?.status ?? 'draft',
 })
