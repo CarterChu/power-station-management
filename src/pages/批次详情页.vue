@@ -7,7 +7,7 @@
       <span class="batch-detail-title">批次详情</span>
       <a-tag :color="statusColor[batch.status]" style="margin:0">{{ STATUS_LABEL[batch.status] }}</a-tag>
       <div style="flex:1"></div>
-      <a-button v-if="['draft','pending'].includes(batch.status)" @click="handleEdit">编辑批次</a-button>
+      <a-button v-if="['draft', 'pendingGeneration', 'pending'].includes(batch.status)" @click="handleEdit">编辑批次</a-button>
       <a-button @click="handleExport">导出</a-button>
     </div>
 

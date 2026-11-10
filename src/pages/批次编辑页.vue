@@ -56,10 +56,7 @@
           <a-form-item label="飞检日期" required>
             <a-range-picker v-model:value="formData.checkDateRange" style="width:100%" :placeholder="['开始日期', '结束日期']" />
           </a-form-item>
-          <a-form-item label="是否随机抽验">
-            <a-switch v-model:checked="formData.random" checked-children="是" un-checked-children="否" />
-          </a-form-item>
-          <a-form-item v-if="formData.random" label="抽验比例">
+          <a-form-item v-if="formData.type === 'daily'" label="抽验比例">
             <a-input-number v-model:value="formData.sampleRate" :min="10" :max="100" :step="5" style="width:100%" addon-after="%" />
           </a-form-item>
           <a-form-item label="备注">
@@ -315,7 +312,7 @@ const isEdit = computed(() => props.initMode === 'edit' && !!props.initRow)
 const batchType = computed(() => props.initType ?? 'daily')
 const isEngineer = computed(() => props.initRole === 'engineer')
 // 因批次状态不可编辑（检查中/已验收）
-const isStatusLocked = computed(() => isEdit.value && !['draft', 'pending'].includes(formData.status))
+const isStatusLocked = computed(() => isEdit.value && !['draft', 'pendingGeneration', 'pending'].includes(formData.status))
 // 基础信息表单只读：状态锁定 OR 工程师在编辑模式
 const formReadOnly = computed(() => isStatusLocked.value || (isEngineer.value && isEdit.value))
 
@@ -334,6 +331,11 @@ const formData = reactive({
   remark: props.initRow?.remark ?? '',
   status: props.initRow?.status ?? 'draft',
 })
+
+// 随机抽验由飞检类型决定，不允许手动调整。
+watch(() => formData.type, (type) => {
+  formData.random = type === 'daily'
+}, { immediate: true })
 
 const MOCK_POOL_STATIONS = [
   { stationId: 'ps01', stationNo: 'GFDZ-2025-001001', owner: '张三', address: '浙江省杭州市余杭区未来科技城', firstAgent: '浙江大区代理商', agent: '杭州阳光新能源科技有限公司', exclusiveBatch: null },

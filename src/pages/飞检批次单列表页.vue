@@ -88,7 +88,7 @@
           <a-space :size="0">
             <a-button type="link" size="small" @click="handleDetail(row)">详情</a-button>
             <a-button
-              v-if="['draft', 'pending'].includes(row.status)"
+              v-if="['draft', 'pendingGeneration', 'pending'].includes(row.status)"
               type="link" size="small"
               @click="handleEdit(row)"
             >编辑</a-button>
