@@ -121,7 +121,7 @@
 
           <!-- 不合格项 -->
           <div class="detail-section">
-            <div class="section-title">不合格项（{{ currentRow.defects?.length ?? 0 }} 项）</div>
+            <div class="section-title">整改项（{{ currentRow.defects?.length ?? 0 }} 项）</div>
             <div v-for="(defect, i) in currentRow.defects" :key="i" class="defect-item-card">
               <div class="defect-item-head">
                 <span class="defect-badge-small" :class="defect.level">{{ defect.level?.toUpperCase() }}</span>
@@ -137,14 +137,97 @@
               </div>
               <div class="defect-row">
                 <div class="defect-meta">
+                  <span class="defect-meta-label">缺陷分类</span>
+                  <span class="defect-meta-value">{{ defect.defectCategory || '—' }}</span>
+                </div>
+                <div class="defect-meta">
                   <span class="defect-meta-label">缺陷原因</span>
                   <span class="defect-meta-value">{{ defect.reason }}</span>
                 </div>
-                <template v-if="currentRow.status === 'reviewing' || currentRow.status === 'passed'">
+                <div class="defect-meta defect-meta--photos">
+                  <span class="defect-meta-label">缺陷图片</span>
+                  <a-image-preview-group v-if="defect.defectPhotos?.length">
+                    <div class="defect-photos">
+                      <a-image
+                        v-for="(photo, photoIndex) in defect.defectPhotos"
+                        :key="photoIndex"
+                        :src="photo"
+                        :width="64"
+                        :height="64"
+                        class="defect-photo-thumb"
+                      />
+                    </div>
+                  </a-image-preview-group>
+                  <span v-else class="defect-meta-value is-empty">—</span>
+                </div>
+                <template v-if="getDefectRounds(defect, currentRow).length">
                   <div class="defect-divider"></div>
-                  <div class="defect-meta">
-                    <span class="defect-meta-label">整改内容</span>
-                    <span class="defect-meta-value" :class="{ 'is-empty': !defect.rectifyContent }">{{ defect.rectifyContent ?? '未填写' }}</span>
+                  <div
+                    v-for="round in getDefectRounds(defect, currentRow)"
+                    :key="round.round"
+                    class="defect-round-block"
+                    :class="{ 'is-current': isCurrentDefectRound(defect, round, currentRow), 'is-single': !hasMultipleDefectRounds(defect, currentRow) }"
+                  >
+                    <div v-if="hasMultipleDefectRounds(defect, currentRow)" class="defect-round-head">
+                      <span>第 {{ round.round }} 轮整改</span>
+                      <a-tag :color="getRoundStatusColor(round.reviewStatus)" style="margin:0">{{ getRoundStatusLabel(round.reviewStatus) }}</a-tag>
+                      <span v-if="round.submitTime" class="defect-round-time">{{ round.submitTime }}</span>
+                    </div>
+                    <div v-else class="defect-round-head">
+                      <span>整改</span>
+                    </div>
+                    <div class="defect-meta">
+                      <span class="defect-meta-label">整改内容</span>
+                      <span class="defect-meta-value" :class="{ 'is-empty': !round.rectifyContent }">{{ round.rectifyContent ?? '未填写' }}</span>
+                    </div>
+                    <div class="defect-meta defect-meta--photos">
+                      <span class="defect-meta-label">整改图片</span>
+                      <a-image-preview-group v-if="round.rectifyPhotos?.length">
+                        <div class="defect-photos">
+                          <a-image
+                            v-for="(photo, photoIndex) in round.rectifyPhotos"
+                            :key="photoIndex"
+                            :src="photo"
+                            :width="64"
+                            :height="64"
+                            class="defect-photo-thumb"
+                          />
+                        </div>
+                      </a-image-preview-group>
+                      <span v-else class="defect-meta-value is-empty">—</span>
+                    </div>
+                    <div v-if="round.reviewStatus !== 'pending'" class="defect-divider"></div>
+                    <div v-if="round.reviewStatus !== 'pending'" class="defect-round-review">
+                      <span>{{ hasMultipleDefectRounds(defect, currentRow) ? `第 ${round.round} 轮复验` : '复验' }}</span>
+                      <a-tag :color="getRoundStatusColor(round.reviewStatus)" style="margin:0">{{ getRoundStatusLabel(round.reviewStatus) }}</a-tag>
+                      <span v-if="round.reviewTime" class="defect-round-time">{{ round.reviewTime }}</span>
+                    </div>
+                    <template v-if="!['pending', 'reviewing'].includes(round.reviewStatus)">
+                      <div class="defect-meta">
+                        <span class="defect-meta-label">缺陷分类</span>
+                        <span class="defect-meta-value">{{ defect.defectCategory || '—' }}</span>
+                      </div>
+                      <div class="defect-meta">
+                        <span class="defect-meta-label">缺陷原因</span>
+                        <span class="defect-meta-value">{{ defect.reason }}</span>
+                      </div>
+                      <div class="defect-meta defect-meta--photos">
+                        <span class="defect-meta-label">缺陷图片</span>
+                        <a-image-preview-group v-if="defect.defectPhotos?.length">
+                          <div class="defect-photos">
+                            <a-image
+                              v-for="(photo, photoIndex) in defect.defectPhotos"
+                              :key="photoIndex"
+                              :src="photo"
+                              :width="64"
+                              :height="64"
+                              class="defect-photo-thumb"
+                            />
+                          </div>
+                        </a-image-preview-group>
+                        <span v-else class="defect-meta-value is-empty">—</span>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -224,6 +307,12 @@ const filters = [
     ]},
 ]
 
+const RECTIFY_STATUS_ORDER: Record<string, number> = { pending: 0, reviewing: 1, passed: 2 }
+
+function getRowRoundCount(row: any) {
+  return Math.max(1, ...(row.defects ?? []).map((defect: any) => defect.rounds?.length ?? 1))
+}
+
 const tableConfig = {
   rowKey: 'id',
   searchOnLoad: true,
@@ -236,6 +325,10 @@ const tableConfig = {
     if (fp.stationNo) list = list.filter(r => r.stationNo.includes(fp.stationNo))
     if (fp.firstAgent) list = list.filter(r => r.firstAgent.includes(fp.firstAgent))
     if (fp.status?.length) list = list.filter(r => fp.status.includes(r.status))
+    list.sort((a, b) => {
+      const statusDiff = (RECTIFY_STATUS_ORDER[a.status] ?? 99) - (RECTIFY_STATUS_ORDER[b.status] ?? 99)
+      return statusDiff || getRowRoundCount(a) - getRowRoundCount(b) || a.rectifyNo.localeCompare(b.rectifyNo)
+    })
     const total = list.length
     list = list.slice(((pageIndex ?? 1) - 1) * (pageRows ?? 10), (pageIndex ?? 1) * (pageRows ?? 10))
     return { data: list, count: total }
@@ -255,6 +348,35 @@ function getDefectRemainDays(defect: any, row: any): number {
 function getMaxRemainDays(row: any): number {
   if (!row.defects?.length) return row.remainDays
   return Math.max(...row.defects.map((d: any) => getDefectRemainDays(d, row)))
+}
+
+function getDefectRounds(defect: any, row: any) {
+  if (defect.rounds?.length) return defect.rounds
+  if (!defect.rectifyContent && row.status === 'pending') return []
+  return [{
+    round: 1,
+    submitTime: row.submitTime,
+    rectifyContent: defect.rectifyContent,
+    rectifyPhotos: defect.rectifyPhotos,
+    reviewStatus: row.status,
+  }]
+}
+
+function isCurrentDefectRound(defect: any, round: any, row: any) {
+  const rounds = getDefectRounds(defect, row)
+  return round.round === rounds[rounds.length - 1]?.round
+}
+
+function hasMultipleDefectRounds(defect: any, row: any) {
+  return getDefectRounds(defect, row).length > 1
+}
+
+function getRoundStatusLabel(status: string) {
+  return ({ pending: '待整改', reviewing: '待复验', passed: '复验通过', rejected: '退回整改' } as Record<string, string>)[status] ?? '—'
+}
+
+function getRoundStatusColor(status: string) {
+  return ({ pending: 'orange', reviewing: 'blue', passed: 'green', rejected: 'red' } as Record<string, string>)[status] ?? 'gray'
 }
 
 function handleRectify(row: any) {
@@ -290,38 +412,74 @@ const MOCK_RECTIFY = [
     agent: '杭州阳光新能源科技有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-25', remainDays: 13,
     crCount: 0, maCount: 1, miCount: 1, status: 'passed',
     defects: [
-      { level: 'ma', deadlineDays: 7, checkName: '支架腐蚀锈蚀情况', reason: '支架发现明显锈蚀', rectifyContent: '已更换锈蚀段支架并做防腐处理' },
-      { level: 'mi', deadlineDays: 3, checkName: '组件背板气泡/发黄情况', reason: '2号组件背板轻微气泡', rectifyContent: '观察无扩大，已做标记，下次复查' },
+      { level: 'ma', deadlineDays: 7, checkName: '支架腐蚀锈蚀情况', defectCategory: '设备故障', reason: '支架发现明显锈蚀', defectPhotos: ['https://picsum.photos/160/120?random=201'], rectifyContent: '已更换锈蚀段支架并做防腐处理' },
+      { level: 'mi', deadlineDays: 3, checkName: '组件背板气泡/发黄情况', defectCategory: '安装工艺缺陷', reason: '2号组件背板轻微气泡', defectPhotos: ['https://picsum.photos/160/120?random=202'], rectifyContent: '观察无扩大，已做标记，下次复查' },
     ] },
+  // 待整改：单轮样例
   { id: 'r002', rectifyNo: 'ZGD-2026-002', sheetNo: 'FJD-2026-001003', stationNo: 'GFDZ-2025-001004',
     owner: '赵六', firstAgent: '安徽大区代理商', address: '安徽省合肥市蜀山区科学大道128号',
     agent: '合肥绿色能源技术有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-30', remainDays: -8,
     crCount: 1, maCount: 0, miCount: 1, status: 'pending',
     defects: [
-      { level: 'cr', deadlineDays: 7, checkName: '支架固定螺栓紧固情况', reason: '多处螺栓松动，存在安全隐患', rectifyContent: null },
-      { level: 'mi', deadlineDays: 3, checkName: '直流线缆绝缘层完整性', reason: '局部绝缘层老化', rectifyContent: null },
+      { level: 'cr', deadlineDays: 7, checkName: '支架固定螺栓紧固情况', defectCategory: '安全隐患', reason: '多处螺栓松动，存在安全隐患', defectPhotos: ['https://picsum.photos/160/120?random=203'], rectifyContent: null,
+        rounds: [{ round: 1, rectifyContent: null, rectifyPhotos: [], reviewStatus: 'pending' }] },
+      { level: 'mi', deadlineDays: 3, checkName: '直流线缆绝缘层完整性', defectCategory: '安全隐患', reason: '局部绝缘层老化', defectPhotos: ['https://picsum.photos/160/120?random=204'], rectifyContent: null,
+        rounds: [{ round: 1, rectifyContent: null, rectifyPhotos: [], reviewStatus: 'pending' }] },
     ] },
   { id: 'r003', rectifyNo: 'ZGD-2026-003', sheetNo: 'FJD-2026-002002', stationNo: 'GFDZ-2025-002002',
     owner: '褚三', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
     agent: '金华光伏建设集团有限公司', rectifyEngineer: '周斌', deadline: '2026-10-08', remainDays: 0,
     crCount: 0, maCount: 1, miCount: 0, status: 'reviewing',
     defects: [
-      { level: 'ma', deadlineDays: 7, checkName: '汇流箱密封情况', reason: '汇流箱密封圈老化开裂', rectifyContent: '已更换密封圈，通过防水测试' },
+      { level: 'ma', deadlineDays: 7, checkName: '汇流箱密封情况', defectCategory: '设备故障', reason: '汇流箱密封圈老化开裂', defectPhotos: ['https://picsum.photos/160/120?random=205'], rectifyContent: '已更换密封圈并补充防水处理，通过防水测试',
+        rounds: [
+          { round: 1, submitTime: '2026-09-27 15:20', rectifyContent: '已更换密封圈，通过防水测试', rectifyPhotos: [], reviewStatus: 'rejected', reviewTime: '2026-09-29 10:05', reviewNote: '密封圈更换后仍有渗水痕迹，请补充防水处理并重新提交。' },
+          { round: 2, submitTime: '2026-10-06 14:23', rectifyContent: '已更换密封圈并补充防水处理，通过防水测试', rectifyPhotos: [], reviewStatus: 'reviewing' },
+        ] },
     ] },
+  // 待整改：多轮样例（第 1 轮复验退回，等待第 2 轮整改）
   { id: 'r004', rectifyNo: 'ZGD-2026-004', sheetNo: 'FJD-2026-003002', stationNo: 'GFDZ-2025-003002',
     owner: '冯一', firstAgent: '浙江大区代理商', address: '浙江省宁波市江北区庄桥街道',
     agent: '宁波绿能电力安装有限公司', rectifyEngineer: '', deadline: '2026-10-20', remainDays: 12,
     crCount: 0, maCount: 2, miCount: 0, status: 'pending',
     defects: [
-      { level: 'ma', deadlineDays: 7, checkName: 'MC4接头紧固情况', reason: 'B组串 MC4 接头松动', rectifyContent: null },
-      { level: 'ma', deadlineDays: 7, checkName: '逆变器散热风扇', reason: '风扇异响，疑似轴承损坏', rectifyContent: null },
+      { level: 'ma', deadlineDays: 7, checkName: 'MC4接头紧固情况', defectCategory: '安装工艺缺陷', reason: 'B组串 MC4 接头松动', defectPhotos: ['https://picsum.photos/160/120?random=206'], rectifyContent: null,
+        rounds: [
+          { round: 1, submitTime: '2026-10-03 10:15', rectifyContent: '已紧固 MC4 接头并完成拉力测试', rectifyPhotos: [], reviewStatus: 'rejected', reviewTime: '2026-10-05 09:30' },
+          { round: 2, rectifyContent: null, rectifyPhotos: [], reviewStatus: 'pending' },
+        ] },
+      { level: 'ma', deadlineDays: 7, checkName: '逆变器散热风扇', defectCategory: '设备故障', reason: '风扇异响，疑似轴承损坏', defectPhotos: ['https://picsum.photos/160/120?random=207'], rectifyContent: null,
+        rounds: [
+          { round: 1, submitTime: '2026-10-03 10:15', rectifyContent: '已更换风扇并进行空载试运行', rectifyPhotos: [], reviewStatus: 'rejected', reviewTime: '2026-10-05 09:30' },
+          { round: 2, rectifyContent: null, rectifyPhotos: [], reviewStatus: 'pending' },
+        ] },
     ] },
   { id: 'r005', rectifyNo: 'ZGD-2026-005', sheetNo: 'FJD-2026-003001', stationNo: 'GFDZ-2025-003001',
     owner: '郑十', firstAgent: '安徽大区代理商', address: '安徽省芜湖市弋江区九华中路',
     agent: '芜湖清洁能源发展有限公司', rectifyEngineer: '', deadline: '2026-10-15', remainDays: 7,
     crCount: 0, maCount: 0, miCount: 1, status: 'pending',
     defects: [
-      { level: 'mi', deadlineDays: 3, checkName: '组件外观破损情况', reason: '边框轻微变形', rectifyContent: null },
+      { level: 'mi', deadlineDays: 3, checkName: '组件外观破损情况', defectCategory: '设备故障', reason: '边框轻微变形', defectPhotos: ['https://picsum.photos/160/120?random=208'], rectifyContent: null },
+    ] },
+  // 待复验：单轮样例
+  { id: 'r006', rectifyNo: 'ZGD-2026-006', sheetNo: 'FJD-2026-004001', stationNo: 'GFDZ-2025-004001',
+    owner: '孙七', firstAgent: '浙江大区代理商', address: '浙江省绍兴市柯桥区华舍街道',
+    agent: '绍兴越能新能源开发有限公司', rectifyEngineer: '赵飞', deadline: '2026-10-18', remainDays: 4, submitTime: '2026-10-14 09:45',
+    crCount: 1, maCount: 0, miCount: 0, status: 'reviewing',
+    defects: [
+      { level: 'cr', deadlineDays: 7, checkName: '直流侧短路保护', defectCategory: '安全隐患', reason: '直流开关保护定值设置不符合规范', defectPhotos: ['https://picsum.photos/160/120?random=209'], rectifyContent: '已重新设置保护定值，经测试符合规范要求', rectifyPhotos: [] },
+    ] },
+  // 整改通过：多轮样例
+  { id: 'r007', rectifyNo: 'ZGD-2026-007', sheetNo: 'FJD-2026-005002', stationNo: 'GFDZ-2025-005002',
+    owner: '陈八', firstAgent: '安徽大区代理商', address: '安徽省合肥市庐阳区杏花公园路',
+    agent: '合肥蓝天光能有限公司', rectifyEngineer: '刘海', deadline: '2026-10-22', remainDays: 0, submitTime: '2026-10-17 16:05',
+    crCount: 0, maCount: 1, miCount: 0, status: 'passed',
+    defects: [
+      { level: 'ma', deadlineDays: 7, checkName: '汇流箱熔丝情况', defectCategory: '设备故障', reason: '2 路支路熔丝烧断，导致发电损失', defectPhotos: ['https://picsum.photos/160/120?random=210'], rectifyContent: '已更换同规格熔丝并完成通电测试',
+        rounds: [
+          { round: 1, submitTime: '2026-10-09 14:30', rectifyContent: '已更换熔丝并恢复送电', rectifyPhotos: [], reviewStatus: 'rejected', reviewTime: '2026-10-11 09:20' },
+          { round: 2, submitTime: '2026-10-15 16:40', rectifyContent: '已复核支路并更换同规格熔丝，通电测试正常', rectifyPhotos: [], reviewStatus: 'passed', reviewTime: '2026-10-17 16:05', reviewPhotos: [] },
+        ] },
     ] },
 ]
 </script>
@@ -349,11 +507,19 @@ const MOCK_RECTIFY = [
 .defect-row { display: flex; flex-direction: column; gap: 8px; }
 .defect-divider { border-top: 1px solid #f0f0f0; margin: 4px 0; }
 .defect-meta { display: flex; gap: 12px; align-items: baseline; }
-.defect-meta-label { font-size: 13px; color: rgba(0,0,0,0.45); flex-shrink: 0; min-width: 56px; }
+.defect-meta--photos { align-items: flex-start; }
+.defect-meta-label { font-size: 14px; color: rgba(0,0,0,0.45); flex-shrink: 0; min-width: 56px; }
 .defect-meta-value { font-size: 14px; color: #262626; line-height: 1.6; }
 .defect-meta-value.is-empty { color: #bfbfbf; }
+.defect-photos { display: flex; gap: 8px; }
+.defect-photo-thumb :deep(img) { object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
 .defect-deadline-tag { font-size: 11px; color: rgba(0,0,0,0.45); background: #f5f5f5; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
 .defect-remain { font-size: 12px; white-space: nowrap; }
+.defect-round-block { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-top: 8px; background: #fafafa; border-radius: 4px; }
+.defect-round-block.is-current { border: 1px solid #d6e4ff; }
+.defect-round-block.is-single { padding: 0; margin-top: 0; background: transparent; border: 0; }
+.defect-round-head, .defect-round-review { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 14px; font-weight: 600; color: #262626; }
+.defect-round-time { margin-left: auto; font-size: 12px; font-weight: 400; color: rgba(0,0,0,0.45); }
 .defect-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-right: 4px; }
 .defect-badge.cr { background: rgba(255,77,79,0.1); color: #ff4d4f; }
 .defect-badge.ma { background: rgba(250,140,22,0.1); color: #fa8c16; }

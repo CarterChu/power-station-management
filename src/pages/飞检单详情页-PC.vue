@@ -17,14 +17,6 @@
             <div class="info-value">{{ sheet.checkDate }}</div>
           </div>
           <div class="info-item">
-            <div class="info-label">检查状态</div>
-            <div class="info-value">
-              <a-tag v-if="sheet.checkStatus === 'pending'" color="warning" style="margin:0">待检查</a-tag>
-              <a-tag v-else-if="sheet.checkStatus === 'passed'" color="success" style="margin:0">通过</a-tag>
-              <a-tag v-else color="error" style="margin:0">不通过</a-tag>
-            </div>
-          </div>
-          <div class="info-item">
             <div class="info-label">电站编号</div>
             <div class="info-value">{{ sheet.stationNo }}</div>
           </div>
@@ -62,16 +54,6 @@
               <a-button v-if="['pending','reviewing'].includes(sheetData.rectifyStatus)" type="link" size="small" class="transfer-btn" @click="openTransfer('rectify')">转办</a-button>
             </div>
           </div>
-          <div class="info-item">
-            <div class="info-label">整改状态</div>
-            <div class="info-value">
-              <a-tag v-if="sheet.rectifyStatus === 'none'" color="default" style="margin:0">无需整改</a-tag>
-              <a-tag v-else-if="sheet.rectifyStatus === 'pending'" color="warning" style="margin:0">待整改</a-tag>
-              <a-tag v-else-if="sheet.rectifyStatus === 'reviewing'" color="processing" style="margin:0">待复验</a-tag>
-              <a-tag v-else-if="sheet.rectifyStatus === 'passed'" color="success" style="margin:0">整改通过</a-tag>
-              <span v-else style="color:#8c8c8c">—</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -88,17 +70,17 @@
           <div class="section-title">缺陷汇总</div>
           <div class="defect-summary-row">
             <div class="defect-summary-card cr">
-              <div class="ds-count">{{ sheet.crCount }}</div>
+              <div class="ds-count">{{ defectCounts.cr }}</div>
               <div class="ds-label">严重缺陷（CR）</div>
               <div class="ds-threshold">允收 ≤ 1</div>
             </div>
             <div class="defect-summary-card ma">
-              <div class="ds-count">{{ sheet.maCount }}</div>
+              <div class="ds-count">{{ defectCounts.ma }}</div>
               <div class="ds-label">主要缺陷（MA）</div>
               <div class="ds-threshold">允收 ≤ 2</div>
             </div>
             <div class="defect-summary-card mi">
-              <div class="ds-count">{{ sheet.miCount }}</div>
+              <div class="ds-count">{{ defectCounts.mi }}</div>
               <div class="ds-label">次要缺陷（MI）</div>
               <div class="ds-threshold">允收 ≤ 3</div>
             </div>
@@ -110,14 +92,14 @@
           <div class="check-cat-header" @click="cat.expanded = !cat.expanded">
             <span class="check-cat-name">{{ cat.name }}</span>
             <span class="check-cat-stats">
-              <span class="cat-stat-pass">通过 {{ cat.items.filter((i: any) => i.result === 'pass').length }}</span>
-              <span class="cat-stat-fail" v-if="cat.items.filter((i: any) => i.result === 'fail').length > 0">不合格 {{ cat.items.filter((i: any) => i.result === 'fail').length }}</span>
+              <span v-if="cat.items.some((i: any) => i.result === 'fail')" class="cat-stat-fail">不合格 {{ cat.items.filter((i: any) => i.result === 'fail').length }}</span>
+              <span class="cat-stat-pass">合格 {{ cat.items.filter((i: any) => i.result === 'pass').length }}</span>
               <span class="cat-stat-pending" v-if="cat.items.filter((i: any) => !i.result).length > 0">未检查 {{ cat.items.filter((i: any) => !i.result).length }}</span>
             </span>
             <DownOutlined :class="{ rotated: cat.expanded }" style="margin-left:auto;transition:transform 0.2s;color:#8c8c8c" />
           </div>
           <div v-show="cat.expanded" class="check-items">
-            <div v-for="item in cat.items" :key="item.name" class="check-item" :class="{ 'is-fail': item.result === 'fail' }">
+            <div v-for="item in sortCheckItems(cat.items)" :key="item.name" class="check-item">
               <div class="check-item-main">
                 <span class="check-item-result-icon">
                   <CheckCircleFilled v-if="item.result === 'pass'" style="color:#52c41a" />
@@ -128,9 +110,22 @@
                 <span v-if="item.result === 'fail'" class="defect-badge-small" :class="item.level">{{ item.level?.toUpperCase() }}</span>
               </div>
               <div v-if="item.result === 'fail'" class="check-item-fail-detail">
-                <div class="fail-reason">{{ item.reason }}</div>
-                <div v-if="item.photos?.length" class="fail-photos">
-                  <img v-for="(p, i) in item.photos" :key="i" :src="p" class="fail-photo-thumb" alt="缺陷照片" />
+                <div class="fail-detail-row">
+                  <span class="fail-detail-label">缺陷分类</span>
+                  <span class="fail-detail-value">{{ item.defectCategory || '—' }}</span>
+                </div>
+                <div class="fail-detail-row">
+                  <span class="fail-detail-label">缺陷描述</span>
+                  <span class="fail-detail-value">{{ item.reason }}</span>
+                </div>
+                <div class="fail-detail-row">
+                  <span class="fail-detail-label">缺陷图片</span>
+                  <a-image-preview-group v-if="item.photos?.length">
+                    <div class="fail-photos">
+                      <a-image v-for="(p, i) in item.photos" :key="i" :src="p" :width="64" :height="64" class="fail-photo-thumb" alt="缺陷图片" />
+                    </div>
+                  </a-image-preview-group>
+                  <span v-else class="fail-detail-value is-empty">—</span>
                 </div>
               </div>
             </div>
@@ -165,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { DownOutlined, CheckCircleFilled, CloseCircleFilled, MinusCircleOutlined } from '@ant-design/icons-vue'
 
@@ -222,7 +217,7 @@ const BASE_CHECK_CATEGORIES = [
   {
     name: '支架系统', expanded: true, items: [
       { name: '支架固定螺栓紧固情况', result: 'pass', level: null, reason: '', photos: [] },
-      { name: '支架腐蚀锈蚀情况', result: 'fail', level: 'ma', reason: '支架发现明显锈蚀，已影响承载力', photos: [] },
+      { name: '支架腐蚀锈蚀情况', result: 'fail', level: 'ma', defectCategory: '设备故障', reason: '支架发现明显锈蚀，已影响承载力', photos: ['https://picsum.photos/160/120?random=101'] },
       { name: '支架倾斜角度偏差', result: 'pass', level: null, reason: '', photos: [] },
     ],
   },
@@ -230,12 +225,12 @@ const BASE_CHECK_CATEGORIES = [
     name: '组件检查', expanded: true, items: [
       { name: '组件外观破损情况', result: 'pass', level: null, reason: '', photos: [] },
       { name: '组件接地线连接', result: 'pass', level: null, reason: '', photos: [] },
-      { name: '组件背板气泡/发黄情况', result: 'fail', level: 'mi', reason: '2号组件背板轻微气泡，需观察', photos: [] },
+      { name: '组件背板气泡/发黄情况', result: 'fail', level: 'mi', defectCategory: '安装工艺缺陷', reason: '2号组件背板轻微气泡，需观察', photos: ['https://picsum.photos/160/120?random=102'] },
     ],
   },
   {
     name: '线缆与汇流', expanded: true, items: [
-      { name: '直流线缆绝缘层完整性', result: 'fail', level: 'mi', reason: '局部绝缘层老化，存在破损', photos: [] },
+      { name: '直流线缆绝缘层完整性', result: 'fail', level: 'mi', defectCategory: '安全隐患', reason: '局部绝缘层老化，存在破损', photos: ['https://picsum.photos/160/120?random=103'] },
       { name: '汇流箱密封情况', result: 'pass', level: null, reason: '', photos: [] },
       { name: 'MC4接头紧固情况', result: 'pass', level: null, reason: '', photos: [] },
     ],
@@ -249,6 +244,11 @@ const BASE_CHECK_CATEGORIES = [
   },
 ]
 
+function sortCheckItems(items: any[]) {
+  const resultOrder: Record<string, number> = { fail: 0, pass: 1 }
+  return [...items].sort((a, b) => (resultOrder[a.result] ?? 2) - (resultOrder[b.result] ?? 2))
+}
+
 function buildCheckCategories(checkStatus: string) {
   if (checkStatus === 'passed') {
     return BASE_CHECK_CATEGORIES.map(cat => ({
@@ -260,6 +260,18 @@ function buildCheckCategories(checkStatus: string) {
 }
 
 const checkCategories = reactive(buildCheckCategories(sheetData.checkStatus))
+
+const defectCounts = computed(() => {
+  const counts = { cr: 0, ma: 0, mi: 0 }
+  checkCategories.forEach(cat => {
+    cat.items.forEach((item: any) => {
+      if (item.result === 'fail' && item.level in counts) {
+        counts[item.level as keyof typeof counts] += 1
+      }
+    })
+  })
+  return counts
+})
 
 </script>
 
@@ -305,7 +317,7 @@ const checkCategories = reactive(buildCheckCategories(sheetData.checkStatus))
   display: flex; align-items: center; gap: 10px; padding: 14px 16px;
   background: #fafafa; cursor: pointer; user-select: none;
 }
-.check-cat-name { font-size: 14px; font-weight: 600; color: #262626; }
+.check-cat-name { font-size: 16px; font-weight: 600; color: #262626; }
 .check-cat-stats { display: flex; gap: 10px; margin-left: 8px; }
 .cat-stat-pass { font-size: 13px; color: #52c41a; }
 .cat-stat-fail { font-size: 13px; color: #ff4d4f; }
@@ -313,18 +325,20 @@ const checkCategories = reactive(buildCheckCategories(sheetData.checkStatus))
 .rotated { transform: rotate(180deg); }
 .check-items { padding: 4px 0; }
 .check-item { padding: 11px 16px; }
-.check-item.is-fail { background: rgba(255,77,79,0.02); }
 .check-item-main { display: flex; align-items: center; gap: 10px; }
 .check-item-result-icon { font-size: 15px; flex-shrink: 0; }
-.check-item-name { font-size: 14px; color: #262626; }
+.check-item-name { font-size: 15px; color: #262626; }
 .defect-badge-small {
   font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: auto;
 }
 .defect-badge-small.cr { background: rgba(255,77,79,0.1); color: #ff4d4f; }
 .defect-badge-small.ma { background: rgba(250,140,22,0.1); color: #fa8c16; }
 .defect-badge-small.mi { background: rgba(250,219,20,0.15); color: #d48806; }
-.check-item-fail-detail { padding: 8px 0 0 26px; }
-.fail-reason { font-size: 12px; color: #595959; line-height: 1.5; }
-.fail-photos { display: flex; gap: 8px; margin-top: 6px; }
-.fail-photo-thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+.check-item-fail-detail { display: flex; flex-direction: column; gap: 8px; padding: 16px 26px; }
+.fail-detail-row { display: flex; align-items: flex-start; gap: 12px; }
+.fail-detail-label { min-width: 56px; flex-shrink: 0; font-size: 14px; color: rgba(0,0,0,0.45); line-height: 1.6; }
+.fail-detail-value { font-size: 14px; color: #262626; line-height: 1.6; }
+.fail-detail-value.is-empty { color: #bfbfbf; }
+.fail-photos { display: flex; gap: 8px; }
+.fail-photo-thumb :deep(img) { object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
 </style>
