@@ -90,7 +90,16 @@
               </div>
               <div class="info-item">
                 <div class="info-label">整改复验人</div>
-                <div class="info-value">{{ currentRow.rectifyEngineer || '—' }}</div>
+                <div class="info-value info-value--action">
+                  <span>{{ drawerRectifyEngineer || '—' }}</span>
+                  <a-button
+                    v-if="['reviewing', 'rejected'].includes(currentRow.status)"
+                    type="link"
+                    size="small"
+                    class="transfer-btn"
+                    @click="rectifyTransferVisible = true"
+                  >转办</a-button>
+                </div>
               </div>
               <div class="info-item">
                 <div class="info-label">整改期限</div>
@@ -136,14 +145,16 @@
                   <span class="review-defect-label">缺陷图片</span>
                   <a-image-preview-group v-if="getDefectPhotos(defect).length">
                     <div class="review-photos">
-                      <a-image v-for="(src, pi) in getDefectPhotos(defect)" :key="pi" :src="src" :width="64" :height="64" class="review-photo-thumb" />
+                      <span v-for="(src, pi) in getDefectPhotos(defect)" :key="pi" class="review-photo-thumb">
+                        <a-image :src="src" :width="64" :height="64" />
+                      </span>
                     </div>
                   </a-image-preview-group>
                   <span v-else class="review-defect-value is-empty">—</span>
                 </div>
               </div>
 
-              <div class="review-defect-divider"></div>
+              <div v-if="!hasMultipleDefectRounds(defect, currentRow)" class="review-defect-divider review-defect-divider--section"></div>
               <div
                 v-for="round in getDefectRounds(defect, currentRow)"
                 :key="round.round"
@@ -165,9 +176,11 @@
                   </div>
                   <div class="review-defect-meta review-defect-meta--photos">
                     <span class="review-defect-label">整改图片</span>
-                    <a-image-preview-group v-if="round.rectifyPhotos?.length">
+                    <a-image-preview-group v-if="getRectifyPhotos(round).length">
                       <div class="review-photos">
-                        <a-image v-for="(src, pi) in round.rectifyPhotos" :key="pi" :src="src" :width="64" :height="64" class="review-photo-thumb" />
+                        <span v-for="(src, pi) in getRectifyPhotos(round)" :key="pi" class="review-photo-thumb">
+                          <a-image :src="src" :width="64" :height="64" />
+                        </span>
                       </div>
                     </a-image-preview-group>
                     <span v-else class="review-defect-value is-empty">—</span>
@@ -196,7 +209,9 @@
                       <span class="review-defect-label">缺陷图片</span>
                       <a-image-preview-group v-if="getDefectPhotos(defect).length">
                         <div class="review-photos">
-                          <a-image v-for="(src, pi) in getDefectPhotos(defect)" :key="pi" :src="src" :width="64" :height="64" class="review-photo-thumb" />
+                          <span v-for="(src, pi) in getDefectPhotos(defect)" :key="pi" class="review-photo-thumb">
+                            <a-image :src="src" :width="64" :height="64" />
+                          </span>
                         </div>
                       </a-image-preview-group>
                       <span v-else class="review-defect-value is-empty">—</span>
@@ -205,7 +220,9 @@
                   <div v-if="round.reviewStatus === 'passed' && round.reviewPhotos?.length" class="defect-review-photos">
                     <span class="defect-review-photos-label">复验现场照片</span>
                     <a-image-preview-group>
-                      <a-image v-for="(photo, pi) in round.reviewPhotos" :key="pi" :src="getPhotoUrl(photo)" :width="72" :height="72" style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0" />
+                      <span v-for="(photo, pi) in round.reviewPhotos" :key="pi" class="review-photo-thumb">
+                        <a-image :src="getPhotoUrl(photo)" :width="72" :height="72" />
+                      </span>
                     </a-image-preview-group>
                   </div>
                 </template>
@@ -227,7 +244,7 @@
                       <a-textarea v-model:value="reviewResults[idx].defectDesc" placeholder="请描述发现的缺陷或不合格内容" :rows="3" :maxlength="300" show-count style="flex:1" />
                     </div>
                     <div class="fail-form-item">
-                      <span class="fail-form-label">缺陷图片</span>
+                      <span class="fail-form-label">缺陷图片<span class="fail-required">*</span></span>
                       <a-upload v-model:file-list="reviewResults[idx].defectPhotos" list-type="picture-card" :before-upload="() => false" accept="image/*" :multiple="true">
                         <div class="upload-trigger"><PlusOutlined /><div>上传</div></div>
                       </a-upload>
@@ -253,6 +270,29 @@
       </template>
     </a-drawer>
 
+    <!-- 整改复验人转办弹窗 -->
+    <a-modal
+      v-model:open="rectifyTransferVisible"
+      title="转办整改复验人"
+      ok-text="确认转办"
+      cancel-text="取消"
+      :ok-button-props="{ disabled: !rectifyTransferTarget }"
+      width="400px"
+      @ok="handleRectifyTransferConfirm"
+      @cancel="rectifyTransferTarget = ''"
+    >
+      <div style="padding:8px 0 4px">
+        <a-select
+          v-model:value="rectifyTransferTarget"
+          show-search
+          placeholder="搜索被转办人姓名"
+          style="width:100%"
+          :options="ENGINEER_OPTIONS"
+          :filter-option="(input: string, opt: any) => opt.label.includes(input)"
+        />
+      </div>
+    </a-modal>
+
   </div>
 </template>
 
@@ -266,6 +306,12 @@ const tableRef = ref<any>(null)
 const detailVisible = ref(false)
 const currentRow = ref<any>(null)
 const submitting = ref(false)
+const drawerRectifyEngineer = ref('')
+const rectifyTransferVisible = ref(false)
+const rectifyTransferTarget = ref('')
+
+const ENGINEERS = ['赵飞', '刘海', '黄磊', '周斌', '吴杰', '陈明海', '李志远', '王建国', '张晓云', '刘明', '陈浩', '林峰']
+const ENGINEER_OPTIONS = ENGINEERS.map(name => ({ label: name, value: name }))
 
 interface ReviewResult {
   result: 'pass' | 'fail' | null
@@ -340,7 +386,19 @@ function getDefectCategory(defect: any) {
 
 function getDefectPhotos(defect: any) {
   // 与整改详情共用 defectPhotos 字段，同时兼容历史 mock 中的 originPhotos。
-  return defect.defectPhotos || defect.originPhotos || []
+  const photos = defect.defectPhotos?.length ? defect.defectPhotos : (defect.originPhotos ?? [])
+  if (photos.length) return photos
+  return [`https://picsum.photos/160/120?random=${getMockPhotoSeed(defect.checkName)}`]
+}
+
+function getRectifyPhotos(round: any) {
+  if (round.rectifyPhotos?.length) return round.rectifyPhotos
+  if (!round.rectifyContent) return []
+  return [`https://picsum.photos/160/120?random=${300 + (round.round ?? 1)}`]
+}
+
+function getMockPhotoSeed(value = '') {
+  return 400 + [...value].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 400
 }
 
 async function handleSubmitReview() {
@@ -355,6 +413,7 @@ async function handleSubmitReview() {
     if (r.result === 'fail') {
       if (!r.anomalyType) { message.warning(`第 ${i + 1} 项缺陷请选择异常分类`); return }
       if (!r.defectDesc.trim()) { message.warning(`第 ${i + 1} 项缺陷请填写缺陷说明`); return }
+      if (!r.defectPhotos?.length) { message.warning(`第 ${i + 1} 项缺陷请上传缺陷图片`); return }
     }
   }
   submitting.value = true
@@ -474,8 +533,19 @@ function getRoundStatusColor(status: string) {
 
 function handleDetail(row: any) {
   currentRow.value = row
+  drawerRectifyEngineer.value = row.rectifyEngineer || ''
   Object.keys(reviewResults).forEach(k => delete (reviewResults as any)[k])
   detailVisible.value = true
+}
+
+function handleRectifyTransferConfirm() {
+  const name = rectifyTransferTarget.value
+  if (!name || !currentRow.value) return
+  drawerRectifyEngineer.value = name
+  currentRow.value.rectifyEngineer = name
+  message.success(`整改复验已转办给 ${name}`)
+  rectifyTransferVisible.value = false
+  rectifyTransferTarget.value = ''
 }
 
 function handleExport() {
@@ -504,7 +574,7 @@ function handleExport() {
 const MOCK_REVIEW = [
   {
     id: 'rv001', rectifyNo: 'ZGD-2026-003', sheetNo: 'FJD-2026-002002', stationNo: 'GFDZ-2025-002002',
-    owner: '褚三', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
+    owner: '褚文博', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
     agent: '金华光伏建设集团有限公司', rectifyEngineer: '周斌',
     deadline: '2026-10-08', submitTime: '2026-10-06 14:23', remainDays: 0,
     crCount: 0, maCount: 1, miCount: 0, status: 'reviewing',
@@ -521,7 +591,7 @@ const MOCK_REVIEW = [
   },
   {
     id: 'rv002', rectifyNo: 'ZGD-2026-006', sheetNo: 'FJD-2026-004001', stationNo: 'GFDZ-2025-004001',
-    owner: '孙七', firstAgent: '浙江大区代理商', address: '浙江省绍兴市柯桥区华舍街道',
+    owner: '孙明远', firstAgent: '浙江大区代理商', address: '浙江省绍兴市柯桥区华舍街道',
     agent: '绍兴越能新能源开发有限公司', rectifyEngineer: '赵飞',
     deadline: '2026-10-18', submitTime: '2026-10-14 09:45', remainDays: 4,
     crCount: 1, maCount: 1, miCount: 2, status: 'reviewing',
@@ -546,7 +616,7 @@ const MOCK_REVIEW = [
   },
   {
     id: 'rv003', rectifyNo: 'ZGD-2026-007', sheetNo: 'FJD-2026-005002', stationNo: 'GFDZ-2025-005002',
-    owner: '陈八', firstAgent: '安徽大区代理商', address: '安徽省合肥市庐阳区杏花公园路',
+    owner: '陈宇航', firstAgent: '安徽大区代理商', address: '安徽省合肥市庐阳区杏花公园路',
     agent: '合肥蓝天光能有限公司', rectifyEngineer: '刘海',
     deadline: '2026-10-22', submitTime: '2026-10-17 16:05', remainDays: 5,
     crCount: 0, maCount: 2, miCount: 1, status: 'reviewing',
@@ -567,7 +637,7 @@ const MOCK_REVIEW = [
   },
   {
     id: 'rv004', rectifyNo: 'ZGD-2026-008', sheetNo: 'FJD-2026-001005', stationNo: 'GFDZ-2025-001005',
-    owner: '周九', firstAgent: '浙江大区代理商', address: '浙江省嘉兴市南湖区东升路',
+    owner: '周婉清', firstAgent: '浙江大区代理商', address: '浙江省嘉兴市南湖区东升路',
     agent: '嘉兴阳光能源股份有限公司', rectifyEngineer: '黄磊',
     deadline: '2026-10-05', submitTime: '2026-10-03 11:20', remainDays: -3,
     crCount: 0, maCount: 0, miCount: 1, status: 'passed',
@@ -581,7 +651,7 @@ const MOCK_REVIEW = [
   },
   {
     id: 'rv005', rectifyNo: 'ZGD-2026-009', sheetNo: 'FJD-2026-002005', stationNo: 'GFDZ-2025-002005',
-    owner: '吴二', firstAgent: '安徽大区代理商', address: '安徽省芜湖市镜湖区步行街',
+    owner: '吴承泽', firstAgent: '安徽大区代理商', address: '安徽省芜湖市镜湖区步行街',
     agent: '芜湖清洁能源发展有限公司', rectifyEngineer: '吴杰',
     deadline: '2026-10-12', submitTime: '2026-10-09 10:00', remainDays: -2,
     crCount: 0, maCount: 1, miCount: 0, status: 'rejected',
@@ -596,7 +666,7 @@ const MOCK_REVIEW = [
   },
   {
     id: 'rv006', rectifyNo: 'ZGD-2026-010', sheetNo: 'FJD-2026-003005', stationNo: 'GFDZ-2025-003005',
-    owner: '郑四', firstAgent: '浙江大区代理商', address: '浙江省宁波市鄞州区中山东路',
+    owner: '郑博远', firstAgent: '浙江大区代理商', address: '浙江省宁波市鄞州区中山东路',
     agent: '宁波绿能电力安装有限公司', rectifyEngineer: '陈明海',
     deadline: '2026-10-28', submitTime: '2026-10-20 14:00', remainDays: 8,
     crCount: 0, maCount: 1, miCount: 1, status: 'reviewing',
@@ -614,7 +684,7 @@ const MOCK_REVIEW = [
   // 复验通过：多轮样例
   {
     id: 'rv007', rectifyNo: 'ZGD-2026-011', sheetNo: 'FJD-2026-006001', stationNo: 'GFDZ-2025-006001',
-    owner: '林九', firstAgent: '江苏大区代理商', address: '江苏省南京市江宁区天元东路',
+    owner: '林浩然', firstAgent: '江苏大区代理商', address: '江苏省南京市江宁区天元东路',
     agent: '南京清源新能源有限公司', rectifyEngineer: '王建国',
     deadline: '2026-10-30', submitTime: '2026-10-27 16:10', remainDays: 0,
     crCount: 0, maCount: 1, miCount: 0, status: 'passed',
@@ -631,7 +701,7 @@ const MOCK_REVIEW = [
   // 退回整改：多轮样例
   {
     id: 'rv008', rectifyNo: 'ZGD-2026-012', sheetNo: 'FJD-2026-006002', stationNo: 'GFDZ-2025-006002',
-    owner: '潘十', firstAgent: '江苏大区代理商', address: '江苏省苏州市吴中区东吴北路',
+    owner: '潘雨桐', firstAgent: '江苏大区代理商', address: '江苏省苏州市吴中区东吴北路',
     agent: '苏州绿能运维有限公司', rectifyEngineer: '张晓云',
     deadline: '2026-11-02', submitTime: '2026-10-29 10:25', remainDays: -1,
     crCount: 0, maCount: 0, miCount: 1, status: 'rejected',
@@ -661,6 +731,8 @@ const MOCK_REVIEW = [
 .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0; }
 .info-label { font-size: 14px; color: rgba(0,0,0,0.45); line-height: 22px; padding-bottom: 8px; white-space: nowrap; }
 .info-value { font-size: 14px; color: #262626; }
+.info-value--action { display: flex; align-items: center; gap: 2px; }
+.transfer-btn { padding: 0 4px; height: auto; font-size: 13px; }
 .info-item--span2 { grid-column: span 2; }
 
 /* 退回信息 */
@@ -698,8 +770,16 @@ const MOCK_REVIEW = [
 .review-defect-value { font-size: 14px; color: #262626; line-height: 1.6; }
 .review-defect-value.is-empty { color: #bfbfbf; }
 .review-defect-divider { border-top: 1px solid #f0f0f0; margin: 4px 0; }
+.review-defect-divider--section { margin-top: 16px; margin-bottom: 8px; }
 .review-photos { display: flex; flex-wrap: wrap; gap: 8px; }
-.review-photo-thumb :deep(img) { object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+:deep(.review-photo-thumb) { display: inline-flex; overflow: hidden; border: 1px solid #f0f0f0; border-radius: 8px; }
+:deep(.review-photo-thumb .ant-image),
+:deep(.review-photo-thumb .ant-image-img),
+:deep(.review-photo-thumb img) { display: block; overflow: hidden; object-fit: cover; border-radius: 8px !important; }
+:deep(.review-photo-thumb .ant-image-mask) { border-radius: 8px !important; }
+:deep(.ant-upload-list-picture-card .ant-upload-list-item-container),
+:deep(.ant-upload-list-picture-card .ant-upload-list-item),
+:deep(.ant-upload-list-picture-card .ant-upload-select) { border-radius: 8px; overflow: hidden; }
 
 /* 卡片内的整改与复验轮次 */
 .review-round-block { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-top: 8px; background: #fafafa; border-radius: 4px; }

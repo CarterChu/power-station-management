@@ -148,14 +148,13 @@
                   <span class="defect-meta-label">缺陷图片</span>
                   <a-image-preview-group v-if="defect.defectPhotos?.length">
                     <div class="defect-photos">
-                      <a-image
+                      <span
                         v-for="(photo, photoIndex) in defect.defectPhotos"
                         :key="photoIndex"
-                        :src="photo"
-                        :width="64"
-                        :height="64"
                         class="defect-photo-thumb"
-                      />
+                      >
+                        <a-image :src="photo" :width="64" :height="64" />
+                      </span>
                     </div>
                   </a-image-preview-group>
                   <span v-else class="defect-meta-value is-empty">—</span>
@@ -182,16 +181,15 @@
                     </div>
                     <div class="defect-meta defect-meta--photos">
                       <span class="defect-meta-label">整改图片</span>
-                      <a-image-preview-group v-if="round.rectifyPhotos?.length">
+                      <a-image-preview-group v-if="getRectifyPhotos(round).length">
                         <div class="defect-photos">
-                          <a-image
-                            v-for="(photo, photoIndex) in round.rectifyPhotos"
+                          <span
+                            v-for="(photo, photoIndex) in getRectifyPhotos(round)"
                             :key="photoIndex"
-                            :src="photo"
-                            :width="64"
-                            :height="64"
                             class="defect-photo-thumb"
-                          />
+                          >
+                            <a-image :src="photo" :width="64" :height="64" />
+                          </span>
                         </div>
                       </a-image-preview-group>
                       <span v-else class="defect-meta-value is-empty">—</span>
@@ -215,14 +213,13 @@
                         <span class="defect-meta-label">缺陷图片</span>
                         <a-image-preview-group v-if="defect.defectPhotos?.length">
                           <div class="defect-photos">
-                            <a-image
+                            <span
                               v-for="(photo, photoIndex) in defect.defectPhotos"
                               :key="photoIndex"
-                              :src="photo"
-                              :width="64"
-                              :height="64"
                               class="defect-photo-thumb"
-                            />
+                            >
+                              <a-image :src="photo" :width="64" :height="64" />
+                            </span>
                           </div>
                         </a-image-preview-group>
                         <span v-else class="defect-meta-value is-empty">—</span>
@@ -362,6 +359,12 @@ function getDefectRounds(defect: any, row: any) {
   }]
 }
 
+function getRectifyPhotos(round: any) {
+  if (round.rectifyPhotos?.length) return round.rectifyPhotos
+  if (!round.rectifyContent) return []
+  return [`https://picsum.photos/160/120?random=${300 + (round.round ?? 1)}`]
+}
+
 function isCurrentDefectRound(defect: any, round: any, row: any) {
   const rounds = getDefectRounds(defect, row)
   return round.round === rounds[rounds.length - 1]?.round
@@ -408,7 +411,7 @@ function handleRectifyTransferConfirm() {
 
 const MOCK_RECTIFY = [
   { id: 'r001', rectifyNo: 'ZGD-2026-001', sheetNo: 'FJD-2026-001001', stationNo: 'GFDZ-2025-001001',
-    owner: '张三', firstAgent: '浙江大区代理商', address: '浙江省杭州市余杭区未来科技城',
+    owner: '张建华', firstAgent: '浙江大区代理商', address: '浙江省杭州市余杭区未来科技城',
     agent: '杭州阳光新能源科技有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-25', remainDays: 13,
     crCount: 0, maCount: 1, miCount: 1, status: 'passed',
     defects: [
@@ -417,7 +420,7 @@ const MOCK_RECTIFY = [
     ] },
   // 待整改：单轮样例
   { id: 'r002', rectifyNo: 'ZGD-2026-002', sheetNo: 'FJD-2026-001003', stationNo: 'GFDZ-2025-001004',
-    owner: '赵六', firstAgent: '安徽大区代理商', address: '安徽省合肥市蜀山区科学大道128号',
+    owner: '赵丽娜', firstAgent: '安徽大区代理商', address: '安徽省合肥市蜀山区科学大道128号',
     agent: '合肥绿色能源技术有限公司', rectifyEngineer: '吴杰', deadline: '2026-09-30', remainDays: -8,
     crCount: 1, maCount: 0, miCount: 1, status: 'pending',
     defects: [
@@ -427,7 +430,7 @@ const MOCK_RECTIFY = [
         rounds: [{ round: 1, rectifyContent: null, rectifyPhotos: [], reviewStatus: 'pending' }] },
     ] },
   { id: 'r003', rectifyNo: 'ZGD-2026-003', sheetNo: 'FJD-2026-002002', stationNo: 'GFDZ-2025-002002',
-    owner: '褚三', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
+    owner: '褚文博', firstAgent: '浙江大区代理商', address: '浙江省金华市婺城区宾虹路',
     agent: '金华光伏建设集团有限公司', rectifyEngineer: '周斌', deadline: '2026-10-08', remainDays: 0,
     crCount: 0, maCount: 1, miCount: 0, status: 'reviewing',
     defects: [
@@ -439,7 +442,7 @@ const MOCK_RECTIFY = [
     ] },
   // 待整改：多轮样例（第 1 轮复验退回，等待第 2 轮整改）
   { id: 'r004', rectifyNo: 'ZGD-2026-004', sheetNo: 'FJD-2026-003002', stationNo: 'GFDZ-2025-003002',
-    owner: '冯一', firstAgent: '浙江大区代理商', address: '浙江省宁波市江北区庄桥街道',
+    owner: '冯国强', firstAgent: '浙江大区代理商', address: '浙江省宁波市江北区庄桥街道',
     agent: '宁波绿能电力安装有限公司', rectifyEngineer: '', deadline: '2026-10-20', remainDays: 12,
     crCount: 0, maCount: 2, miCount: 0, status: 'pending',
     defects: [
@@ -455,7 +458,7 @@ const MOCK_RECTIFY = [
         ] },
     ] },
   { id: 'r005', rectifyNo: 'ZGD-2026-005', sheetNo: 'FJD-2026-003001', stationNo: 'GFDZ-2025-003001',
-    owner: '郑十', firstAgent: '安徽大区代理商', address: '安徽省芜湖市弋江区九华中路',
+    owner: '郑秀兰', firstAgent: '安徽大区代理商', address: '安徽省芜湖市弋江区九华中路',
     agent: '芜湖清洁能源发展有限公司', rectifyEngineer: '', deadline: '2026-10-15', remainDays: 7,
     crCount: 0, maCount: 0, miCount: 1, status: 'pending',
     defects: [
@@ -463,7 +466,7 @@ const MOCK_RECTIFY = [
     ] },
   // 待复验：单轮样例
   { id: 'r006', rectifyNo: 'ZGD-2026-006', sheetNo: 'FJD-2026-004001', stationNo: 'GFDZ-2025-004001',
-    owner: '孙七', firstAgent: '浙江大区代理商', address: '浙江省绍兴市柯桥区华舍街道',
+    owner: '孙明远', firstAgent: '浙江大区代理商', address: '浙江省绍兴市柯桥区华舍街道',
     agent: '绍兴越能新能源开发有限公司', rectifyEngineer: '赵飞', deadline: '2026-10-18', remainDays: 4, submitTime: '2026-10-14 09:45',
     crCount: 1, maCount: 0, miCount: 0, status: 'reviewing',
     defects: [
@@ -471,7 +474,7 @@ const MOCK_RECTIFY = [
     ] },
   // 整改通过：多轮样例
   { id: 'r007', rectifyNo: 'ZGD-2026-007', sheetNo: 'FJD-2026-005002', stationNo: 'GFDZ-2025-005002',
-    owner: '陈八', firstAgent: '安徽大区代理商', address: '安徽省合肥市庐阳区杏花公园路',
+    owner: '陈宇航', firstAgent: '安徽大区代理商', address: '安徽省合肥市庐阳区杏花公园路',
     agent: '合肥蓝天光能有限公司', rectifyEngineer: '刘海', deadline: '2026-10-22', remainDays: 0, submitTime: '2026-10-17 16:05',
     crCount: 0, maCount: 1, miCount: 0, status: 'passed',
     defects: [
@@ -512,7 +515,11 @@ const MOCK_RECTIFY = [
 .defect-meta-value { font-size: 14px; color: #262626; line-height: 1.6; }
 .defect-meta-value.is-empty { color: #bfbfbf; }
 .defect-photos { display: flex; gap: 8px; }
-.defect-photo-thumb :deep(img) { object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+:deep(.defect-photo-thumb) { display: inline-flex; overflow: hidden; border: 1px solid #f0f0f0; border-radius: 8px; }
+:deep(.defect-photo-thumb .ant-image),
+:deep(.defect-photo-thumb .ant-image-img),
+:deep(.defect-photo-thumb img) { display: block; overflow: hidden; object-fit: cover; border-radius: 8px !important; }
+:deep(.defect-photo-thumb .ant-image-mask) { border-radius: 8px !important; }
 .defect-deadline-tag { font-size: 11px; color: rgba(0,0,0,0.45); background: #f5f5f5; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
 .defect-remain { font-size: 12px; white-space: nowrap; }
 .defect-round-block { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-top: 8px; background: #fafafa; border-radius: 4px; }

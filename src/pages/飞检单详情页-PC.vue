@@ -122,7 +122,9 @@
                   <span class="fail-detail-label">缺陷图片</span>
                   <a-image-preview-group v-if="item.photos?.length">
                     <div class="fail-photos">
-                      <a-image v-for="(p, i) in item.photos" :key="i" :src="p" :width="64" :height="64" class="fail-photo-thumb" alt="缺陷图片" />
+                      <span v-for="(p, i) in item.photos" :key="i" class="fail-photo-thumb">
+                        <a-image :src="p" :width="64" :height="64" alt="缺陷图片" />
+                      </span>
                     </div>
                   </a-image-preview-group>
                   <span v-else class="fail-detail-value is-empty">—</span>
@@ -171,7 +173,7 @@ const props = defineProps<{
 
 const MOCK_SHEET = {
   id: 'fj003', sheetNo: 'FJD-2026-001003', batchNo: 'FJB-20260901-001',
-  stationNo: 'GFDZ-2025-001004', owner: '赵六',
+  stationNo: 'GFDZ-2025-001004', owner: '赵丽娜',
   stationType: '工商业', address: '安徽省合肥市蜀山区科学大道128号',
   firstAgent: '安徽大区代理商', agent: '合肥绿色能源技术有限公司',
   engineer: '黄磊', rectifyEngineer: '吴杰', checkDate: '2026-09-10',
@@ -340,5 +342,9 @@ const defectCounts = computed(() => {
 .fail-detail-value { font-size: 14px; color: #262626; line-height: 1.6; }
 .fail-detail-value.is-empty { color: #bfbfbf; }
 .fail-photos { display: flex; gap: 8px; }
-.fail-photo-thumb :deep(img) { object-fit: cover; border-radius: 4px; border: 1px solid #f0f0f0; }
+:deep(.fail-photo-thumb) { display: inline-flex; overflow: hidden; border: 1px solid #f0f0f0; border-radius: 8px; }
+:deep(.fail-photo-thumb .ant-image),
+:deep(.fail-photo-thumb .ant-image-img),
+:deep(.fail-photo-thumb img) { display: block; overflow: hidden; object-fit: cover; border-radius: 8px !important; }
+:deep(.fail-photo-thumb .ant-image-mask) { border-radius: 8px !important; }
 </style>

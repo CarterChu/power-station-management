@@ -76,7 +76,7 @@
                   :src="src"
                   :width="64"
                   :height="64"
-                  style="object-fit:cover;border-radius:4px;border:1px solid #f0f0f0"
+                  style="object-fit:cover;border-radius:8px;border:1px solid #f0f0f0"
                 />
               </a-image-preview-group>
             </div>
@@ -215,6 +215,9 @@ async function handleSubmit() {
 .defect-input-block + .defect-input-block { border-top: none; }
 .input-block-label { font-size: 14px; color: #262626; }
 .required { color: #ff4d4f; margin-left: 2px; }
+:deep(.ant-upload-list-picture-card .ant-upload-list-item-container),
+:deep(.ant-upload-list-picture-card .ant-upload-list-item),
+:deep(.ant-upload-list-picture-card .ant-upload-select) { border-radius: 8px; overflow: hidden; }
 
 .rectify-templates { display: flex; flex-wrap: wrap; gap: 6px; }
 .r-tpl {

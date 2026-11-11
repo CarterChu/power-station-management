@@ -150,7 +150,7 @@ const emit = defineEmits<{ back: []; submitted: [sheet: any] }>()
 
 const sheet = props.initRow ?? {
   sheetNo: 'FJD-2026-001005', batchNo: 'FJB-2026-005',
-  stationNo: 'FJZ-2025-001005', owner: '孙七', agent: '温州光能工程技术有限公司',
+  stationNo: 'FJZ-2025-001005', owner: '孙明远', agent: '温州光能工程技术有限公司',
   engineer: '赵飞', checkDate: '2026-10-12',
 }
 
@@ -284,6 +284,9 @@ async function handleSubmit() {
 .item-fail-form { padding: 12px 20px 18px 20px; display: flex; flex-direction: column; gap: 18px; }
 .fail-form-item { display: flex; flex-direction: column; gap: 8px; }
 .fail-form-label { font-size: 14px; color: #262626; }
+:deep(.ant-upload-list-picture-card .ant-upload-list-item-container),
+:deep(.ant-upload-list-picture-card .ant-upload-list-item),
+:deep(.ant-upload-list-picture-card .ant-upload-select) { border-radius: 8px; overflow: hidden; }
 
 .level-btns { display: flex; gap: 8px; }
 .level-btn {
