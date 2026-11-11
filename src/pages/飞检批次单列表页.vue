@@ -34,7 +34,7 @@
               />
               <span class="role-switch-label" :class="{ active: currentRole === 'engineer' }">小组负责人</span>
             </div>
-            <a-button type="primary" @click="handleCreate">新增飞检</a-button>
+            <a-button v-if="currentRole === 'leader'" type="primary" @click="handleCreate">新增飞检</a-button>
             <a-button @click="handleExport">导出</a-button>
           </a-space>
         </template>
