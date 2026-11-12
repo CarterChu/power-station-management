@@ -90,9 +90,12 @@
                   <template #icon><component :is="group.icon" /></template>
                   <template v-for="item in group.items" :key="item.key">
                     <a-sub-menu v-if="item.children" :key="item.key" :title="item.label">
-                      <a-menu-item v-for="child in item.children" :key="child.key">
-                        {{ child.label }}
-                      </a-menu-item>
+                      <template v-for="child in item.children" :key="child.key">
+                        <a-sub-menu v-if="child.children" :key="child.key" :title="child.label">
+                          <a-menu-item v-for="grandchild in child.children" :key="grandchild.key">{{ grandchild.label }}</a-menu-item>
+                        </a-sub-menu>
+                        <a-menu-item v-else :key="child.key">{{ child.label }}</a-menu-item>
+                      </template>
                     </a-sub-menu>
                     <a-menu-item v-else :key="item.key">
                       {{ item.label }}
@@ -155,6 +158,9 @@
             <FjSheetCheck v-else-if="activeTabKey === 'fj-sheet-check'" :init-row="fjSheetCheckRow" @back="closeTab('fj-sheet-check')" @submitted="handleFjSheetCheckSubmitted" />
             <FjRectifyInput v-else-if="activeTabKey === 'fj-rectify-input'" :init-row="fjRectifyInputRow" @back="closeTab('fj-rectify-input')" @submitted="handleFjRectifyInputSubmitted" />
             <FjConfig v-else-if="activeTabKey === 'fj-config'" />
+            <SealLibraryPage v-else-if="activeTabKey === 'seal-company'" library-type="company" @navigate="handleNavigate" />
+            <SealLibraryPage v-else-if="activeTabKey === 'seal-group-detail'" library-type="company" initial-view="group" :initial-group="sealGroupDetailRow" @navigate="handleNavigate" @back="closeTab('seal-group-detail')" />
+            <SealLibraryPage v-else-if="activeTabKey === 'seal-detail'" library-type="company" initial-view="seal" :initial-group="sealGroupDetailRow" :initial-seal="sealDetailRow" @navigate="handleNavigate" @back="closeTab('seal-detail')" />
             <!-- 原有页面 -->
             <LncProjectList v-else-if="activeTabKey === 'list'" @navigate="handleNavigate" />
             <LncProjectList v-else-if="activeTabKey === 'list-b'" variant="B" @navigate="handleNavigate" />
@@ -209,6 +215,7 @@ import FjReviewList from './pages/整改复验列表页-PC.vue'
 import FjConfig from './pages/飞检配置页.vue'
 import FjSheetCheck from './pages/飞检执行页-PC.vue'
 import FjRectifyInput from './pages/整改录入页-PC.vue'
+import SealLibraryPage from './pages/印章库管理页.vue'
 import LncProjectList from './pages/工商业项目管理列表页.vue'
 import FilingStandard from './pages/建档申请页-标准政策.vue'
 import FilingNonStandard from './pages/建档申请页-非标政策.vue'
@@ -239,8 +246,9 @@ interface Tab { key: string; label: string; closable?: boolean }
 const tabs = ref<Tab[]>([
   { key: 'list-b', label: '电站列表（方案B）', closable: false },
   { key: 'fj-batch-list', label: '飞检批次单', closable: false },
+  { key: 'seal-company', label: '项目公司印章', closable: false },
 ])
-const activeTabKey = ref('list-b')
+const activeTabKey = ref('seal-company')
 const editingId        = ref<string | null>(null)
 const detailStatus     = ref<string>('filing')
 const detailPolicyType = ref<string>('standard')
@@ -278,6 +286,8 @@ const fjBatchEditRow    = ref<any>(null)
 const fjBatchEditRole   = ref<'leader' | 'engineer'>('leader')
 const fjBatchDetailRow  = ref<any>(null)
 const fjPendingNewBatch  = ref<any>(null)
+const sealGroupDetailRow = ref<any>(null)
+const sealDetailRow = ref<any>(null)
 const fjSheetCheckRow      = ref<any>(null)
 const fjRectifyInputRow    = ref<any>(null)
 const fjPendingSheetUpdate = ref<any>(null)
@@ -287,7 +297,12 @@ const page = computed(() => activeTabKey.value)
 
 // ── sessionStorage 状态持久化（刷新保留当前页） ──
 const _SS_KEY = 'lnc-app-state-v5'
-const _SS_VER = 4
+const _SS_VER = 5
+function compactSealState(row: any) {
+  if (!row) return null
+  const { legendImages, legalFiles, files, logs, date, ...lightweight } = row
+  return lightweight
+}
 function _saveState() {
   try {
     sessionStorage.setItem(_SS_KEY, JSON.stringify({
@@ -310,6 +325,8 @@ function _saveState() {
       completeApplyInitStatus: completeApplyInitStatus.value,
       completeDetailRow: completeDetailRow.value,
       completePolicyType: completePolicyType.value,
+      sealGroupDetailRow: compactSealState(sealGroupDetailRow.value),
+      sealDetailRow: compactSealState(sealDetailRow.value),
     }))
   } catch {}
 }
@@ -317,7 +334,8 @@ watch(
   [tabs, activeTabKey, editingId, detailStatus, detailPolicyType, detailRow,
    filingInitData, filingInitStatus, startApplyInitData, startApplyInitStatus,
    startDetailRow, stockApplyInitData, stockApplyInitStatus, stockDetailRow,
-   completeApplyInitData, completeApplyInitStatus, completeDetailRow, completePolicyType],
+   completeApplyInitData, completeApplyInitStatus, completeDetailRow, completePolicyType,
+   sealGroupDetailRow, sealDetailRow],
   _saveState, { deep: true }
 )
 onMounted(() => {
@@ -344,6 +362,16 @@ onMounted(() => {
     completeApplyInitStatus.value = s.completeApplyInitStatus ?? null
     if (s.completeDetailRow) completeDetailRow.value = s.completeDetailRow
     if (s.completePolicyType) completePolicyType.value = s.completePolicyType
+    sealGroupDetailRow.value = s.sealGroupDetailRow ?? null
+    sealDetailRow.value = s.sealDetailRow ?? null
+    if (activeTabKey.value === 'seal-detail' && (!sealGroupDetailRow.value?.id || !sealDetailRow.value?.id)) {
+      tabs.value = tabs.value.filter((tab: Tab) => tab.key !== 'seal-detail')
+      activeTabKey.value = 'seal-company'
+    }
+    if (activeTabKey.value === 'seal-group-detail' && !sealGroupDetailRow.value?.id) {
+      tabs.value = tabs.value.filter((tab: Tab) => tab.key !== 'seal-group-detail')
+      activeTabKey.value = 'seal-company'
+    }
   } catch {}
 })
 
@@ -365,6 +393,11 @@ function closeTab(key: string) {
   if (activeTabKey.value === key) {
     const fallback = tabs.value[idx] ?? tabs.value[idx - 1]
     activeTabKey.value = fallback?.key ?? 'list'
+  }
+  if (key === 'seal-detail') sealDetailRow.value = null
+  if (key === 'seal-group-detail') {
+    sealGroupDetailRow.value = null
+    sealDetailRow.value = null
   }
 }
 
@@ -476,6 +509,9 @@ const menuGroups = [
     icon: NavIconOther,
     items: [
       { key: 'nav-智慧运维商城', label: '智慧运维商城' },
+      { key: 'seal-parent', label: '印章库管理', children: [
+        { key: 'seal-company', label: '项目公司印章' },
+      ]},
     ],
   },
 ]
@@ -484,7 +520,7 @@ function getMenuGroupDomain(key: string): string {
   for (const g of menuGroups) {
     for (const item of g.items) {
       if (item.key === key) return g.domain
-      if ((item as any).children?.some((c: any) => c.key === key)) return g.domain
+      if ((item as any).children?.some((c: any) => c.key === key || c.children?.some((d: any) => d.key === key))) return g.domain
     }
   }
   return ''
@@ -503,6 +539,7 @@ const activeMenuKey = computed(() => {
   if (page.value === 'fj-rectify-list') return 'fj-rectify-list'
   if (page.value === 'fj-review-list') return 'fj-review-list'
   if (page.value === 'fj-config') return 'fj-config'
+  if (['seal-company', 'seal-group-detail', 'seal-detail'].includes(page.value)) return 'seal-company'
   return ''
 })
 
@@ -522,7 +559,13 @@ const searchResults = computed(() => {
     for (const item of group.items) {
       if ((item as any).children) {
         for (const child of (item as any).children) {
-          if (child.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
+          if ((child as any).children) {
+            for (const grandchild of (child as any).children) {
+              if (grandchild.label.toLowerCase().includes(q) || child.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
+                results.push({ key: grandchild.key, label: grandchild.label, domain: `${group.domain} / ${item.label} / ${child.label}` })
+              }
+            }
+          } else if (child.label.toLowerCase().includes(q) || group.domain.toLowerCase().includes(q)) {
             results.push({ key: child.key, label: child.label, domain: group.domain })
           }
         }
@@ -549,12 +592,15 @@ function handleMenuClick({ key }: { key: string }) {
   else if (key === 'fj-rectify-list') openTab('fj-rectify-list', '整改单')
   else if (key === 'fj-review-list') openTab('fj-review-list', '整改复验')
   else if (key === 'fj-config') openTab('fj-config', '飞检配置')
+  else if (key === 'seal-company') openTab('seal-company', '项目公司印章')
   const domain = getMenuGroupDomain(key)
   const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-review-list', 'fj-config']
   const agentChildKeys = ['agent-todo', 'agent-settlement-list', 'agent-reconcile-summary', 'agent-reconcile-list']
+  const sealChildKeys = ['seal-company']
   const openKeys: string[] = domain ? [domain] : [...menuOpenKeys.value]
   if (fjChildKeys.includes(key) && !openKeys.includes('fj-parent')) openKeys.push('fj-parent')
   if (agentChildKeys.includes(key) && !openKeys.includes('agent-settlement')) openKeys.push('agent-settlement')
+  if (sealChildKeys.includes(key) && !openKeys.includes('seal-parent')) openKeys.push('seal-parent')
   if (openKeys.length) menuOpenKeys.value = openKeys
 }
 
@@ -565,8 +611,10 @@ watch(activeMenuKey, (menuKey) => {
   const keys: string[] = domain ? [domain] : [...menuOpenKeys.value]
   const fjChildKeys = ['fj-batch-list', 'fj-sheet-list', 'fj-rectify-list', 'fj-review-list', 'fj-config']
   const agentChildKeys = ['agent-todo', 'agent-settlement-list', 'agent-reconcile-summary', 'agent-reconcile-list']
+  const sealChildKeys = ['seal-company']
   if (fjChildKeys.includes(menuKey) && !keys.includes('fj-parent')) keys.push('fj-parent')
   if (agentChildKeys.includes(menuKey) && !keys.includes('agent-settlement')) keys.push('agent-settlement')
+  if (sealChildKeys.includes(menuKey) && !keys.includes('seal-parent')) keys.push('seal-parent')
   menuOpenKeys.value = keys
 })
 
@@ -595,6 +643,17 @@ const handleNavigate = (target: string, payload?: any) => {
   if (target === 'fj-batch-detail') {
     fjBatchDetailRow.value = payload?.row ?? null
     openTab('fj-batch-detail', `批次详情`)
+    return
+  }
+  if (target === 'seal-group-detail') {
+    sealGroupDetailRow.value = payload?.row ?? payload ?? null
+    openTab('seal-group-detail', '印章组详情')
+    return
+  }
+  if (target === 'seal-detail') {
+    sealDetailRow.value = payload?.row ?? payload ?? null
+    if (payload?.group) sealGroupDetailRow.value = payload.group
+    openTab('seal-detail', '单章详情')
     return
   }
   if (target === 'fj-sheet-list') { openTab('fj-sheet-list', '飞检单'); return }
