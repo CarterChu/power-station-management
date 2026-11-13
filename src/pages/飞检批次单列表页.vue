@@ -73,14 +73,13 @@
           <span class="fj-batch-no-link" @click="handleDetail(row)">{{ row.batchNo }}</span>
         </template>
 
-        <!-- 逾期天数 -->
-        <template #overdueDaysSlot="{ row }">
-          <template v-if="['draft', 'pendingGeneration', 'done', 'deleted'].includes(row.status) || calcOverdueDays(row.checkDate) <= 0">
+        <!-- 逾期数量：与批次详情基本信息保持相同统计口径 -->
+        <template #overdueCountSlot="{ row }">
+          <template v-if="['draft', 'done', 'deleted'].includes(row.status)">
             <span style="color:#bfbfbf">—</span>
           </template>
-          <template v-else>
-            <span style="color:#ff4d4f;font-weight:500">{{ calcOverdueDays(row.checkDate) }} 天</span>
-          </template>
+          <span v-else-if="getOverdueCount(row) > 0" style="color:#ff4d4f;font-weight:500">{{ getOverdueCount(row) }}</span>
+          <span v-else>0</span>
         </template>
 
         <!-- 行操作 -->
@@ -114,7 +113,7 @@
 import { ref, computed, watch } from 'vue'
 import { AnfeProTable } from '@anfe/vue-pro-components'
 import { message } from 'ant-design-vue'
-import { MOCK_FJ_BATCHES } from '../mock/fj-data'
+import { MOCK_FJ_BATCHES, MOCK_FJ_SHEETS } from '../mock/fj-data'
 
 const props = defineProps<{
   pendingNewBatch?: any
@@ -162,7 +161,7 @@ const columns: any[] = [
   { title: '电站数', dataIndex: 'stationCount', key: 'stationCount', width: 90 },
   { title: '通过比例', key: 'passRate', width: 130, component: 'custom', slotName: 'passRateSlot' },
   { title: '状态', key: 'status', width: 110, component: 'custom', slotName: 'statusSlot' },
-  { title: '逾期天数', key: 'overdueDays', width: 100, component: 'custom', slotName: 'overdueDaysSlot' },
+  { title: '逾期数量', key: 'overdueCount', width: 100, component: 'custom', slotName: 'overdueCountSlot' },
   { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 100 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'action', fixed: 'right' as const, width: 200, component: 'custom', slotName: 'actionSlot' },
@@ -211,9 +210,12 @@ const tableConfig = {
 }
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────
-function calcOverdueDays(checkDate: string): number {
-  const diff = Math.floor((Date.now() - new Date(checkDate).getTime()) / 86400000)
-  return diff
+function getOverdueCount(row: any): number {
+  if (['draft', 'pendingGeneration', 'done', 'deleted'].includes(row.status)) return 0
+  if (!row.checkDate) return 0
+  const overdueDays = Math.floor((Date.now() - new Date(row.checkDate).getTime()) / 86400000)
+  if (overdueDays <= 0) return 0
+  return MOCK_FJ_SHEETS.filter(sheet => sheet.batchId === row.id && sheet.checkStatus === 'pending').length
 }
 
 // ── 操作 ──────────────────────────────────────────────────────────────────

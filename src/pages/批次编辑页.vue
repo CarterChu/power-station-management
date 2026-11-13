@@ -86,14 +86,9 @@
             <a-button
               v-if="!formReadOnly"
               danger
-              :disabled="isEdit || stationList.length === 0"
+              :disabled="stationList.length === 0"
               @click="handleClearStations"
-            >
-              <a-tooltip v-if="isEdit" title="提交后不允许清空电站">
-                <span>清空电站</span>
-              </a-tooltip>
-              <span v-else>清空电站</span>
-            </a-button>
+            >清空电站</a-button>
           </a-space>
         </div>
 
@@ -284,7 +279,7 @@
         </div>
         <div class="submit-confirm-tip">
           <InfoCircleOutlined style="color:#fa8c16;margin-right:6px" />
-          提交后不允许清空电站，如需修改请联系管理员
+          提交后仍可由飞检管理员调整电站
         </div>
       </div>
     </a-modal>
