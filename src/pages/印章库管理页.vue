@@ -14,58 +14,172 @@
     <template v-else-if="view === 'group'">
       <PageHeader :title="currentGroup.name || '印章组详情'" @back="handleBack" />
       <div class="detail-scroll-body">
-      <a-card :bordered="false" class="card info-card"><template #title><div class="info-card-title">{{ currentGroup.name }}</div></template><div class="info-grid"><div class="info-item"><div class="info-label">组编号</div><div class="info-value copy-value"><span>{{ currentGroup.groupNo }}</span><a-tooltip title="复制组编号"><a-button type="text" size="small" aria-label="复制组编号" @click="copyGroupNo"><CopyOutlined /></a-button></a-tooltip></div></div><div class="info-item"><div class="info-label">印章库类型</div><div class="info-value">{{ title }}</div></div><div class="info-item"><div class="info-label">文件类型</div><div class="info-value">{{ currentGroup.fileType }}</div></div><div class="info-item"><div class="info-label">{{ subjectLabel }}</div><div class="info-value">{{ currentGroup.name }}</div></div><div class="info-item"><div class="info-label">统一社会信用代码</div><div class="info-value">{{ currentGroup.creditCode }}</div></div><div class="info-item"><div class="info-label">建组来源</div><div class="info-value"><a-tag :color="sourceColor[currentGroup.source]" style="margin:0">{{ currentGroup.source }}</a-tag></div></div><div class="info-item"><div class="info-label">更新时间</div><div class="info-value">{{ currentGroup.updatedAt }}</div></div></div></a-card>
-      <a-card class="card seal-tabs-card">
-        <a-tabs v-model:activeKey="groupContentTab">
-          <a-tab-pane key="seals" tab="本组单章">
-            <div class="seal-toolbar"><span class="subtle seal-summary">共 {{seals.length}} 枚：<span class="summary-item"><i class="status-dot enabled"></i>启用 {{enabledCount}} 枚</span><span class="summary-item"><i class="status-dot disabled"></i>已停用 {{seals.length-enabledCount}} 枚</span></span><a-button type="primary" @click="openSeal()"><PlusOutlined />新增单章</a-button></div>
-            <a-alert v-if="!enabledCount" type="warning" show-icon message="暂无可用单章，前台审核时将没有可选候选章" class="mb12" />
-            <div class="filters"><a-select v-model:value="sealQuery.type" allow-clear placeholder="印章类型" :options="typeOptions" /><a-select v-model:value="sealQuery.status" allow-clear placeholder="状态" :options="statusOptions"/><a-select v-model:value="sealQuery.source" allow-clear placeholder="数据来源" :options="sourceOptions"/><a-select v-model:value="sealQuery.codeState" allow-clear placeholder="印章编码" :options="codeStateOptions"/><a-input v-model:value="sealQuery.name" class="filter-span-4" allow-clear placeholder="请输入印章名称"/><a-button type="primary">查询</a-button><a-button @click="resetQuery">重置</a-button></div>
-            <a-table :columns="sealColumns" :data-source="filteredSeals" row-key="id" size="small" :scroll="{x:1550}" :row-class-name="(r:any)=>r.status==='已停用'?'disabled-row':''">
-              <template #bodyCell="{column,record}"><template v-if="column.key==='code'"><span v-if="record.code">{{record.code}}</span><a-tag v-else color="orange">编码为空</a-tag></template><template v-else-if="column.key==='status'"><a-badge :status="record.status==='启用'?'success':'default'" :text="record.status"/></template><template v-else-if="column.key==='source'"><a-tag :color="sourceColor[record.source]">{{record.source}}</a-tag></template><template v-else-if="column.key==='image'"><a-badge :count="record.standardCount>1?record.standardCount:0"><a-image wrapper-class-name="seal-thumb-frame" :width="58" :height="58" :src="sealStandardImage(record)" :fallback="sealImageUrl" :preview="{src:sealStandardImage(record)}" /></a-badge></template><template v-else-if="column.key==='action'"><a-button v-if="record.source!=='工商同步'" type="link" size="small" :danger="record.status==='启用'" @click="record.status==='启用'?openDisable(record):enableSeal(record)">{{record.status==='启用'?'停用':'启用'}}</a-button><a-button type="link" size="small" @click="enterSeal(record)">详情</a-button></template></template>
-            </a-table>
-          </a-tab-pane>
-          <a-tab-pane v-if="libraryType==='company'" key="legal" tab="法人章"><div class="seal-toolbar legal-toolbar"><span class="seal-summary">共 {{ legalFiles.length }} 张</span><a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="addLegalFile"><a-button type="primary"><PlusOutlined />新增法人章</a-button></a-upload></div><div v-if="legalFiles.length" class="legal-grid"><div v-for="file in legalFiles" :key="file.uid" class="legal-card"><a-image class="legal-image" :width="100" :height="100" :src="legalPreviewUrl(file)" :preview="{src:legalPreviewUrl(file)}"/><div class="legal-card-info"><b :title="file.name">{{ file.name }}</b><div><a-tag :color="sourceColor[file.source]">{{ file.source }}</a-tag></div><span>入库时间 {{ file.createdAt }}</span><a-popconfirm title="确认删除该法人章？" ok-text="删除" cancel-text="取消" @confirm="deleteLegalFile(file)"><a-button type="link" danger size="small">删除</a-button></a-popconfirm></div></div></div><a-empty v-else description="暂无法人章，请点击右上角新增法人章" /></a-tab-pane>
-        </a-tabs>
-      </a-card>
+        <div class="detail-columns">
+          <a-card class="card detail-info-card" title="基本信息" :bordered="false">
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">组编号</div>
+                <div class="info-value copy-value"><span>{{ currentGroup.groupNo }}</span><a-tooltip title="复制组编号"><a-button type="text" size="small" aria-label="复制组编号" @click="copyGroupNo"><CopyOutlined /></a-button></a-tooltip></div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">印章库类型</div>
+                <div class="info-value">{{ title }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">文件类型</div>
+                <div class="info-value">{{ currentGroup.fileType }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">{{ subjectLabel }}</div>
+                <div class="info-value">{{ currentGroup.name }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">统一社会信用代码</div>
+                <div class="info-value">{{ currentGroup.creditCode }}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">建组来源</div>
+                <div class="info-value"><a-tag :color="sourceColor[currentGroup.source]" style="margin:0">{{ currentGroup.source }}</a-tag></div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">更新时间</div>
+                <div class="info-value">{{ currentGroup.updatedAt }}</div>
+              </div>
+            </div>
+          </a-card>
+          <div class="detail-main">
+            <a-card class="card seal-tabs-card">
+              <a-tabs v-model:activeKey="groupContentTab">
+                <a-tab-pane key="seals" tab="本组单章">
+                  <div class="seal-toolbar"><span class="subtle seal-summary">共 {{seals.length}} 枚：<span class="summary-item"><i class="status-dot enabled"></i>启用 {{enabledCount}} 枚</span><span class="summary-item"><i class="status-dot disabled"></i>已停用 {{seals.length-enabledCount}} 枚</span></span><a-button type="primary" @click="openSeal()"><PlusOutlined />新增单章</a-button></div>
+                  <a-alert v-if="!enabledCount" type="warning" show-icon message="暂无可用单章，前台审核时将没有可选候选章" class="mb12" />
+                  <div class="filters"><a-select v-model:value="sealQuery.type" allow-clear placeholder="印章类型" :options="typeOptions" /><a-select v-model:value="sealQuery.status" allow-clear placeholder="状态" :options="statusOptions"/><a-select v-model:value="sealQuery.source" allow-clear placeholder="数据来源" :options="sourceOptions"/><a-select v-model:value="sealQuery.codeState" allow-clear placeholder="印章编码" :options="codeStateOptions"/><a-input v-model:value="sealQuery.name" class="filter-span-4" allow-clear placeholder="请输入印章名称"/><a-button type="primary">查询</a-button><a-button @click="resetQuery">重置</a-button></div>
+                  <a-table :columns="sealColumns" :data-source="filteredSeals" row-key="id" size="small" :scroll="{x:1550}" :row-class-name="(r:any)=>r.status==='已停用'?'disabled-row':''">
+                    <template #bodyCell="{column,record}"><template v-if="column.key==='code'"><span v-if="record.code">{{record.code}}</span><a-tag v-else color="orange">编码为空</a-tag></template><template v-else-if="column.key==='status'"><a-badge :status="record.status==='启用'?'success':'default'" :text="record.status"/></template><template v-else-if="column.key==='source'"><a-tag :color="sourceColor[record.source]">{{record.source}}</a-tag></template><template v-else-if="column.key==='image'"><a-badge :count="record.standardCount>1?record.standardCount:0"><a-image wrapper-class-name="seal-thumb-frame" :width="58" :height="58" :src="sealStandardImage(record)" :fallback="sealImageUrl" :preview="{src:sealStandardImage(record)}" /></a-badge></template><template v-else-if="column.key==='action'"><a-button v-if="record.source!=='工商同步'" type="link" size="small" :danger="record.status==='启用'" @click="record.status==='启用'?openDisable(record):enableSeal(record)">{{record.status==='启用'?'停用':'启用'}}</a-button><a-button type="link" size="small" @click="enterSeal(record)">详情</a-button></template></template>
+                  </a-table>
+                </a-tab-pane>
+                <a-tab-pane v-if="libraryType==='company'" key="legal" tab="法人章"><div class="seal-toolbar legal-toolbar"><span class="seal-summary">共 {{ legalFiles.length }} 张</span><a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="addLegalFile"><a-button type="primary"><PlusOutlined />新增法人章</a-button></a-upload></div><div v-if="legalFiles.length" class="legal-grid"><div v-for="file in legalFiles" :key="file.uid" class="legal-card"><a-image class="legal-image" :width="100" :height="100" :src="legalPreviewUrl(file)" :preview="{src:legalPreviewUrl(file)}"/><div class="legal-card-info"><b :title="file.name">{{ file.name }}</b><div><a-tag :color="sourceColor[file.source]">{{ file.source }}</a-tag></div><span>入库时间 {{ file.createdAt }}</span><a-popconfirm title="确认删除该法人章？" ok-text="删除" cancel-text="取消" @confirm="deleteLegalFile(file)"><a-button type="link" danger size="small">删除</a-button></a-popconfirm></div></div></div><a-empty v-else description="暂无法人章，请点击右上角新增法人章" /></a-tab-pane>
+              </a-tabs>
+            </a-card>
+          </div>
+        </div>
       </div>
     </template>
 
     <template v-else>
       <PageHeader :title="`${currentSeal.name || '未命名单章'}-${currentSeal.type || '未分类'}`" @back="handleBack"><template #meta><a-tag :color="currentSeal.status==='启用'?'green':'default'">{{currentSeal.status}}</a-tag><a-tag :color="sourceColor[currentSeal.source]" style="margin:0">{{currentSeal.source}}</a-tag></template><a-space><a-button v-if="currentSeal.source!=='工商同步'" :danger="currentSeal.status==='启用'" @click="currentSeal.status==='启用'?openDisable(currentSeal):enableSeal(currentSeal)">{{currentSeal.status==='启用'?'停用':'启用'}}</a-button><a-button type="primary" @click="openSeal(currentSeal)">编辑</a-button></a-space></PageHeader>
       <div class="detail-scroll-body">
-      <a-card class="card"><template #title><div class="card-section-title">{{ currentSeal.name || '未命名单章' }}-{{ currentSeal.type || '未分类' }}<a-tag :color="currentSeal.status==='启用'?'green':'default'">{{currentSeal.status}}</a-tag><a-tag :color="sourceColor[currentSeal.source]">{{currentSeal.source}}</a-tag></div></template><div class="info-grid"><div class="info-item"><div class="info-label">单章编号</div><div class="info-value copy-value">{{currentSeal.sealNo}}<a-button type="text" size="small" @click="copyText(currentSeal.sealNo,'单章编号')"><CopyOutlined /></a-button></div></div><div class="info-item"><div class="info-label">所属印章组</div><div class="info-value copy-value">{{currentGroup.groupNo}}<a-button type="text" size="small" @click="copyText(currentGroup.groupNo,'印章组编号')"><CopyOutlined /></a-button></div></div><div v-if="currentSeal.source==='工商同步'" class="info-item"><div class="info-label">外部来源 ID</div><div class="info-value">{{currentSeal.externalId}}</div></div><div class="info-item"><div class="info-label">印章类型</div><div class="info-value">{{currentSeal.type||'—'}}</div></div><div class="info-item"><div class="info-label">印章名称</div><div class="info-value">{{currentSeal.name||'—'}}</div></div><div class="info-item"><div class="info-label">印章编码</div><div class="info-value">{{currentSeal.code||'—'}}</div></div><div class="info-item"><div class="info-label">启用时间</div><div class="info-value">{{currentSeal.enabledAt||'—'}}</div></div><template v-if="currentSeal.status==='已停用'"><div class="info-item"><div class="info-label">停用时间</div><div class="info-value">{{currentSeal.disabledAt}}</div></div><div class="info-item"><div class="info-label">停用方式</div><div class="info-value">{{currentSeal.disabledBy}}</div></div><div class="info-item"><div class="info-label">停用原因</div><div class="info-value">{{currentSeal.disabledReason}}</div></div></template><div class="info-item"><div class="info-label">入库时间</div><div class="info-value">{{currentSeal.createdAt}}</div></div><div class="info-item"><div class="info-label">更新时间</div><div class="info-value">{{currentSeal.updatedAt}}</div></div><div class="info-item"><div class="info-label">操作人</div><div class="info-value">{{currentSeal.operator||'系统'}}</div></div><div class="info-item info-item--span4"><div class="info-label">备注</div><div class="info-value">{{currentSeal.remark||'—'}}</div></div></div></a-card>
-      <a-card class="card"><template #title>标准图和样本图 <span class="subtle">标准图用于前台比对，样本图用于历史追溯</span></template><template #extra><a-space v-if="currentSeal.source!=='工商同步'"><a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="file=>uploadLegend(file,'样本图')"><a-button>上传样本图</a-button></a-upload><a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="file=>uploadLegend(file,'标准图')"><a-button>上传标准图</a-button></a-upload></a-space></template><a-alert v-if="currentSeal.source==='工商同步'" type="info" show-icon message="章图以工商为准，不能上传、移除或转换" class="mb12"/>
-        <section v-for="role in ['标准图', '样本图']" :key="role" class="legend-section">
-          <div class="legend-section-head">
-            <h4>{{ role }} <span>{{ visibleLegends.filter(item => item.role === role).length }}</span></h4>
-            <a-checkbox v-if="role === '样本图' && currentSeal.source !== '工商同步'" v-model:checked="showRemoved">显示已移除</a-checkbox>
-          </div>
-          <div class="legend-grid">
-            <div v-for="item in visibleLegends.filter(item => item.role === role)" :key="item.id" class="legend" :class="{ removed: item.status === '已移除' }">
-              <a-image class="legend-img" :width="100" :height="100" :src="imagePreviewUrl(item)" :fallback="sealImageUrl" :preview="{ src: imagePreviewUrl(item) }" />
-              <div class="legend-info">
-                <b>{{ item.id }}</b>
-                <div>
-                  <a-tag :color="sourceColor[item.source]">{{ item.source }}</a-tag>
-                  <a-tag v-if="item.status === '已移除'">已移除</a-tag>
+        <div class="detail-columns">
+          <a-card class="card detail-info-card" title="基本信息">
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">单章编号</div>
+                <div class="info-value copy-value">{{currentSeal.sealNo}}<a-button type="text" size="small" @click="copyText(currentSeal.sealNo,'单章编号')"><CopyOutlined /></a-button></div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">所属印章组</div>
+                <div class="info-value copy-value">{{currentGroup.groupNo}}<a-button type="text" size="small" @click="copyText(currentGroup.groupNo,'印章组编号')"><CopyOutlined /></a-button></div>
+              </div>
+              <div v-if="currentSeal.source==='工商同步'" class="info-item">
+                <div class="info-label">外部来源 ID</div>
+                <div class="info-value">{{currentSeal.externalId}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">印章类型</div>
+                <div class="info-value">{{currentSeal.type||'—'}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">印章名称</div>
+                <div class="info-value">{{currentSeal.name||'—'}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">印章编码</div>
+                <div class="info-value">{{currentSeal.code||'—'}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">启用时间</div>
+                <div class="info-value">{{currentSeal.enabledAt||'—'}}</div>
+              </div>
+              <template v-if="currentSeal.status === '已停用'">
+                <div class="info-item">
+                  <div class="info-label">停用时间</div>
+                  <div class="info-value">{{currentSeal.disabledAt}}</div>
                 </div>
-                <span>入库时间 {{ item.createdAt }}</span>
-                <div v-if="item.source !== '工商同步' && item.status !== '已移除'" class="legend-actions">
-                  <template v-if="item.role === '样本图'">
-                    <a-button type="link" size="small" @click="item.role = '标准图'">设为标准图</a-button>
-                    <a-popconfirm title="确认移除该样本章？" ok-text="移除" cancel-text="取消" @confirm="removeSampleLegend(item)">
-                      <a-button type="link" size="small" danger>移除</a-button>
-                    </a-popconfirm>
-                  </template>
-                  <a-button v-else-if="standardCount > 1" type="link" size="small" @click="setLegendAsSample(item)">设为样本图</a-button>
+                <div class="info-item">
+                  <div class="info-label">停用方式</div>
+                  <div class="info-value">{{currentSeal.disabledBy}}</div>
                 </div>
+                <div class="info-item">
+                  <div class="info-label">停用原因</div>
+                  <div class="info-value">{{currentSeal.disabledReason}}</div>
+                </div>
+              </template>
+              <div class="info-item">
+                <div class="info-label">入库时间</div>
+                <div class="info-value">{{currentSeal.createdAt}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">更新时间</div>
+                <div class="info-value">{{currentSeal.updatedAt}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">操作人</div>
+                <div class="info-value">{{currentSeal.operator||'系统'}}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">备注</div>
+                <div class="info-value">{{currentSeal.remark||'—'}}</div>
               </div>
             </div>
+          </a-card>
+          <div class="detail-main">
+            <a-card class="card legend-card">
+              <template #title>
+                标准图和样本图 <span class="subtle">标准图用于前台比对，样本图用于历史追溯</span>
+              </template>
+              <template #extra>
+                <a-space v-if="currentSeal.source !== '工商同步'">
+                  <a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="file => uploadLegend(file, '样本图')">
+                    <a-button>上传样本图</a-button>
+                  </a-upload>
+                  <a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="file => uploadLegend(file, '标准图')">
+                    <a-button>上传标准图</a-button>
+                  </a-upload>
+                </a-space>
+              </template>
+              <a-alert v-if="currentSeal.source === '工商同步'" type="info" show-icon message="章图以工商为准，不能上传、移除或转换" class="mb12" />
+              <section v-for="role in ['标准图', '样本图']" :key="role" class="legend-section">
+                <div class="legend-section-head">
+                  <h4>{{ role }} <span>{{ visibleLegends.filter(item => item.role === role).length }}</span></h4>
+                  <a-checkbox v-if="role === '样本图' && currentSeal.source !== '工商同步'" v-model:checked="showRemoved">显示已移除</a-checkbox>
+                </div>
+                <div class="legend-grid">
+                  <div v-for="item in visibleLegends.filter(item => item.role === role)" :key="item.id" class="legend" :class="{ removed: item.status === '已移除' }">
+                    <a-image class="legend-img" :width="100" :height="100" :src="imagePreviewUrl(item)" :fallback="sealImageUrl" :preview="{ src: imagePreviewUrl(item) }" />
+                    <div class="legend-info">
+                      <b>{{ item.id }}</b>
+                      <div>
+                        <a-tag :color="sourceColor[item.source]">{{ item.source }}</a-tag>
+                        <a-tag v-if="item.status === '已移除'">已移除</a-tag>
+                      </div>
+                      <span>入库时间 {{ item.createdAt }}</span>
+                      <div v-if="item.source !== '工商同步' && item.status !== '已移除'" class="legend-actions">
+                        <template v-if="item.role === '样本图'">
+                          <a-button type="link" size="small" @click="item.role = '标准图'">设为标准图</a-button>
+                          <a-popconfirm title="确认移除该样本章？" ok-text="移除" cancel-text="取消" @confirm="removeSampleLegend(item)">
+                            <a-button type="link" size="small" danger>移除</a-button>
+                          </a-popconfirm>
+                        </template>
+                        <a-button v-else-if="standardCount > 1" type="link" size="small" @click="setLegendAsSample(item)">设为样本图</a-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </a-card>
+            <a-card class="card"><template #title><div class="card-section-title">变更日志</div></template><a-table :columns="logColumns" :data-source="logs" row-key="id" size="small" :pagination="false"/></a-card>
           </div>
-        </section>
-      </a-card>
-      <a-card class="card"><template #title><div class="card-section-title">变更日志</div></template><a-table :columns="logColumns" :data-source="logs" row-key="id" size="small" :pagination="false"/></a-card>
+        </div>
       </div>
     </template>
 
@@ -156,11 +270,10 @@ watch(currentGroup,(value)=>{if(!value?.id)return;const shared=runtimeAddedGroup
 </script>
 
 <style scoped>
-.page{min-height:100%;box-sizing:border-box;padding:16px;background:transparent}.page.is-detail{height:calc(100vh - 82px);padding:0;overflow-y:auto}.panel,.detail-head,.card{background:#fff}.panel{overflow:hidden;border-radius:4px}.page-title,.detail-head,.head-left,.filters{display:flex;align-items:center}.page-title,.detail-head{justify-content:space-between}.page-title{margin-bottom:18px}.page-title h2{font-size:18px;margin:0 0 5px}.page-title p{margin:0;color:#8c8c8c}.detail-head{position:sticky;top:0;z-index:3;gap:10px;padding:10px 16px;border-bottom:1px solid #f0f0f0}.head-left{gap:10px}.head-title{font-size:15px;font-weight:600;color:#262626}.detail-head .subtle:empty{display:none}.card{margin:0 16px 12px;border-radius:8px}.detail-head+.card{margin-top:14px}.card:last-of-type{margin-bottom:16px}.card :deep(.ant-card-head){min-height:auto;padding:16px 20px 0;border-bottom:0}.card :deep(.ant-card-head-title){padding:0}.card :deep(.ant-card-body){padding:16px 20px 18px}.card-section-title{font-size:16px;font-weight:600;color:#262626}.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 0}.info-label{padding-bottom:8px;font-size:14px;line-height:22px;color:rgba(0,0,0,.45);white-space:nowrap}.info-value{font-size:14px;color:#262626}.subtle{color:#8c8c8c;font-size:12px;font-weight:normal}.mb12{margin-bottom:12px}.ml6{margin-left:6px}.warn{color:#fa8c16}.pictures{display:flex;gap:12px}.stamp,.mini-stamp{border:1px solid #f0b4b8;background:#fffafa;color:#cf2530;cursor:pointer}.stamp{width:132px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-weight:600}.stamp small{margin-top:9px;font-size:10px;color:#999}.filters{gap:8px;flex-wrap:wrap;background:#fafafa;padding:12px;margin-bottom:12px}.filters .ant-select,.filters .ant-input{width:160px}.mini-stamp{width:58px;height:42px;border-radius:3px;font-size:11px}.disabled-row{color:#bfbfbf;background:#fafafa}.align-right{text-align:right}.legend-section{margin-top:18px}.legend-section h4 span{font-weight:normal;color:#8c8c8c}.legend-grid{display:grid;grid-template-columns:repeat(3,minmax(230px,1fr));gap:12px}.legend{display:flex;border:1px solid #e8e8e8;border-radius:4px;padding:10px;gap:12px}.legend.removed{opacity:.5}.legend-img{width:100px;height:92px;flex:none;font-size:11px;padding:7px}.legend-info{min-width:0;display:flex;flex-direction:column;gap:6px}.legend-info>b{font-size:12px;overflow:hidden;text-overflow:ellipsis}.legend-info>span{font-size:12px;color:#8c8c8c}.large-stamp{height:300px;border:1px solid #f0b4b8;background:#fffafa;color:#cf2530;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600}.large-stamp small{font-size:12px;letter-spacing:3px;margin-top:24px}@media(max-width:1200px){.legend-grid{grid-template-columns:repeat(2,1fr)}}
+.page{min-height:100%;box-sizing:border-box;padding:16px;background:transparent}.page.is-detail{height:calc(100vh - 82px);padding:0;overflow-y:auto}.panel,.detail-head,.card{background:#fff}.panel{overflow:hidden;border-radius:4px}.page-title,.detail-head,.head-left,.filters{display:flex;align-items:center}.page-title,.detail-head{justify-content:space-between}.page-title{margin-bottom:18px}.page-title h2{font-size:18px;margin:0 0 5px}.page-title p{margin:0;color:#8c8c8c}.detail-head{position:sticky;top:0;z-index:3;gap:10px;padding:10px 16px;border-bottom:1px solid #f0f0f0}.head-left{gap:10px}.head-title{font-size:15px;font-weight:600;color:#262626}.detail-head .subtle:empty{display:none}.card{margin:0 16px 12px;border-radius:8px}.detail-head+.card{margin-top:14px}.card:last-of-type{margin-bottom:16px}.card :deep(.ant-card-head){min-height:auto;padding:16px 20px 0;border-bottom:0}.card :deep(.ant-card-head-title){padding:0}.card :deep(.ant-card-body){padding:16px 20px 18px}.card-section-title{font-size:16px;font-weight:600;color:#262626}.info-label{padding-bottom:8px;font-size:14px;line-height:22px;color:rgba(0,0,0,.45);white-space:nowrap}.info-value{font-size:14px;color:#262626}.subtle{color:#8c8c8c;font-size:12px;font-weight:normal}.mb12{margin-bottom:12px}.ml6{margin-left:6px}.warn{color:#fa8c16}.pictures{display:flex;gap:12px}.stamp,.mini-stamp{border:1px solid #f0b4b8;background:#fffafa;color:#cf2530;cursor:pointer}.stamp{width:132px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-weight:600}.stamp small{margin-top:9px;font-size:10px;color:#999}.filters{gap:8px;flex-wrap:wrap;background:#fafafa;padding:12px;margin-bottom:12px}.filters .ant-select,.filters .ant-input{width:160px}.mini-stamp{width:58px;height:42px;border-radius:3px;font-size:11px}.disabled-row{color:#bfbfbf;background:#fafafa}.align-right{text-align:right}.legend-section{margin-top:18px}.legend-section h4 span{font-weight:normal;color:#8c8c8c}.legend{display:flex;border:1px solid #e8e8e8;border-radius:4px;padding:10px;gap:12px}.legend.removed{opacity:.5}.legend-img{width:100px;height:92px;flex:none;font-size:11px;padding:7px}.legend-info{min-width:0;display:flex;flex-direction:column;gap:6px}.legend-info>b{font-size:12px;overflow:hidden;text-overflow:ellipsis}.legend-info>span{font-size:12px;color:#8c8c8c}.large-stamp{height:300px;border:1px solid #f0b4b8;background:#fffafa;color:#cf2530;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:25px;font-weight:600}.large-stamp small{font-size:12px;letter-spacing:3px;margin-top:24px}
 .seal-summary,.summary-item{display:inline-flex;align-items:center}.seal-summary{font-size:14px;color:#595959}.summary-item{margin-left:8px}.summary-item+.summary-item{margin-left:16px}.status-dot{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%}.status-dot.enabled{background:#52c41a}.status-dot.disabled{background:#ff4d4f}.filters .filter-span-4{width:calc(16.6667% - 8px)}.seal-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.card :deep(.ant-card-head){padding:20px 20px 0}.card :deep(.ant-card-body){padding:20px}.info-card-title{font-size:18px;font-weight:600;color:#262626}.copy-value{display:flex;align-items:center;gap:4px}.copy-value :deep(.ant-btn){width:22px;height:22px;padding:0;color:#8c8c8c}.filters{padding:12px 0;background:transparent}.filters .ant-select,.filters .ant-input{width:calc(16.6667% - 8px)}.legal-delete-list{min-height:96px;padding:12px;border:1px solid #f0f0f0;border-radius:6px}.legal-delete-item{padding:8px 0}.legal-delete-item+.legal-delete-item{border-top:1px solid #f0f0f0}
+.card :deep(.ant-card-head){padding:20px 20px 0}.card :deep(.ant-card-body){padding:20px}.copy-value{display:flex;align-items:center;gap:4px}.copy-value :deep(.ant-btn){width:22px;height:22px;padding:0;color:#8c8c8c}.filters{padding:12px 0;background:transparent}.filters .ant-select,.filters .ant-input{width:calc(16.6667% - 8px)}.legal-delete-list{min-height:96px;padding:12px;border:1px solid #f0f0f0;border-radius:6px}.legal-delete-item{padding:8px 0}.legal-delete-item+.legal-delete-item{border-top:1px solid #f0f0f0}
 .modal-field-value{min-height:32px;line-height:32px;color:#262626}.modal-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}.modal-file-info{margin-bottom:20px}.legal-mode-radio{display:flex;align-items:center;gap:24px;margin-bottom:20px}.legal-mode-radio label{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:#262626}.legal-mode-radio input{width:16px;height:16px;margin:0;accent-color:#1677ff;cursor:pointer}.legal-upload-copy{width:100%;text-align:center}.legal-upload-copy p{margin-left:0;margin-right:0}.legal-upload-copy .ant-upload-text{margin-bottom:4px}.legal-upload-copy .ant-upload-hint{margin-bottom:0}.legal-file-list{display:flex;flex-direction:column;gap:8px}.legal-file-item{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 12px;border:1px solid #d9d9d9;border-radius:8px}.legal-file-item span{flex:1;font-size:14px;color:#262626}.legal-file-item :deep(.ant-btn){margin-left:auto}.seal-preview-item{display:flex;flex-direction:column;align-items:center;gap:8px}.seal-preview-item :deep(.ant-image){display:block}.seal-preview-item small{color:#595959}
-.info-item--span4{grid-column:span 4}
 .seal-tabs-card :deep(.seal-thumb-frame) {
   width: 58px;
   height: 58px;
@@ -180,10 +293,6 @@ watch(currentGroup,(value)=>{if(!value?.id)return;const shared=runtimeAddedGroup
 .seal-thumb :deep(img),.legal-image :deep(img),.legend-img :deep(img),.modal-seal-image :deep(img),.legal-file-item :deep(img){border-radius:8px}
 .duplicate-help{margin-top:6px;color:#ff4d4f;line-height:22px}.duplicate-help .view-existing-link{height:auto;padding:0 0 0 8px;line-height:22px}
 .seal-preview-item small{display:block;max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.card-section-title :deep(.ant-tag){margin:0}.card-section-title :deep(.ant-tag:first-of-type){margin-left:8px;margin-right:4px}
-.card-section-title{font-size:18px}
-.card-section-title{display:flex;align-items:center}
-.info-item--span4{grid-column:span 1}
 .legend-img{height:100px!important}.legend-info{display:block}.legend-info>b{display:inline-block;margin-right:8px;font-size:14px;line-height:24px;vertical-align:middle}.legend-info>b+div{display:inline-block;vertical-align:middle}.legend-info>span{display:block;margin-top:6px;font-size:14px}.legend-info>div:last-child{margin-top:8px}
 .legend-img{width:100px!important;height:100px!important}.legend-img :deep(img){width:100px!important;height:100px!important;object-fit:cover}
 .legend :deep(.ant-image){width:100px!important;height:100px!important;flex:0 0 100px}.legend :deep(.ant-image-img){width:100px!important;height:100px!important;object-fit:cover}
@@ -210,26 +319,86 @@ watch(currentGroup,(value)=>{if(!value?.id)return;const shared=runtimeAddedGroup
 :global(.ant-modal:has(input[placeholder="请输入印章编码"]) .ant-form>.ant-row>.ant-col){flex:0 0 calc(50% - 8px)!important;max-width:calc(50% - 8px)!important;padding-inline:0!important}
 :global(.ant-modal:has(input[placeholder="请输入印章编码"]) .ant-form .ant-select),:global(.ant-modal:has(input[placeholder="请输入印章编码"]) .ant-form .ant-picker){width:100%!important}
 :global(.ant-modal:has(input[placeholder="请输入印章编码"]) .ant-form>.ant-row>.ant-col>.ant-form-item),:global(.ant-modal:has(input[placeholder="请输入印章编码"]) .ant-form>.ant-row>.ant-col .ant-input){width:100%!important;box-sizing:border-box}
-.detail-head+.card .info-card-title,.detail-head+.card .card-section-title{font-size:0}.detail-head+.card .info-card-title::after,.detail-head+.card .card-section-title::after{content:'基本信息';font-size:16px;font-weight:600}.detail-head+.card .card-section-title :deep(.ant-tag){display:none}
 .detail-head :deep(.ant-tag){margin:0}.detail-head :deep(.ant-tag:first-of-type){margin-left:-2px}.detail-head :deep(.ant-tag+.ant-tag){margin-left:-6px}
 .align-right{text-align:left}
 .legend-actions{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;min-height:24px;text-align:left}
 .legend-actions :deep(.ant-btn){height:24px;padding:0;white-space:nowrap}
 .sync-hint{margin-top:4px;font-size:12px;line-height:20px;color:#8c8c8c}
 .legend-section-head{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:12px}.legend-section-head h4{margin:0}
-.card:has(.legend-section) :deep(.ant-card-body){padding-top:8px}
+.legend-card :deep(.ant-card-body){padding-top:8px}
+.legend-card :deep(.ant-card-head-wrapper) {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.legend-card :deep(.ant-card-head-title) {
+  overflow: visible;
+  white-space: normal;
+}
+.legend-card :deep(.ant-card-extra) {
+  padding: 0;
+}
 .legend{border-radius:8px}
 .page.is-detail{height:100%;min-height:0;padding:0;overflow:hidden;display:flex;flex-direction:column}
 .page.is-detail>.detail-head{position:relative;top:auto;flex:0 0 auto;z-index:3}
-.detail-scroll-body{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;padding-top:14px}
-.detail-scroll-body>.card:first-child .info-card-title,.detail-scroll-body>.card:first-child .card-section-title{font-size:0}
-.detail-scroll-body>.card:first-child .info-card-title::after,.detail-scroll-body>.card:first-child .card-section-title::after{content:'基本信息';font-size:16px;font-weight:600}
-.detail-scroll-body>.card:first-child .card-section-title :deep(.ant-tag){display:none}
+.detail-scroll-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  container: seal-detail / size;
+}
+.detail-columns {
+  --detail-padding-top: 14px;
+  --detail-padding-bottom: 16px;
+  display: grid;
+  grid-template-columns: clamp(240px, 28%, 300px) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: var(--detail-padding-top) 16px var(--detail-padding-bottom);
+}
+.detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.detail-main > .card:last-child { flex-grow: 1; }
+.detail-columns .card {
+  min-width: 0;
+  margin: 0;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.detail-info-card .info-label { padding-bottom: 4px; }
+.detail-info-card .info-value { overflow-wrap: anywhere; }
+.detail-info-card .copy-value :deep(.ant-btn) { flex-shrink: 0; }
+.legend-card,
+.seal-tabs-card { container: seal-gallery / inline-size; }
+.legend-grid,
+.legal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.legend-info>b { max-width: 100%; white-space: nowrap; }
+@container seal-gallery (max-width: 540px) {
+  .legend-grid, .legal-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@container seal-detail (width > 700px) {
+  .detail-info-card, .detail-main {
+    min-height: calc(100cqh - var(--detail-padding-top) - var(--detail-padding-bottom));
+  }
+}
+@container seal-detail (max-width: 700px) {
+  .detail-columns { grid-template-columns: minmax(0, 1fr); }
+}
 .seal-preview-item small{max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .seal-preview-item :deep(.ant-image),.seal-preview-item :deep(.ant-image-img){border-radius:8px}
 .seal-preview-item :deep(.ant-image){overflow:hidden}
 .legal-toolbar{margin-bottom:12px}
-.legal-grid{display:grid;grid-template-columns:repeat(3,minmax(230px,1fr));gap:12px}
 .legal-card{display:flex;gap:12px;padding:10px;border:1px solid #e8e8e8;border-radius:8px}
 .legal-card .legal-image,.legal-card .legal-image :deep(img),.legal-card :deep(.ant-image){width:100px!important;height:100px!important;flex:0 0 100px;object-fit:cover;border-radius:8px}
 .legal-card :deep(.ant-image){overflow:hidden}
@@ -237,7 +406,6 @@ watch(currentGroup,(value)=>{if(!value?.id)return;const shared=runtimeAddedGroup
 .legal-card-info>b{display:block;max-width:100%;overflow:hidden;font-size:14px;line-height:24px;text-overflow:ellipsis;white-space:nowrap}
 .legal-card-info>div{margin-top:2px}.legal-card-info>span{display:block;margin-top:6px;font-size:14px;color:#8c8c8c}
 .legal-card-info :deep(.ant-btn){height:auto;margin-top:8px;padding:0}
-@media(max-width:1200px){.legal-grid{grid-template-columns:repeat(2,1fr)}}
 :global(.group-create-form>.ant-form-item){width:100%!important}
 :global(.group-create-form .ant-select){width:100%!important}
 :global(.ant-modal:has(.group-create-form) .group-create-form>.ant-form-item){flex:0 0 100%!important;width:100%!important;max-width:100%!important}
