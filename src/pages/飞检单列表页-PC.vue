@@ -10,9 +10,6 @@
         :page-size="10"
         :table-props="{ scroll: { x: 2200 } }"
       >
-        <template #operationRight>
-          <a-button @click="handleExport">导出</a-button>
-        </template>
 
         <!-- 检查状态 -->
         <template #checkStatusSlot="{ row }">
@@ -185,9 +182,6 @@ function handleDetail(row: any) {
   detailVisible.value = true
 }
 
-function handleExport() {
-  message.info('导出功能接入后生效')
-}
 
 const MOCK_SHEETS = ref([
   { id: 'fj001', sheetNo: 'FJD-2026-001001', batchNo: 'FJB-20260901-001', stationNo: 'GFDZ-2025-001001', owner: '张建华', capacity: '15.4kWp', stationType: '户用', address: '浙江省杭州市余杭区未来科技城', firstAgent: '浙江大区代理商', agent: '杭州阳光新能源科技有限公司', engineer: '赵飞', rectifyEngineer: '吴杰', checkDate: '2026-09-10', crCount: 0, maCount: 1, miCount: 2, checkStatus: 'failed', rectifyStatus: 'passed' },

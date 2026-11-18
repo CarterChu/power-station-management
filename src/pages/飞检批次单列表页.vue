@@ -91,7 +91,6 @@
               type="link" size="small"
               @click="handleEdit(row)"
             >编辑</a-button>
-            <a-button v-if="row.status !== 'deleted'" type="link" size="small" @click="handleExportRow(row)">导出</a-button>
             <a-popconfirm
               v-if="row.status === 'draft'"
               title="确认删除该草稿？删除后不可恢复。"
@@ -164,7 +163,7 @@ const columns: any[] = [
   { title: '逾期数量', key: 'overdueCount', width: 100, component: 'custom', slotName: 'overdueCountSlot' },
   { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 100 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
-  { title: '操作', key: 'action', fixed: 'right' as const, width: 200, component: 'custom', slotName: 'actionSlot' },
+  { title: '操作', key: 'action', fixed: 'right' as const, width: 170, component: 'custom', slotName: 'actionSlot' },
 ]
 
 // ── 筛选项 ────────────────────────────────────────────────────────────────
@@ -245,9 +244,6 @@ function handleExport() {
   message.info('导出功能接入后生效')
 }
 
-function handleExportRow(_row: any) {
-  message.info('导出功能接入后生效')
-}
 
 function handleDelete(row: any) {
   const idx = MOCK_BATCHES.value.findIndex(b => b.id === row.id)
