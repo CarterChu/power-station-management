@@ -55,7 +55,30 @@
                   <a-alert v-if="!enabledCount" type="warning" show-icon message="暂无可用单章，前台审核时将没有可选候选章" class="mb12" />
                   <div class="filters"><a-select v-model:value="sealQuery.type" allow-clear placeholder="印章类型" :options="typeOptions" /><a-select v-model:value="sealQuery.status" allow-clear placeholder="状态" :options="statusOptions"/><a-select v-model:value="sealQuery.source" allow-clear placeholder="数据来源" :options="sourceOptions"/><a-select v-model:value="sealQuery.codeState" allow-clear placeholder="印章编码" :options="codeStateOptions"/><a-input v-model:value="sealQuery.name" class="filter-span-4" allow-clear placeholder="请输入印章名称"/><a-button type="primary">查询</a-button><a-button @click="resetQuery">重置</a-button></div>
                   <a-table :columns="sealColumns" :data-source="filteredSeals" row-key="id" size="small" :scroll="{x:1550}" :row-class-name="(r:any)=>r.status==='已停用'?'disabled-row':''">
-                    <template #bodyCell="{column,record}"><template v-if="column.key==='code'"><span v-if="record.code">{{record.code}}</span><a-tag v-else color="orange">编码为空</a-tag></template><template v-else-if="column.key==='status'"><a-badge :status="record.status==='启用'?'success':'default'" :text="record.status"/></template><template v-else-if="column.key==='source'"><a-tag :color="sourceColor[record.source]">{{record.source}}</a-tag></template><template v-else-if="column.key==='image'"><a-badge :count="record.standardCount>1?record.standardCount:0"><a-image wrapper-class-name="seal-thumb-frame" :width="58" :height="58" :src="sealStandardImage(record)" :fallback="sealImageUrl" :preview="{src:sealStandardImage(record)}" /></a-badge></template><template v-else-if="column.key==='action'"><a-button v-if="record.source!=='工商同步'" type="link" size="small" :danger="record.status==='启用'" @click="record.status==='启用'?openDisable(record):enableSeal(record)">{{record.status==='启用'?'停用':'启用'}}</a-button><a-button type="link" size="small" @click="enterSeal(record)">详情</a-button></template></template>
+                    <template #bodyCell="{column,record}">
+                      <template v-if="column.key==='code'"><span v-if="record.code">{{record.code}}</span><a-tag v-else color="orange">编码为空</a-tag></template>
+                      <template v-else-if="column.key==='status'"><a-badge :status="record.status==='启用'?'success':'default'" :text="record.status"/></template>
+                      <template v-else-if="column.key==='source'"><a-tag :color="sourceColor[record.source]">{{record.source}}</a-tag></template>
+                      <template v-else-if="column.key==='image'">
+                        <a-badge v-if="standardImagesBySeal[record.id]?.length" :count="standardImagesBySeal[record.id].length > 1 ? standardImagesBySeal[record.id].length : 0">
+                          <a-image-preview-group>
+                            <span v-for="(image, index) in standardImagesBySeal[record.id]" v-show="index === 0" :key="image.id">
+                              <a-image
+                                wrapper-class-name="seal-thumb-frame"
+                                :width="58"
+                                :height="58"
+                                :src="image.url"
+                                :alt="image.name || `标准图 ${index + 1}`"
+                                :fallback="sealImageUrl"
+                                loading="lazy"
+                              />
+                            </span>
+                          </a-image-preview-group>
+                        </a-badge>
+                        <span v-else>—</span>
+                      </template>
+                      <template v-else-if="column.key==='action'"><a-button v-if="record.source!=='工商同步'" type="link" size="small" :danger="record.status==='启用'" @click="record.status==='启用'?openDisable(record):enableSeal(record)">{{record.status==='启用'?'停用':'启用'}}</a-button><a-button type="link" size="small" @click="enterSeal(record)">详情</a-button></template>
+                    </template>
                   </a-table>
                 </a-tab-pane>
                 <a-tab-pane v-if="libraryType==='company'" key="legal" tab="法人章"><div class="seal-toolbar legal-toolbar"><span class="seal-summary">共 {{ legalFiles.length }} 张</span><a-upload accept="image/*" multiple :show-upload-list="false" :before-upload="addLegalFile"><a-button type="primary"><PlusOutlined />新增法人章</a-button></a-upload></div><div v-if="legalFiles.length" class="legal-grid"><div v-for="file in legalFiles" :key="file.uid" class="legal-card"><a-image class="legal-image" :width="100" :height="100" :src="legalPreviewUrl(file)" :preview="{src:legalPreviewUrl(file)}"/><div class="legal-card-info"><b :title="file.name">{{ file.name }}</b><div><a-tag :color="sourceColor[file.source]">{{ file.source }}</a-tag></div><span>入库时间 {{ file.createdAt }}</span><a-popconfirm title="确认删除该法人章？" ok-text="删除" cancel-text="取消" @confirm="deleteLegalFile(file)"><a-button type="link" danger size="small">删除</a-button></a-popconfirm></div></div></div><a-empty v-else description="暂无法人章，请点击右上角新增法人章" /></a-tab-pane>
@@ -166,9 +189,7 @@
                       <div v-if="item.source !== '工商同步' && item.status !== '已移除'" class="legend-actions">
                         <template v-if="item.role === '样本图'">
                           <a-button type="link" size="small" @click="item.role = '标准图'">设为标准图</a-button>
-                          <a-popconfirm title="确认移除该样本章？" ok-text="移除" cancel-text="取消" @confirm="removeSampleLegend(item)">
-                            <a-button type="link" size="small" danger>移除</a-button>
-                          </a-popconfirm>
+                          <a-button type="link" size="small" danger @click="openRemoveSample(item)">移除</a-button>
                         </template>
                         <a-button v-else-if="standardCount > 1" type="link" size="small" @click="setLegendAsSample(item)">设为样本图</a-button>
                       </div>
@@ -195,6 +216,14 @@
     </a-modal>
     <a-modal v-model:open="sealOpen" :title="sealForm.id?'编辑单章':'新增单章'" width="600px" @ok="saveSealFast"><a-alert v-if="sealForm.source==='工商同步'" type="info" show-icon message="状态、启用时间和停用时间以工商为准；修改印章类型、名称或编码后，对应字段不再随工商同步更新" class="mb12"/><a-form layout="vertical"><a-row :gutter="16"><a-col :span="12"><a-form-item label="所属印章组"><a-input :value="currentGroup.groupNo" disabled/></a-form-item></a-col><a-col :span="12"><a-form-item label="数据来源"><a-input :value="sealForm.id?sealForm.source:'人工新建'" disabled/></a-form-item></a-col></a-row><a-row :gutter="16"><a-col :span="8"><a-form-item label="印章类型" name="type"><a-select v-model:value="sealForm.type" :options="typeOptions"/><div v-if="sealForm.source==='工商同步'" class="sync-hint">修改后，此字段不再随工商同步更新</div></a-form-item></a-col><a-col :span="8"><a-form-item label="状态" name="status"><a-select v-model:value="sealForm.status" :options="statusOptions" :disabled="sealForm.source==='工商同步'"/><div v-if="sealForm.source==='工商同步'" class="sync-hint">以工商为准</div></a-form-item></a-col><a-col :span="8"><a-form-item label="启用时间" name="enabledAt" :validate-status="enabledAtError?'error':''" :help="enabledAtError"><a-date-picker v-model:value="sealForm.date" show-time style="width:100%" :disabled="sealForm.source==='工商同步'"/><div v-if="sealForm.source==='工商同步'" class="sync-hint">以工商为准</div></a-form-item></a-col></a-row><a-form-item label="印章名称" name="name"><a-input v-model:value="sealForm.name" @blur="checkSameName"/><div v-if="sameName" class="warn">本组已有同名启用单章（{{sameName}}），请确认是否为换章后的新章</div><div v-if="sealForm.source==='工商同步'" class="sync-hint">修改后，此字段不再随工商同步更新</div></a-form-item><a-form-item label="印章编码" name="code"><a-input v-model:value="sealForm.code" placeholder="请输入印章编码"/><div v-if="sealForm.source==='工商同步'" class="sync-hint">修改后，此字段不再随工商同步更新</div></a-form-item><a-form-item label="备注" name="remark"><a-textarea v-model:value="sealForm.remark" :rows="3" :maxlength="200" show-count/></a-form-item><a-form-item v-if="!sealForm.id" label="标准图" required :validate-status="imageError?'error':''" :help="imageError?'请至少上传 1 张标准图':''"><a-upload-dragger :before-upload="handleSealImageSelect" :show-upload-list="false" multiple accept="image/*"><div class="legal-upload-copy"><p class="ant-upload-text">点击或拖拽上传标准图</p><p class="ant-upload-hint">支持常见图片格式</p></div></a-upload-dragger><div v-if="sealForm.files?.length" class="fast-upload-list"><div v-for="file in sealForm.files" :key="file.uid" class="fast-upload-item"><img :src="file.url||sealImageUrl" alt=""/><span>{{file.name}}</span><a-button type="text" danger size="small" @click="removeSealImageUpload(file)"><DeleteOutlined /></a-button></div></div></a-form-item></a-form></a-modal>
     <a-modal v-model:open="disableOpen" title="停用单章" ok-text="确认停用" ok-type="danger" @ok="confirmDisable"><a-alert v-if="enabledCount<=1" type="warning" show-icon :message="`停用后，该${shortName}将没有可用单章`" class="mb12"/><a-form layout="vertical"><a-form-item label="停用时间" required :validate-status="disableDateError?'error':''" :help="disableDateError"><a-date-picker v-model:value="disableForm.date" show-time style="width:100%"/></a-form-item><a-form-item label="停用原因" required :validate-status="reasonError?'error':''" :help="reasonError?'请输入停用原因':''"><a-textarea v-model:value="disableForm.reason" :rows="3"/></a-form-item></a-form></a-modal>
+    <a-modal v-model:open="removeSampleOpen" title="移除样本图" width="600px" ok-text="确认移除" cancel-text="取消" :ok-button-props="{ danger: true }" @ok="confirmRemoveSample">
+      <a-alert class="mb12" type="info" show-icon message="移除后不再参与前台比对，历史判定仍可查看" />
+      <a-form :model="removeSampleForm" layout="vertical">
+        <a-form-item label="移除原因（选填）" name="reason">
+          <a-textarea v-model:value="removeSampleForm.reason" placeholder="请输入移除原因" :rows="4" :maxlength="200" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
     <a-modal v-model:open="legalPreview" title="法人章预览" :footer="null"><a-image class="modal-seal-image" :width="300" :src="sealImageUrl" :preview="{src:sealImageUrl}"/></a-modal><a-modal :open="!!preview" title="图例预览" width="580" :footer="null" @cancel="preview=null"><a-image class="modal-seal-image" :width="300" :src="preview?.url||sealImageUrl" :preview="{src:preview?.url||sealImageUrl}"/></a-modal>
   </div>
 </template>
@@ -217,9 +246,39 @@ const mockCompanyGroups=mockCompanyNames.map((name,index)=>({id:`g${index+4}`,gr
 const seed:Record<Library,any[]>={company:[{id:'g1',groupNo:'PCST202600018',name:'杭州正泰安能新能源开发有限公司',creditCode:'91330106MA2B0X8K6C',fileType:'并网合同',source:'工商同步自动建组',enabledCount:2,totalCount:3,legalCount:2,updatedAt:'2026-11-08 14:32'},{id:'g2',groupNo:'PCST202500326',name:'湖州安能光伏科技有限公司',creditCode:'91330502MA7E6F2Y8L',fileType:'并网合同',source:'历史初始化',enabledCount:1,totalCount:1,legalCount:1,updatedAt:'2026-11-06 09:18'},{id:'g3',groupNo:'PCST202600021',name:'嘉兴泰能绿色能源有限公司',creditCode:'91330402MA2JH8L91P',fileType:'并网合同',source:'人工新建',enabledCount:0,totalCount:1,legalCount:0,updatedAt:'2026-11-03 16:45'},...mockCompanyGroups],address:[],power:[]};const groups=ref<any[]>([]);watch(()=>[props.libraryType,props.initialView,props.initialGroup,props.initialSeal],()=>{groups.value=seed[props.libraryType].map(x=>({...x}));view.value=props.initialView;if(props.initialGroup)currentGroup.value=props.initialGroup;if(props.initialSeal)currentSeal.value=props.initialSeal},{immediate:true})
 const groupColumns:any[]=[{title:'组编号',dataIndex:'groupNo',key:'groupNo',width:165,fixed:'left'},{title:'文件类型',dataIndex:'fileType',key:'fileType',width:130},{title:subjectLabel.value,dataIndex:'name',key:'name',width:290,ellipsis:true},{title:'建组来源',key:'source',width:150,component:'custom',slotName:'sourceSlot'},{title:'单章数（启用/全部）',key:'count',width:180,component:'custom',slotName:'countSlot'},...(props.libraryType==='company'?[{title:'法人章数量',dataIndex:'legalCount',key:'legalCount',width:120,customRender:({text}:any)=>`${text} 张`}]:[]),{title:'更新时间',dataIndex:'updatedAt',key:'updatedAt',width:170},{title:'操作',key:'action',width:80,fixed:'right',component:'custom',slotName:'actionSlot'}];const groupFilters=[{label:'组编号',key:'groupNo',component:'input',span:4,placeholder:'请输入完整组编号'},{label:subjectLabel.value,key:'name',component:'input',span:4,placeholder:`请输入${subjectLabel.value}名称`},{label:'建组来源',key:'source',component:'select',span:4,options:['历史初始化','人工新建','工商同步自动建组'].map(v=>({label:v,value:v}))},...(props.libraryType==='company'?[{label:'法人章',key:'legal',component:'select',span:4,options:[{label:'有',value:'yes'},{label:'无',value:'no'}]}]:[]),{label:'启用单章',key:'enabledState',component:'select',span:4,placeholder:'请选择',options:[{label:'有启用单章',value:'enabled'},{label:'无启用单章',value:'empty'}]},{label:'更新时间',key:'range',component:'rangePicker',span:4}];const groupConfig=computed(()=>({rowKey:'id',searchOnLoad:true,request:async(p:any)=>{await new Promise(r=>setTimeout(r,80));let list=[...groups.value],f=p.params||{};if(f.groupNo)list=list.filter(i=>i.groupNo===f.groupNo);if(f.name)list=list.filter(i=>i.name.includes(f.name));if(f.source)list=list.filter(i=>i.source===f.source);if(f.legal==='yes')list=list.filter(i=>i.legalCount);if(f.legal==='no')list=list.filter(i=>!i.legalCount);if(f.enabledState==='enabled')list=list.filter(i=>i.enabledCount>0);if(f.enabledState==='empty')list=list.filter(i=>!i.enabledCount);const count=list.length;const pageIndex=p.pageIndex??1;const pageRows=p.pageRows??10;list=list.slice((pageIndex-1)*pageRows,pageIndex*pageRows);return{data:list,count}}}))
 const seals=ref<any[]>([{id:'s1',sealNo:'PCST202600018-001',externalId:'GS-330106-902381',type:'公章',name:'杭州正泰安能新能源开发有限公司',code:'3301060092381',status:'启用',source:'工商同步',enabledAt:'2026-09-18 10:00',standardCount:1,createdAt:'2026-09-18 10:02',updatedAt:'2026-11-08 14:32',operator:'系统',remark:'工商平台自动同步'},{id:'s2',sealNo:'PCST202600018-002',externalId:'GS-330106-902382',type:'合同专用章',name:'杭州正泰安能新能源开发有限公司合同专用章',code:'',status:'启用',source:'工商同步',enabledAt:'2026-09-18 10:00',standardCount:1,createdAt:'2026-09-18 10:02',updatedAt:'2026-11-08 14:32'},{id:'s3',sealNo:'PCST202600018-003',type:'公章',name:'杭州正泰新能源开发有限公司',code:'3301060041120',status:'已停用',source:'存量迁移',enabledAt:'2022-04-12 09:00',disabledAt:'2026-10-30 18:06',disabledBy:'存量切换',disabledReason:'工商新章上线，完成存量切换',standardCount:2,createdAt:'2026-09-01 08:00',updatedAt:'2026-10-30 18:06'}]);const enabledCount=computed(()=>seals.value.filter(i=>i.status==='启用').length),sealQuery=reactive<any>({type:undefined,name:'',status:undefined,source:undefined,codeState:undefined}),filteredSeals=computed(()=>seals.value.filter(i=>(!sealQuery.type||i.type===sealQuery.type)&&(!sealQuery.name||i.name.includes(sealQuery.name))&&(!sealQuery.status||i.status===sealQuery.status)&&(!sealQuery.source||i.source===sealQuery.source)&&(!sealQuery.codeState||(sealQuery.codeState==='empty'?!i.code:!!i.code))));function resetQuery(){Object.assign(sealQuery,{type:undefined,name:'',status:undefined,source:undefined,codeState:undefined})}
-const sealColumns=[{title:'单章编号',dataIndex:'sealNo',key:'sealNo',width:190,fixed:'left'},{title:'印章类型',dataIndex:'type',key:'type',width:110},{title:'印章名称',dataIndex:'name',key:'name',width:280,ellipsis:true},{title:'印章编码',dataIndex:'code',key:'code',width:155},{title:'状态',key:'status',width:90},{title:'启用时间',dataIndex:'enabledAt',key:'enabledAt',width:170},{title:'停用时间',dataIndex:'disabledAt',key:'disabledAt',width:170,customRender:({text}:any)=>text||'—'},{title:'数据来源',key:'source',width:110},{title:'标准图',key:'image',width:100},{title:'更新时间',dataIndex:'updatedAt',key:'updatedAt',width:170},{title:'操作',key:'action',width:160,fixed:'right'}],typeOptions=['公章','合同专用章','其他'].map(v=>({label:v,value:v})),statusOptions=['启用','已停用'].map(v=>({label:v,value:v})),sourceOptions=['工商同步','存量迁移','人工新建'].map(v=>({label:v,value:v})),codeStateOptions=[{label:'编码为空',value:'empty'},{label:'有编码',value:'filled'}]
+const sealColumns=[{title:'单章编号',dataIndex:'sealNo',key:'sealNo',width:190,fixed:'left'},{title:'印章类型',dataIndex:'type',key:'type',width:110},{title:'印章名称',dataIndex:'name',key:'name',width:280,ellipsis:true},{title:'印章编码',dataIndex:'code',key:'code',width:155},{title:'状态',key:'status',width:90},{title:'启用时间',dataIndex:'enabledAt',key:'enabledAt',width:170},{title:'停用时间',dataIndex:'disabledAt',key:'disabledAt',width:170,customRender:({text}:any)=>text||'—'},{title:'数据来源',key:'source',width:110},{title:'标准图',key:'image',width:100},{title:'更新时间',dataIndex:'updatedAt',key:'updatedAt',width:170},{title:'操作',key:'action',width:110,fixed:'right'}],typeOptions=['公章','合同专用章','其他'].map(v=>({label:v,value:v})),statusOptions=['启用','已停用'].map(v=>({label:v,value:v})),sourceOptions=['工商同步','存量迁移','人工新建'].map(v=>({label:v,value:v})),codeStateOptions=[{label:'编码为空',value:'empty'},{label:'有编码',value:'filled'}]
 const baseSealRecords=seals.value.map(item=>({...item}));function loadGroupSeals(group:any){if(!group?.id)return;if(!runtimeSealRecords[group.id])runtimeSealRecords[group.id]=group.id==='g1'?baseSealRecords.map(item=>({...item,groupId:group.id})):Array.from({length:Number(group.totalCount)||0},(_,index)=>({id:`${group.id}-s${index+1}`,groupId:group.id,sealNo:`${group.groupNo}-${String(index+1).padStart(3,'0')}`,type:index%2?'合同专用章':'公章',name:group.name,code:index%3?`33${String(Date.now()+index).slice(-11)}`:'',status:index<(Number(group.enabledCount)||0)?'启用':'已停用',source:group.source==='工商同步自动建组'?'工商同步':group.source,enabledAt:'2026-09-18 10:00',standardCount:index%2+1,createdAt:'2026-09-18 10:02',updatedAt:group.updatedAt,operator:'系统'}));seals.value=runtimeSealRecords[group.id]}function initLegalFiles(group:any){if(!group?.id)return;const defaultSource=group.source==='工商同步自动建组'?'工商同步':group.source||'存量迁移';if(!Array.isArray(group.legalFiles))group.legalFiles=Array.from({length:Number(group.legalCount)||0},(_,i)=>({uid:`${group.id}-legal-${i+1}`,name:`法人章${i+1}.png`,status:'done',source:defaultSource,createdAt:group.updatedAt||'—'}));group.legalFiles=group.legalFiles.map((file:any)=>({...file,source:file.source||defaultSource,createdAt:file.createdAt||group.updatedAt||'—'}));group.legalCount=group.legalFiles.length;group.legalFiles.forEach(restoreImageUrl)}watch(currentGroup,group=>{loadGroupSeals(group);initLegalFiles(group)},{immediate:true});
-function initLegends(r:any){if(!r?.id)return;if(!runtimeLegendRecords[r.id]){if(r.legendImages?.length)runtimeLegendRecords[r.id]=r.legendImages;else{const count=Math.max(1,Number(r?.standardCount)||1);runtimeLegendRecords[r.id]=[...Array.from({length:count},(_,i)=>({id:`LEG-${r.id}-STD-${String(i+1).padStart(3,'0')}`,role:'标准图',source:r.source==='工商同步'?'工商同步':'存量迁移',status:'有效',createdAt:'2026-09-18 10:02'})),{id:`LEG-${r.id}-SAMPLE-001`,role:'样本图',source:r.source==='工商同步'?'工商同步':'人工上传',status:'有效',createdAt:'2026-10-20 14:18'}]}}legends.value=runtimeLegendRecords[r.id];legends.value.forEach(restoreImageUrl);r.legendImages=legends.value}
+function getSealLegendImages(seal: any): any[] {
+  if (runtimeLegendRecords[seal.id]) return runtimeLegendRecords[seal.id]
+  if (seal.legendImages?.length) return seal.legendImages
+
+  const isSynced = seal.source === '工商同步'
+  const count = Math.max(1, Number(seal.standardCount) || 1)
+  return [
+    ...Array.from({ length: count }, (_, index) => ({
+      id: `LEG-${seal.id}-STD-${String(index + 1).padStart(3, '0')}`,
+      role: '标准图',
+      source: isSynced ? '工商同步' : '存量迁移',
+      status: '有效',
+      createdAt: '2026-09-18 10:02',
+    })),
+    {
+      id: `LEG-${seal.id}-SAMPLE-001`,
+      role: '样本图',
+      source: isSynced ? '工商同步' : '人工上传',
+      status: '有效',
+      createdAt: '2026-10-20 14:18',
+    },
+  ]
+}
+function initLegends(seal: any) {
+  if (!seal?.id) return
+  const images = getSealLegendImages(seal)
+  runtimeLegendRecords[seal.id] = images
+  legends.value = images
+  legends.value.forEach(restoreImageUrl)
+  seal.legendImages = legends.value
+}
 function initSealLogs(r:any){if(!r?.id)return;if(!runtimeLogRecords[r.id])runtimeLogRecords[r.id]=r.logs?.length?r.logs:[{id:`${r.id}-created`,time:r.createdAt||r.updatedAt||'—',operator:r.operator||'系统',field:'创建单章',before:'—',after:r.sealNo||r.name,source:r.source||'系统'}];logs.splice(0,logs.length,...runtimeLogRecords[r.id])}
 function enterGroup(r:any){emit('navigate','seal-group-detail',{row:r})}function enterSeal(r:any){emit('navigate','seal-detail',{row:r,group:currentGroup.value})}function handleBack(){emit('back')}async function copyText(value:string,label:string){if(!value)return;await navigator.clipboard.writeText(value);message.success(`${label}复制成功`)}async function copyGroupNo(){await copyText(currentGroup.value.groupNo,'组编号')}
 function removeLegalFile(file:any){legalDeleteUids.value.push(file.uid);groupForm.legalFiles=groupForm.legalFiles.filter((item:any)=>item.uid!==file.uid)}
@@ -247,7 +306,15 @@ const sealForm=reactive<any>({}),imageError=ref(false),sameName=ref(''),enabledA
 function saveSealFast(){if(sealForm.id)return saveSeal();imageError.value=!sealForm.files.length;if(imageError.value)return;const now=dayjs().format('YYYY-MM-DD HH:mm');const id=`s${Date.now()}`;const images=sealForm.files.map((file:any,index:number)=>{const raw=file?.originFileObj||file;let url=file.thumbUrl||file.url||sealImageUrl;try{if(!url||!String(url).startsWith('blob:'))url=URL.createObjectURL(raw)}catch{}return{id:`LEG-${id}-STD-${String(index+1).padStart(3,'0')}`,name:file.name||`标准图${index+1}`,url,role:'标准图',source:'人工上传',status:'有效',createdAt:now,blobKey:file.blobKey}});const enabledAt=sealForm.date?.format?.('YYYY-MM-DD HH:mm')||now;const {files,date,...formData}=sealForm;const row={...formData,id,groupId:currentGroup.value.id,sealNo:`${currentGroup.value.groupNo}-${String(seals.value.length+1).padStart(3,'0')}`,status:sealForm.status||'启用',source:'人工新建',enabledAt,standardCount:images.length,legendImages:images,createdAt:now,updatedAt:now,operator:'章志民'};runtimeLegendRecords[id]=images;runtimeLogRecords[id]=[{id:Date.now(),time:now,operator:'章志民',field:'新增单章',before:'—',after:row.sealNo,source:'人工新建'}];row.logs=runtimeLogRecords[id];seals.value.unshift(row);sealOpen.value=false;message.success('保存成功');persistSealRuntime()}
 const disableTarget=ref<any>(),disableForm=reactive<any>({date:null,reason:''}),disableDateError=ref(''),reasonError=ref(false);function openDisable(r:any){disableTarget.value=r;Object.assign(disableForm,{date:dayjs(),reason:''});disableDateError.value='';reasonError.value=false;disableOpen.value=true}function confirmDisable(){reasonError.value=!disableForm.reason.trim();disableDateError.value='';if(disableForm.date?.isAfter(dayjs()))disableDateError.value='停用时间不能晚于当前时间';else if(disableTarget.value?.enabledAt&&disableForm.date?.isBefore(dayjs(disableTarget.value.enabledAt)))disableDateError.value='停用时间不能早于启用时间';if(reasonError.value||disableDateError.value)return;const now=disableForm.date.format('YYYY-MM-DD HH:mm');Object.assign(disableTarget.value,{status:'已停用',disabledAt:now,disabledBy:'人工停用',disabledReason:disableForm.reason,updatedAt:dayjs().format('YYYY-MM-DD HH:mm'),operator:'章志民'});logs.unshift({id:Date.now(),time:dayjs().format('YYYY-MM-DD HH:mm'),operator:'章志民',field:'停用单章',before:'启用',after:'已停用',source:'人工操作'});disableOpen.value=false;message.success('单章已停用')}function enableSeal(r:any){Modal.confirm({title:'确认启用该单章？',content:'启用后将重新进入前台候选，上一段停用区间保留在变更日志中。',onOk:()=>{Object.assign(r,{status:'启用',disabledAt:'',disabledBy:'',disabledReason:''});message.success('单章已启用')}})}
 const sealImageUrl='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#f7f7f7"/><circle cx="160" cy="112" r="72" fill="none" stroke="#d4380d" stroke-width="7"/><text x="160" y="106" text-anchor="middle" font-size="25" font-family="sans-serif" font-weight="600" fill="#d4380d">项目公司</text><text x="160" y="138" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#d4380d">示例印章图</text></svg>');
-function sealStandardImage(record:any){const image=(runtimeLegendRecords[record?.id]||record?.legendImages||[]).find((item:any)=>item.role==='标准图'&&item.status!=='已移除');return imagePreviewUrl(image)}
+const standardImagesBySeal = computed(() => {
+  if (view.value !== 'group') return {}
+  return Object.fromEntries(filteredSeals.value.map(seal => [
+    seal.id,
+    getSealLegendImages(seal)
+      .filter(image => image.role === '标准图' && image.status !== '已移除')
+      .map(image => ({ id: image.id, name: image.name, url: imagePreviewUrl(image) })),
+  ]))
+})
 onMounted(()=>{const added=runtimeAddedGroups[props.libraryType];groups.value=[...added.filter((item:any,index:number)=>!groups.value.some(existing=>existing.id===item.id)&&added.findIndex(candidate=>candidate.id===item.id)===index),...groups.value];if(props.initialView==='seal'&&(!currentGroup.value?.id||!currentSeal.value?.id)){message.warning('该单章记录不存在或已失效');emit('back')}});watch(groups,value=>{const baseIds=new Set(seed[props.libraryType].map(item=>item.id));runtimeAddedGroups[props.libraryType]=value.filter((item:any)=>!baseIds.has(item.id)).map((item:any)=>({...item}))},{deep:true});
 const legends=ref<any[]>([]),visibleLegends=computed(()=>legends.value.filter(i=>showRemoved.value||i.status!=='已移除')),standardCount=computed(()=>legends.value.filter(i=>i.role==='标准图'&&i.status!=='已移除').length),stampText=computed(()=>currentSeal.value.name||'印章图例');watch(()=>props.initialSeal,(r)=>{if(r)initLegends(r)},{immediate:true});function fileToDataUrl(input:any){const file=input?.originFileObj||input;return new Promise<string>((resolve,reject)=>{if(input?.thumbUrl?.startsWith('data:'))return resolve(input.thumbUrl);if(input?.url?.startsWith('data:'))return resolve(input.url);const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file)})}function uploadLegend(file:any,role:string){const item={...createFastUploadItem(file,'legend'),id:`LEG-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,role,status:'有效'};legends.value.unshift(item);if(currentSeal.value?.id)runtimeLegendRecords[currentSeal.value.id]=legends.value;currentSeal.value.standardCount=legends.value.filter(i=>i.role==='标准图'&&i.status!=='已移除').length;message.success(`${file.name} 已上传为${role}`);deferImagePersistence(item,file);return Upload.LIST_IGNORE}
 
@@ -256,8 +323,37 @@ function setLegendAsSample(item: { role: string }) {
   message.success('标准图已转为样本图')
 }
 
-function removeSampleLegend(item: { status: string }) {
-  item.status = '已移除'
+const removeSampleOpen = ref(false)
+const removeSampleTarget = ref<{ id: string; sealId: string }>()
+const removeSampleForm = reactive({ reason: '' })
+function openRemoveSample(item: any) {
+  removeSampleTarget.value = { id: item.id, sealId: currentSeal.value.id }
+  removeSampleForm.reason = ''
+  removeSampleOpen.value = true
+}
+function confirmRemoveSample() {
+  const target = removeSampleTarget.value
+  const item = legends.value.find(image => image.id === target?.id)
+  if (!target || target.sealId !== currentSeal.value.id || !item || item.role !== '样本图' || item.status === '已移除' || item.source === '工商同步') {
+    removeSampleOpen.value = false
+    return
+  }
+  const now = dayjs().format('YYYY-MM-DD HH:mm')
+  const reason = removeSampleForm.reason.trim()
+  Object.assign(item, { status: '已移除', removalReason: reason, removedAt: now, removedBy: '章志民' })
+  Object.assign(currentSeal.value, { updatedAt: now, operator: '章志民' })
+  logs.unshift({
+    id: `remove-${item.id}-${Date.now()}`,
+    time: now,
+    operator: '章志民',
+    field: '移除样本图',
+    before: item.id,
+    after: reason ? `已移除（原因：${reason}）` : '已移除',
+    source: '人工操作',
+  })
+  removeSampleOpen.value = false
+  removeSampleTarget.value = undefined
+  persistSealRuntime()
   message.success('样本图已移除')
 }
 const logColumns=[{title:'时间',dataIndex:'time'},{title:'操作人',dataIndex:'operator'},{title:'字段/操作',dataIndex:'field'},{title:'修改前',dataIndex:'before'},{title:'修改后',dataIndex:'after'},{title:'来源',dataIndex:'source'}],logs=reactive<any[]>([]),recordColumns=[{title:'工单编号',dataIndex:'orderNo'},{title:'审核节点',dataIndex:'node'},{title:'判定结果',dataIndex:'result'},{title:'判定时间',dataIndex:'time'}],records=[{id:1,orderNo:'GD202611080038',node:'并网商务审核',result:'真章',time:'2026-11-08 16:20'}]
